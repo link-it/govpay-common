@@ -1,2 +1,2 @@
-# govpay-commons
+# govpay-common
 Funzionalità comuni ai progetti GovPay
