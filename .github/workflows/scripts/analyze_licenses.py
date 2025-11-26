@@ -128,6 +128,14 @@ LICENSE_COMPATIBILITY = {
     'CC0-1.0': {'gplv3_compatible': True, 'enterprise_safe': True, 'category': 'CC0-1.0'},
     'Public Domain, per Creative Commons CC0': {'gplv3_compatible': True, 'enterprise_safe': True, 'category': 'CC0-1.0'},
     'CC0': {'gplv3_compatible': True, 'enterprise_safe': True, 'category': 'CC0-1.0'},
+
+    # Oracle Free Use Terms and Conditions (FUTC) - permissive license for Oracle JDBC drivers
+    'Oracle Free Use Terms and Conditions (FUTC)': {'gplv3_compatible': True, 'enterprise_safe': True, 'category': 'Oracle-FUTC'},
+    'Oracle FUTC': {'gplv3_compatible': True, 'enterprise_safe': True, 'category': 'Oracle-FUTC'},
+
+    # HSQLDB License - BSD-style open source license
+    'HSQLDB License, a BSD open source license': {'gplv3_compatible': True, 'enterprise_safe': True, 'category': 'HSQLDB-BSD'},
+    'HSQLDB License': {'gplv3_compatible': True, 'enterprise_safe': True, 'category': 'HSQLDB-BSD'},
 }
 
 def normalize_license_name(license_name):
