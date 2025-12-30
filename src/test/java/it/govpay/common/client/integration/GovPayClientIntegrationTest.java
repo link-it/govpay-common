@@ -56,10 +56,10 @@ class GovPayClientIntegrationTest {
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
 
-        // 4. Verifica che l'interceptor Basic Auth sia configurato
-        assertEquals(1, restTemplate.getInterceptors().size());
+        // 4. Verifica che l'interceptor Basic Auth sia configurato (+ GdeCapturingInterceptor)
+        assertEquals(2, restTemplate.getInterceptors().size());
 
-        // 5. Test interceptor con mock request
+        // 5. Test interceptor con mock request (first interceptor is BasicAuth, GdeCapturing is last)
         ClientHttpRequestInterceptor interceptor = restTemplate.getInterceptors().get(0);
         MockClientHttpRequest mockRequest = new MockClientHttpRequest(HttpMethod.GET, URI.create("http://test.com"));
 
@@ -84,9 +84,10 @@ class GovPayClientIntegrationTest {
 
         RestTemplate restTemplate = connettoreService.getRestTemplate("TEST_APIKEY");
         assertNotNull(restTemplate);
-        assertEquals(1, restTemplate.getInterceptors().size());
+        // 1 ApiKey + 1 GdeCapturing
+        assertEquals(2, restTemplate.getInterceptors().size());
 
-        // Test interceptor
+        // Test interceptor (first is ApiKey, GdeCapturing is last)
         ClientHttpRequestInterceptor interceptor = restTemplate.getInterceptors().get(0);
         MockClientHttpRequest mockRequest = new MockClientHttpRequest(HttpMethod.GET, URI.create("http://test.com"));
 
@@ -109,9 +110,10 @@ class GovPayClientIntegrationTest {
 
         RestTemplate restTemplate = connettoreService.getRestTemplate("TEST_CUSTOM_HEADERS");
         assertNotNull(restTemplate);
-        assertEquals(1, restTemplate.getInterceptors().size());
+        // 1 CustomHeaders + 1 GdeCapturing
+        assertEquals(2, restTemplate.getInterceptors().size());
 
-        // Test interceptor
+        // Test interceptor (first is CustomHeaders, GdeCapturing is last)
         ClientHttpRequestInterceptor interceptor = restTemplate.getInterceptors().get(0);
         MockClientHttpRequest mockRequest = new MockClientHttpRequest(HttpMethod.GET, URI.create("http://test.com"));
 
@@ -134,9 +136,10 @@ class GovPayClientIntegrationTest {
 
         RestTemplate restTemplate = connettoreService.getRestTemplate("TEST_AZURE");
         assertNotNull(restTemplate);
-        assertEquals(1, restTemplate.getInterceptors().size());
+        // 1 SubscriptionKey + 1 GdeCapturing
+        assertEquals(2, restTemplate.getInterceptors().size());
 
-        // Test interceptor
+        // Test interceptor (first is SubscriptionKey, GdeCapturing is last)
         ClientHttpRequestInterceptor interceptor = restTemplate.getInterceptors().get(0);
         MockClientHttpRequest mockRequest = new MockClientHttpRequest(HttpMethod.GET, URI.create("http://test.com"));
 
@@ -163,10 +166,10 @@ class GovPayClientIntegrationTest {
 
         RestTemplate restTemplate = connettoreService.getRestTemplate("TEST_COMBINED");
         assertNotNull(restTemplate);
-        // Should have 3 interceptors: API Key + Subscription Key + Custom Headers
-        assertEquals(3, restTemplate.getInterceptors().size());
+        // Should have 3 interceptors: API Key + Subscription Key + Custom Headers + GdeCapturing
+        assertEquals(4, restTemplate.getInterceptors().size());
 
-        // Test tutti gli interceptors
+        // Test tutti gli interceptors (GdeCapturing is last but does not add headers)
         MockClientHttpRequest mockRequest = new MockClientHttpRequest(HttpMethod.GET, URI.create("http://test.com"));
         for (ClientHttpRequestInterceptor interceptor : restTemplate.getInterceptors()) {
             try {
