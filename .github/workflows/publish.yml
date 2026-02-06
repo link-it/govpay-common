@@ -1,0 +1,147 @@
+name: Publish (snapshots on main, releases on tags)
+
+on:
+  push:
+    branches: ["master", "main"]
+    tags:
+      - "[0-9]*" # parte su tag che iniziano con un numero (poi validiamo X.Y.Z nel job)
+
+jobs:
+  dependency-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: OWASP Dependency Check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          OSS_INDEX_USER: ${{ vars.OSS_INDEX_USER }}
+          OSS_INDEX_PASSWORD: ${{ secrets.OSS_INDEX_PASSWORD }}
+        run: |
+          mvn -B dependency-check:check \
+            -Dowasp.failBuildOnCVSS=7 \
+            -DnvdApiKey=$NVD_API_KEY \
+            -DossindexAnalyzerUsername=$OSS_INDEX_USER \
+            -DossindexAnalyzerPassword=$OSS_INDEX_PASSWORD
+
+      - name: Upload Dependency Check Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.*
+          retention-days: 30
+
+  snapshot-on-main:
+    needs: dependency-check
+    if: startsWith(github.ref, 'refs/heads/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java + Maven settings + GPG
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          # Deve combaciare con <id> del distributionManagement snapshotRepository (es. central-snapshots)
+          server-id: central-snapshots
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_TOKEN
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+
+      - name: Read project version
+        id: version
+        run: |
+          VERSION="$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Project version: $VERSION"
+
+      - name: Deploy SNAPSHOT to Sonatype snapshots
+        if: endsWith(steps.version.outputs.version, '-SNAPSHOT')
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: mvn -B -DskipTests deploy -Prelease
+
+      - name: Skip (not a SNAPSHOT)
+        if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}
+        run: echo "Version is stable -> no publish on main."
+
+  release-on-tag:
+    needs: dependency-check
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate tag format (must be X.Y.Z)
+        run: |
+          TAG="${{ github.ref_name }}"
+          echo "Tag: $TAG"
+          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Not a release tag (expected X.Y.Z). Aborting."
+            exit 1
+          fi
+
+      - name: Set up Java + Maven settings + GPG
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          # Deve combaciare con publishingServerId del central-publishing-maven-plugin (es. central)
+          server-id: central
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_TOKEN
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+
+      - name: Read project version
+        id: version
+        run: |
+          VERSION="$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Project version: $VERSION"
+
+      - name: Fail if POM is SNAPSHOT on a tag
+        if: endsWith(steps.version.outputs.version, '-SNAPSHOT')
+        run: |
+          echo "Refusing to release a -SNAPSHOT version on tag."
+          exit 1
+
+      - name: Ensure tag matches POM version
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ "$TAG" != "$VERSION" ]]; then
+            echo "Tag ($TAG) does not match POM version ($VERSION). Aborting release."
+            exit 1
+          fi
+          echo "OK: tag matches POM version."
+
+      - name: Deploy RELEASE to Maven Central (Central Portal)
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: mvn -B -DskipTests deploy -Prelease
