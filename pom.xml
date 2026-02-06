@@ -242,6 +242,20 @@
                 </executions>
             </plugin>
 
+            <!-- Compiler con annotation processor Lombok -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
             <!-- Add generated sources -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>

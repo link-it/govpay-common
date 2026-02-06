@@ -1,4 +1,10 @@
-# GovPay Client Commons
+<p align="center">
+<img src="https://www.link.it/wp-content/uploads/2025/01/logo-govpay.svg" alt="GovPay Logo" width="200"/>
+</p>
+
+# GovPay Common
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://raw.githubusercontent.com/link-it/govpay-common/main/LICENSE)
 
 Libreria Spring Boot per la gestione dinamica di RestTemplate configurabili a partire dalla tabella `connettori` di GovPay.
 
