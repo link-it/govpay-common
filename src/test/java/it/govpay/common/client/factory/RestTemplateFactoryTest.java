@@ -10,11 +10,15 @@ import org.springframework.web.client.RestTemplate;
 import java.util.HashMap;
 import java.util.Map;
 
+import it.govpay.common.client.gde.GdeCapturingInterceptor;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RestTemplateFactoryTest {
 
     private RestTemplateFactory factory;
+
+    // GdeCapturingInterceptor is always added to all RestTemplates
+    private static final int GDE_INTERCEPTOR_COUNT = 1;
 
     @BeforeEach
     void setUp() {
@@ -38,7 +42,9 @@ class RestTemplateFactoryTest {
         assertNotNull(restTemplate);
         assertEquals("https://api.test.com/", restTemplate.getUriTemplateHandler().expand("/").toString());
         assertFalse(restTemplate.getInterceptors().isEmpty());
-        assertEquals(1, restTemplate.getInterceptors().size());
+        // 1 BasicAuth + 1 GdeCapturing
+        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        assertTrue(restTemplate.getInterceptors().stream().anyMatch(i -> i instanceof GdeCapturingInterceptor));
     }
 
     @Test
@@ -57,7 +63,8 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
-        assertEquals(1, restTemplate.getInterceptors().size());
+        // 1 ApiKey + 1 GdeCapturing
+        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -90,7 +97,8 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
-        assertEquals(1, restTemplate.getInterceptors().size());
+        // 1 HttpHeader + 1 GdeCapturing
+        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -109,7 +117,8 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
-        assertEquals(1, restTemplate.getInterceptors().size());
+        // 1 OAuth2 + 1 GdeCapturing
+        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -123,7 +132,9 @@ class RestTemplateFactoryTest {
         RestTemplate restTemplate = factory.createRestTemplate(connettore);
 
         assertNotNull(restTemplate);
-        assertTrue(restTemplate.getInterceptors().isEmpty());
+        // Only GdeCapturing interceptor
+        assertEquals(GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        assertTrue(restTemplate.getInterceptors().stream().anyMatch(i -> i instanceof GdeCapturingInterceptor));
     }
 
     @Test
@@ -139,7 +150,8 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
-        assertEquals(1, restTemplate.getInterceptors().size());
+        // 1 SubscriptionKey + 1 GdeCapturing
+        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -160,7 +172,8 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
-        assertEquals(1, restTemplate.getInterceptors().size());
+        // 1 CustomHeaders + 1 GdeCapturing
+        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -182,8 +195,8 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
-        // Should have 3 interceptors: API Key + Subscription Key + Custom Headers
-        assertEquals(3, restTemplate.getInterceptors().size());
+        // Should have 3 interceptors: API Key + Subscription Key + Custom Headers + GdeCapturing
+        assertEquals(3 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -203,7 +216,8 @@ class RestTemplateFactoryTest {
         RestTemplate restTemplate = factory.createRestTemplate(connettore);
 
         assertNotNull(restTemplate);
-        assertEquals(1, restTemplate.getInterceptors().size());
+        // 1 CustomHeaders + 1 GdeCapturing
+        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -252,8 +266,8 @@ class RestTemplateFactoryTest {
         RestTemplate restTemplate = factory.createRestTemplate(connettore);
 
         assertNotNull(restTemplate);
-        // Should have 2 interceptors: Basic Auth + Subscription Key
-        assertEquals(2, restTemplate.getInterceptors().size());
+        // Should have 2 interceptors: Basic Auth + Subscription Key + GdeCapturing
+        assertEquals(2 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -277,8 +291,8 @@ class RestTemplateFactoryTest {
         RestTemplate restTemplate = factory.createRestTemplate(connettore);
 
         assertNotNull(restTemplate);
-        // Should have 3 interceptors: Basic Auth + Subscription Key + Custom Headers
-        assertEquals(3, restTemplate.getInterceptors().size());
+        // Should have 3 interceptors: Basic Auth + Subscription Key + Custom Headers + GdeCapturing
+        assertEquals(3 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -311,8 +325,8 @@ class RestTemplateFactoryTest {
         RestTemplate restTemplate = factory.createRestTemplate(connettore);
 
         assertNotNull(restTemplate);
-        // Should not add interceptor for empty custom headers
-        assertTrue(restTemplate.getInterceptors().isEmpty());
+        // Should not add interceptor for empty custom headers, only GdeCapturing
+        assertEquals(GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -327,7 +341,8 @@ class RestTemplateFactoryTest {
         RestTemplate restTemplate = factory.createRestTemplate(connettore);
 
         assertNotNull(restTemplate);
-        assertTrue(restTemplate.getInterceptors().isEmpty());
+        // Only GdeCapturing
+        assertEquals(GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -342,8 +357,8 @@ class RestTemplateFactoryTest {
         RestTemplate restTemplate = factory.createRestTemplate(connettore);
 
         assertNotNull(restTemplate);
-        // Blank subscription key should not add interceptor
-        assertTrue(restTemplate.getInterceptors().isEmpty());
+        // Blank subscription key should not add interceptor, only GdeCapturing
+        assertEquals(GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -363,7 +378,8 @@ class RestTemplateFactoryTest {
         RestTemplate restTemplate = factory.createRestTemplate(connettore);
 
         assertNotNull(restTemplate);
-        assertEquals(1, restTemplate.getInterceptors().size());
+        // 1 OAuth2 + 1 GdeCapturing
+        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -380,6 +396,7 @@ class RestTemplateFactoryTest {
         RestTemplate restTemplate = factory.createRestTemplate(connettore);
 
         assertNotNull(restTemplate);
-        assertEquals(1, restTemplate.getInterceptors().size());
+        // 1 HttpHeader + 1 GdeCapturing
+        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 }

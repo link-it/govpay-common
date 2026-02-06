@@ -12,6 +12,41 @@
 
     <name>GovPay Common</name>
     <description>Libreria per la gestione delle funzionalita' comuni a tutti i moduli GovPay</description>
+    <url>https://github.com/link-it/govpay-common</url>
+
+    <licenses>
+        <license>
+            <name>GNU GENERAL PUBLIC LICENSE, Version 3</name>
+            <url>https://www.gnu.org/licenses/gpl-3.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Giuliano Pintori</name>
+            <email>giuliano.pintori@link.it</email>
+            <organization>Link.it s.r.l.</organization>
+            <organizationUrl>https://www.link.it</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/link-it/govpay-common.git</connection>
+        <developerConnection>scm:git:git@github.com:link-it/govpay-common.git</developerConnection>
+        <url>https://github.com/link-it/govpay-common</url>
+    </scm>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>central-snapshots</id>
+            <url>https://central.sonatype.com/repository/maven-snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>central</id>
+            <url>https://central.sonatype.com</url>
+        </repository>
+    </distributionManagement>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -29,8 +64,11 @@
         <!-- Override Tomcat version to fix CVE-2025-61795 -->
         <tomcat.version>10.1.48</tomcat.version>
 
-        <!-- Override Logback version to fix CVE-2025-11226 -->
-        <logback.version>1.5.19</logback.version>
+        <!-- Override Logback version to fix CVE-2025-11226, CVE-2026-1225 -->
+        <logback.version>1.5.25</logback.version>
+
+        <!-- Override Log4j version to fix CVE-2025-68161 -->
+        <log4j2.version>2.25.3</log4j2.version>
 
         <!-- Override mssql-jdbc version to fix CVE-2025-59250 -->
         <mssql-jdbc.version>12.8.2.jre11</mssql-jdbc.version>
@@ -38,6 +76,13 @@
         <!-- Jacoco -->
         <jacoco.version>0.8.13</jacoco.version>
         <sonar.coverage.jacoco.xmlReportPaths>${project.basedir}/target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+
+        <!-- OpenAPI Generator -->
+        <openapi.tool.codegen.version>7.8.0</openapi.tool.codegen.version>
+
+        <!-- Publishing -->
+        <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
+        <central-publishing-maven-plugin.version>0.7.0</central-publishing-maven-plugin.version>
 
         <!-- OWASP config -->
         <owasp>verify</owasp>
@@ -57,6 +102,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Spring Batch per funzionalita' batch comuni (opzionale) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-batch</artifactId>
+            <optional>true</optional>
         </dependency>
 
         <!-- Apache HttpClient per configurazioni avanzate -->
@@ -103,6 +155,27 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- OpenAPI Generator runtime dependencies -->
+        <dependency>
+            <groupId>org.openapitools</groupId>
+            <artifactId>jackson-databind-nullable</artifactId>
+            <version>0.2.6</version>
+        </dependency>
+
+        <!-- javax.annotation API per codice generato da OpenAPI Generator -->
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>1.3.2</version>
+        </dependency>
+
+        <!-- JSR-305 annotations per codice generato da OpenAPI Generator -->
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+
         <!-- Lombok per ridurre boilerplate -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -134,6 +207,75 @@
 
     <build>
         <plugins>
+            <!-- OpenAPI Generator Plugin -->
+            <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+                <version>${openapi.tool.codegen.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <id>generate-sources-client-gde</id>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/gde/openapi.yaml</inputSpec>
+                            <generatorName>java</generatorName>
+                            <configOptions>
+                                <booleanGetterPrefix>is</booleanGetterPrefix>
+                                <dateLibrary>java8</dateLibrary>
+                                <library>resttemplate</library>
+                                <serializationLibrary>jackson</serializationLibrary>
+                                <sourceFolder>generated-sources/java/</sourceFolder>
+                                <apiPackage>it.govpay.gde.client.api</apiPackage>
+                                <invokerPackage>it.govpay.gde.client.api.impl</invokerPackage>
+                                <modelPackage>it.govpay.gde.client.beans</modelPackage>
+                                <useAnnotatedBasePath>true</useAnnotatedBasePath>
+                                <useBeanValidation>false</useBeanValidation>
+                            </configOptions>
+                            <output>${project.basedir}/target</output>
+                            <generateApiTests>false</generateApiTests>
+                            <generateModelTests>false</generateModelTests>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Compiler con annotation processor Lombok -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+            <!-- Add generated sources -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.basedir}/target/generated-sources/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -193,4 +335,63 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Profile for releasing to Maven Central -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

@@ -2,6 +2,7 @@ package it.govpay.common.client.factory;
 
 import it.govpay.common.client.model.Connettore;
 import it.govpay.common.client.enums.TipoAutenticazione;
+import it.govpay.common.client.gde.GdeCapturingInterceptor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
@@ -75,7 +76,13 @@ public class RestTemplateFactory {
                 try {
                     HttpComponentsClientHttpRequestFactory factory = createSslRequestFactory(connettore);
                     RestTemplate restTemplate = builder.requestFactory(() -> factory).build();
-                    restTemplate.setInterceptors(interceptors);
+
+                    // Add GDE capturing interceptor for SSL connections too
+                    List<ClientHttpRequestInterceptor> sslInterceptors = new ArrayList<>(interceptors);
+                    sslInterceptors.add(new GdeCapturingInterceptor());
+                    restTemplate.setInterceptors(sslInterceptors);
+
+                    log.debug("Aggiunto GdeCapturingInterceptor per connettore SSL: {}", connettore.getIdConnettore());
                     return restTemplate;
                 } catch (Exception e) {
                     log.error("Errore durante la configurazione SSL per connettore: {}",
@@ -99,6 +106,10 @@ public class RestTemplateFactory {
                     connettore.getCustomHeaders().size(), connettore.getIdConnettore());
             interceptors.add(new GenericCustomHeadersInterceptor(connettore.getCustomHeaders()));
         }
+
+        // Add GDE capturing interceptor LAST so it captures all headers after other interceptors add them
+        interceptors.add(new GdeCapturingInterceptor());
+        log.debug("Aggiunto GdeCapturingInterceptor per connettore: {}", connettore.getIdConnettore());
 
         RestTemplate restTemplate = builder.build();
         restTemplate.setInterceptors(interceptors);

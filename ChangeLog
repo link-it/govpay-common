@@ -1,0 +1,102 @@
+2026-02-06  Giuliano Pintori <pintori@link.it>
+
+	* [Security]
+	Aggiornate dipendenze per risolvere vulnerabilita':
+	- log4j-api 2.24.3 -> 2.25.3 (CVE-2025-68161: TLS hostname verification mancante nel SocketAppender)
+	- logback-core 1.5.19 -> 1.5.25 (CVE-2026-1225: ACE tramite configurazione)
+
+2026-02-06  Giuliano Pintori <pintori@link.it>
+
+	* [Build]
+	Aggiunta configurazione per pubblicazione su Maven Central:
+	- Aggiunto profilo Maven 'release' con source JAR, javadoc JAR, firma GPG e central-publishing-maven-plugin
+	- Aggiunta sezione distributionManagement per Sonatype Central Portal
+	- Aggiunti metadati POM richiesti da Maven Central (url, licenses, developers, scm)
+	- Aggiunta pipeline GitHub Actions per pubblicazione automatica (publish.yml):
+	  snapshot su push a main, release su push tag X.Y.Z
+	- Aggiunta guida configurazione GPG (GPG-SETUP.md)
+
+2026-02-06  Giuliano Pintori <pintori@link.it>
+
+	* [Build]
+	Corretta pipeline di validazione (maven.yml):
+	- Aggiunti step di validazione per credenziali OSS Index (OSS_INDEX_USER, OSS_INDEX_PASSWORD)
+	- Aggiunte variabili d'ambiente mancanti nello step di build Maven
+
+2026-01-02  Giuliano Pintori <pintori@link.it>
+
+	* Rilascio versione 1.0.0
+
+2026-01-02  Giuliano Pintori <pintori@link.it>
+
+	* [GDE]
+	Aggiunta funzionalita' - Client GDE
+	Aggiunta generazione automatica del client GDE tramite OpenAPI Generator.
+	Implementate classi di supporto per l'invio di eventi al Giornale degli Eventi:
+	- AbstractGdeService: classe base per l'invio asincrono di eventi
+	- GdeEventInfo: DTO per le informazioni degli eventi
+	- GdeUtils: utility per serializzazione payload e gestione headers
+	- GdeCapturingInterceptor: interceptor per cattura automatica dati HTTP
+	- HttpDataHolder: ThreadLocal per cattura dati HTTP request/response
+
+2026-01-02  Giuliano Pintori <pintori@link.it>
+
+	* [Client]
+	Aggiunta funzionalita' - Gestione connettori API
+	Implementata gestione completa dei connettori API con supporto caching:
+	- ConnettoreService: servizio per la gestione dei connettori
+	- RestTemplateFactory: factory per la creazione di RestTemplate configurati
+	Supporto per diversi tipi di autenticazione:
+	- HTTP Basic
+	- API Key (header/query)
+	- OAuth2 Client Credentials
+	- Azure OAuth2
+	- HTTP Header personalizzato
+	Configurazione SSL/TLS con truststore e keystore.
+	Gestione proxy HTTP e headers personalizzati per connettore.
+
+2026-01-02  Giuliano Pintori <pintori@link.it>
+
+	* [Batch]
+	Aggiunta funzionalita' - Utilities batch comuni
+	Implementate utilities comuni per batch Spring:
+	- JobConcurrencyService: gestione concorrenza job batch tramite database
+	- JobExecutionHelper: helper per esecuzione e monitoraggio job
+	- Problem: DTO standard per errori REST (RFC 7807)
+
+2026-01-02  Giuliano Pintori <pintori@link.it>
+
+	* [Utils]
+	Aggiunta funzionalita' - Utilities comuni
+	Implementate utilities comuni per tutti i moduli GovPay:
+	- IuvUtils: utility per generazione e validazione IUV
+	- OffsetDateTimeSerializer/Deserializer: serializzazione JSON per OffsetDateTime
+	- LocalDateTimeSerializer: serializzazione JSON per LocalDateTime
+
+2026-01-02  Giuliano Pintori <pintori@link.it>
+
+	* [Configuration]
+	Aggiunta funzionalita' - Auto-configurazione Spring Boot
+	Implementata auto-configurazione per Spring Boot:
+	- GovPayClientAutoConfiguration: configurazione automatica dei componenti
+	- AsyncClientConfiguration: configurazione client asincroni
+	- GovPayClientProperties: proprieta' configurabili per i client
+	Supporto cache connettori abilitabile/disabilitabile.
+
+2026-01-02  Giuliano Pintori <pintori@link.it>
+
+	* [Database]
+	Aggiunta funzionalita' - Persistenza connettori
+	Implementata persistenza per la configurazione dei connettori:
+	- ConnettoreEntity: entity JPA per persistenza connettori
+	- ConnettoreRepository: repository Spring Data JPA
+	- ConnettoreConverter: converter entity/model
+
+2026-01-02  Giuliano Pintori <pintori@link.it>
+
+	* [ProjectSetup]
+	Aggiunta funzionalita' - Setup progetto iniziale
+	Creato progetto libreria comune per tutti i moduli GovPay.
+	Configurazione base Spring Boot 3.5.6 con Java 21.
+	Integrazione OpenAPI Generator per generazione automatica client REST.
+	Configurazione JaCoCo per code coverage e OWASP Dependency Check per security scanning.
