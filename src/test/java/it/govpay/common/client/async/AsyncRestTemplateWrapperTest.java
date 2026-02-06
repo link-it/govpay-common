@@ -208,4 +208,130 @@ class AsyncRestTemplateWrapperTest {
     void testGetExecutor() {
         assertNotNull(asyncWrapper.getExecutor());
     }
+
+    @Test
+    void testPatchForEntityAsync() throws ExecutionException, InterruptedException {
+        String requestBody = "{\"name\":\"patched\"}";
+
+        mockServer.expect(requestTo("/api/patch/1"))
+                .andExpect(method(HttpMethod.PATCH))
+                .andRespond(withSuccess("{\"status\":\"patched\"}", org.springframework.http.MediaType.APPLICATION_JSON));
+
+        CompletableFuture<ResponseEntity<String>> future =
+                asyncWrapper.patchForEntityAsync("/api/patch/1", requestBody, String.class);
+
+        ResponseEntity<String> response = future.get();
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().contains("patched"));
+
+        mockServer.verify();
+    }
+
+    @Test
+    void testExchangeAsync_GET() throws ExecutionException, InterruptedException {
+        mockServer.expect(requestTo("/api/exchange"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("Exchange Response", org.springframework.http.MediaType.TEXT_PLAIN));
+
+        org.springframework.http.HttpEntity<?> requestEntity = new org.springframework.http.HttpEntity<>(null);
+
+        CompletableFuture<ResponseEntity<String>> future =
+                asyncWrapper.exchangeAsync("/api/exchange", HttpMethod.GET, requestEntity, String.class);
+
+        ResponseEntity<String> response = future.get();
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Exchange Response", response.getBody());
+
+        mockServer.verify();
+    }
+
+    @Test
+    void testExchangeAsync_POST() throws ExecutionException, InterruptedException {
+        String requestBody = "{\"data\":\"test\"}";
+
+        mockServer.expect(requestTo("/api/exchange"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"result\":\"ok\"}", org.springframework.http.MediaType.APPLICATION_JSON));
+
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        org.springframework.http.HttpEntity<String> requestEntity = new org.springframework.http.HttpEntity<>(requestBody, headers);
+
+        CompletableFuture<ResponseEntity<String>> future =
+                asyncWrapper.exchangeAsync("/api/exchange", HttpMethod.POST, requestEntity, String.class);
+
+        ResponseEntity<String> response = future.get();
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().contains("ok"));
+
+        mockServer.verify();
+    }
+
+    @Test
+    void testGetForEntityAsync_WithUriVariables() throws ExecutionException, InterruptedException {
+        mockServer.expect(requestTo("/api/items/123"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"id\":123}", org.springframework.http.MediaType.APPLICATION_JSON));
+
+        CompletableFuture<ResponseEntity<String>> future =
+                asyncWrapper.getForEntityAsync("/api/items/{id}", String.class, "123");
+
+        ResponseEntity<String> response = future.get();
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().contains("123"));
+
+        mockServer.verify();
+    }
+
+    @Test
+    void testPostForEntityAsync_WithUriVariables() throws ExecutionException, InterruptedException {
+        String requestBody = "{\"name\":\"test\"}";
+
+        mockServer.expect(requestTo("/api/items/123/sub"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"created\":true}", org.springframework.http.MediaType.APPLICATION_JSON));
+
+        CompletableFuture<ResponseEntity<String>> future =
+                asyncWrapper.postForEntityAsync("/api/items/{id}/sub", requestBody, String.class, "123");
+
+        ResponseEntity<String> response = future.get();
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        mockServer.verify();
+    }
+
+    @Test
+    void testPutAsync_WithUriVariables() throws ExecutionException, InterruptedException {
+        String requestBody = "{\"name\":\"updated\"}";
+
+        mockServer.expect(requestTo("/api/items/456"))
+                .andExpect(method(HttpMethod.PUT))
+                .andRespond(withSuccess());
+
+        CompletableFuture<Void> future =
+                asyncWrapper.putAsync("/api/items/{id}", requestBody, "456");
+
+        future.get();
+
+        mockServer.verify();
+    }
+
+    @Test
+    void testDeleteAsync_WithUriVariables() throws ExecutionException, InterruptedException {
+        mockServer.expect(requestTo("/api/items/789"))
+                .andExpect(method(HttpMethod.DELETE))
+                .andRespond(withSuccess());
+
+        CompletableFuture<Void> future =
+                asyncWrapper.deleteAsync("/api/items/{id}", "789");
+
+        future.get();
+
+        mockServer.verify();
+    }
 }

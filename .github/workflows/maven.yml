@@ -43,7 +43,7 @@ jobs:
         if [ -z "$NVD_API_KEY" ]; then
           echo "NVD_API_KEY is NOT set!"
         else
-          echo "NVD_API_KEY is set. Length: ${#NVD_API_KEY}"
+          echo "NVD_API_KEY is set."
         fi
       env:
         NVD_API_KEY: ${{ secrets.NVD_API_KEY }}

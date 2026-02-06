@@ -235,6 +235,117 @@ class ConnettoreConverterTest {
         assertEquals("PARTNER_001", result.getCustomHeaders().get("X-Partner"));
     }
 
+    @Test
+    void testToModel_SslType() {
+        List<ConnettoreEntity> entities = new ArrayList<>();
+        entities.add(createEntity("TEST_SSLTYPE", "URL", "https://api.ssl.com"));
+        entities.add(createEntity("TEST_SSLTYPE", "TIPOAUTENTICAZIONE", "SSL"));
+        entities.add(createEntity("TEST_SSLTYPE", "SSLTYPE", "TLSv1.3"));
+
+        Connettore result = ConnettoreConverter.toModel(entities);
+
+        assertNotNull(result);
+        assertEquals("TLSv1.3", result.getSslType());
+    }
+
+    @Test
+    void testToModel_ServerSslType() {
+        List<ConnettoreEntity> entities = new ArrayList<>();
+        entities.add(createEntity("TEST_SERVER_SSL", "URL", "https://api.ssl.com"));
+        entities.add(createEntity("TEST_SERVER_SSL", "TIPOAUTENTICAZIONE", "SSL"));
+        entities.add(createEntity("TEST_SERVER_SSL", "TIPOSSL", "SERVER"));
+
+        Connettore result = ConnettoreConverter.toModel(entities);
+
+        assertNotNull(result);
+        assertEquals(Connettore.EnumSslType.SERVER, result.getTipoSsl());
+    }
+
+    @Test
+    void testToModel_NullSslType() {
+        List<ConnettoreEntity> entities = new ArrayList<>();
+        entities.add(createEntity("TEST_NULL_SSL", "URL", "https://api.ssl.com"));
+        entities.add(createEntity("TEST_NULL_SSL", "TIPOAUTENTICAZIONE", "SSL"));
+        // TIPOSSL is not set - should remain null
+
+        Connettore result = ConnettoreConverter.toModel(entities);
+
+        assertNotNull(result);
+        assertNull(result.getTipoSsl());
+    }
+
+    @Test
+    void testToModel_AbilitatoFalse() {
+        List<ConnettoreEntity> entities = new ArrayList<>();
+        entities.add(createEntity("TEST_DISABLED", "URL", "https://api.disabled.com"));
+        entities.add(createEntity("TEST_DISABLED", "ABILITATO", "false"));
+
+        Connettore result = ConnettoreConverter.toModel(entities);
+
+        assertNotNull(result);
+        assertFalse(result.isAbilitato());
+    }
+
+    @Test
+    void testToModel_UnknownProperty() {
+        List<ConnettoreEntity> entities = new ArrayList<>();
+        entities.add(createEntity("TEST_UNKNOWN", "URL", "https://api.test.com"));
+        entities.add(createEntity("TEST_UNKNOWN", "UNKNOWN_PROPERTY", "some_value"));
+        entities.add(createEntity("TEST_UNKNOWN", "ANOTHER_UNKNOWN", "another_value"));
+
+        Connettore result = ConnettoreConverter.toModel(entities);
+
+        assertNotNull(result);
+        assertEquals("https://api.test.com", result.getUrl());
+        // Unknown properties should be ignored without exception
+    }
+
+    @Test
+    void testToModel_CustomHeadersWithMissingValuesOnly() {
+        List<ConnettoreEntity> entities = new ArrayList<>();
+        entities.add(createEntity("TEST_ORPHAN_VALUES", "URL", "https://api.test.com"));
+        entities.add(createEntity("TEST_ORPHAN_VALUES", "TIPOAUTENTICAZIONE", "NONE"));
+        // Only values without names
+        entities.add(createEntity("TEST_ORPHAN_VALUES", "X-CUSTOM-HEADER-VALUE-1", "orphan-value-1"));
+        entities.add(createEntity("TEST_ORPHAN_VALUES", "X-CUSTOM-HEADER-VALUE-2", "orphan-value-2"));
+
+        Connettore result = ConnettoreConverter.toModel(entities);
+
+        assertNotNull(result);
+        // No custom headers should be added since names are missing
+        assertNull(result.getCustomHeaders());
+    }
+
+    @Test
+    void testToModel_CustomHeadersEmptyAfterFiltering() {
+        List<ConnettoreEntity> entities = new ArrayList<>();
+        entities.add(createEntity("TEST_EMPTY_HEADERS", "URL", "https://api.test.com"));
+        entities.add(createEntity("TEST_EMPTY_HEADERS", "TIPOAUTENTICAZIONE", "NONE"));
+        // Name without matching value
+        entities.add(createEntity("TEST_EMPTY_HEADERS", "X-CUSTOM-HEADER-NAME-1", "X-Orphan-Name"));
+
+        Connettore result = ConnettoreConverter.toModel(entities);
+
+        assertNotNull(result);
+        // No custom headers should be set since none are complete
+        assertNull(result.getCustomHeaders());
+    }
+
+    @Test
+    void testToModel_AllAuthenticationTypes() {
+        // Test all authentication types
+        for (TipoAutenticazione tipo : TipoAutenticazione.values()) {
+            List<ConnettoreEntity> entities = new ArrayList<>();
+            entities.add(createEntity("TEST_" + tipo.name(), "URL", "https://api.test.com"));
+            entities.add(createEntity("TEST_" + tipo.name(), "TIPOAUTENTICAZIONE", tipo.name()));
+
+            Connettore result = ConnettoreConverter.toModel(entities);
+
+            assertNotNull(result);
+            assertEquals(tipo, result.getTipoAutenticazione());
+        }
+    }
+
     private ConnettoreEntity createEntity(String codConnettore, String codProprieta, String valore) {
         ConnettoreEntity entity = new ConnettoreEntity();
         entity.setCodConnettore(codConnettore);

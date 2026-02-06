@@ -399,4 +399,106 @@ class RestTemplateFactoryTest {
         // 1 HttpHeader + 1 GdeCapturing
         assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
+
+    @Test
+    void testCreateRestTemplate_NullTimeouts() {
+        Connettore connettore = Connettore.builder()
+                .idConnettore("TEST_NULL_TIMEOUTS")
+                .url("https://api.test.com")
+                .tipoAutenticazione(TipoAutenticazione.NONE)
+                .connectionTimeout(null)
+                .readTimeout(null)
+                .build();
+
+        RestTemplate restTemplate = factory.createRestTemplate(connettore);
+
+        assertNotNull(restTemplate);
+        // Should create RestTemplate without exception when timeouts are null
+    }
+
+    @Test
+    void testCreateRestTemplate_EmptyCustomHeaders() {
+        Map<String, String> emptyHeaders = new HashMap<>();
+
+        Connettore connettore = Connettore.builder()
+                .idConnettore("TEST_EMPTY_HEADERS")
+                .url("https://api.test.com")
+                .tipoAutenticazione(TipoAutenticazione.NONE)
+                .customHeaders(emptyHeaders)
+                .build();
+
+        RestTemplate restTemplate = factory.createRestTemplate(connettore);
+
+        assertNotNull(restTemplate);
+        // Should not add interceptor for empty custom headers
+        assertTrue(restTemplate.getInterceptors().isEmpty());
+    }
+
+    @Test
+    void testCreateRestTemplate_NullSubscriptionKey() {
+        Connettore connettore = Connettore.builder()
+                .idConnettore("TEST_NULL_SUBSCRIPTION")
+                .url("https://api.test.com")
+                .tipoAutenticazione(TipoAutenticazione.NONE)
+                .subscriptionKeyValue(null)
+                .build();
+
+        RestTemplate restTemplate = factory.createRestTemplate(connettore);
+
+        assertNotNull(restTemplate);
+        assertTrue(restTemplate.getInterceptors().isEmpty());
+    }
+
+    @Test
+    void testCreateRestTemplate_BlankSubscriptionKey() {
+        Connettore connettore = Connettore.builder()
+                .idConnettore("TEST_BLANK_SUBSCRIPTION")
+                .url("https://api.test.com")
+                .tipoAutenticazione(TipoAutenticazione.NONE)
+                .subscriptionKeyValue("   ")
+                .build();
+
+        RestTemplate restTemplate = factory.createRestTemplate(connettore);
+
+        assertNotNull(restTemplate);
+        // Blank subscription key should not add interceptor
+        assertTrue(restTemplate.getInterceptors().isEmpty());
+    }
+
+    @Test
+    void testCreateRestTemplate_OAuth2WithAllFields() {
+        Connettore connettore = Connettore.builder()
+                .idConnettore("TEST_OAUTH2_FULL")
+                .url("https://api.oauth.com")
+                .tipoAutenticazione(TipoAutenticazione.OAUTH2_CLIENT_CREDENTIALS)
+                .oauth2ClientCredentialsClientId("client-id-123")
+                .oauth2ClientCredentialsClientSecret("client-secret-456")
+                .oauth2ClientCredentialsUrlTokenEndpoint("https://auth.example.com/oauth2/token")
+                .oauth2ClientCredentialsScope("read write admin")
+                .connectionTimeout(10000)
+                .readTimeout(30000)
+                .build();
+
+        RestTemplate restTemplate = factory.createRestTemplate(connettore);
+
+        assertNotNull(restTemplate);
+        assertEquals(1, restTemplate.getInterceptors().size());
+    }
+
+    @Test
+    void testCreateRestTemplate_HttpHeaderWithSemicolonSeparator() {
+        // Test HTTP_HEADER auth with header value containing special characters
+        Connettore connettore = Connettore.builder()
+                .idConnettore("TEST_HEADER_SPECIAL")
+                .url("https://api.test.com")
+                .tipoAutenticazione(TipoAutenticazione.HTTP_HEADER)
+                .httpHeaderName("Authorization")
+                .httpHeaderValue("Bearer token-with-special-chars:123")
+                .build();
+
+        RestTemplate restTemplate = factory.createRestTemplate(connettore);
+
+        assertNotNull(restTemplate);
+        assertEquals(1, restTemplate.getInterceptors().size());
+    }
 }
