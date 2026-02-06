@@ -108,6 +108,7 @@ LICENSE_COMPATIBILITY = {
     # CDDL with GPL dual licenses (can choose either license, so enterprise safe)
     'CDDL+GPL License': {'gplv3_compatible': True, 'enterprise_safe': True, 'category': 'CDDL+GPL'},
     'CDDL/GPLv2+CE': {'gplv3_compatible': True, 'enterprise_safe': True, 'category': 'CDDL/GPL-2.0-with-CE'},
+    'CDDL + GPLv2 with classpath exception': {'gplv3_compatible': True, 'enterprise_safe': True, 'category': 'CDDL/GPL-2.0-with-CE'},
 
     # Multi-license (Apache + CDDL + EPL) - used by Tomcat Servlet API
     'Apache License, Version 2.0 and Common Development And Distribution License (CDDL) Version 1.0 and Eclipse Public License - v 2.0': {'gplv3_compatible': True, 'enterprise_safe': True, 'category': 'Apache-2.0+CDDL+EPL-2.0'},
