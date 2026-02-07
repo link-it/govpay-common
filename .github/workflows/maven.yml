@@ -170,7 +170,7 @@ jobs:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: mvn -B -DskipTests deploy -Prelease
+        run: mvn -B -DskipTests deploy -Prelease -Dowasp=none
 
       - name: Skip (not a SNAPSHOT)
         if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}
@@ -288,4 +288,4 @@ jobs:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: mvn -B -DskipTests deploy -Prelease
+        run: mvn -B -DskipTests deploy -Prelease -Dowasp=none
