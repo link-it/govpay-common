@@ -1,3 +1,18 @@
+2026-02-07  Giuliano Pintori <pintori@link.it>
+
+	* [Build]
+	Unificata pipeline CI/CD in un singolo workflow (maven.yml):
+	- Rimosso publish.yml duplicato che causava doppia esecuzione su merge a main
+	- Integrati job di pubblicazione Maven Central nel workflow principale:
+	  build -> snapshot-on-main (push main), github-release + release-on-tag (tag)
+
+2026-02-07  Giuliano Pintori <pintori@link.it>
+
+	* [Build]
+	Corretta generazione Javadoc nel profilo release:
+	- Corretto tag <Void> nei commenti Javadoc di AsyncRestTemplateWrapper (interpretato come HTML)
+	- Configurato doclint per ignorare commenti mancanti dal codice generato OpenAPI
+
 2026-02-06  Giuliano Pintori <pintori@link.it>
 
 	* [Security]
@@ -12,8 +27,6 @@
 	- Aggiunto profilo Maven 'release' con source JAR, javadoc JAR, firma GPG e central-publishing-maven-plugin
 	- Aggiunta sezione distributionManagement per Sonatype Central Portal
 	- Aggiunti metadati POM richiesti da Maven Central (url, licenses, developers, scm)
-	- Aggiunta pipeline GitHub Actions per pubblicazione automatica (publish.yml):
-	  snapshot su push a main, release su push tag X.Y.Z
 	- Aggiunta guida configurazione GPG (GPG-SETUP.md)
 
 2026-02-06  Giuliano Pintori <pintori@link.it>
