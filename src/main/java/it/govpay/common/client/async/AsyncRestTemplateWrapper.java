@@ -118,7 +118,7 @@ public class AsyncRestTemplateWrapper {
      * @param url URL della richiesta
      * @param request Body della richiesta
      * @param uriVariables Variabili URI opzionali
-     * @return CompletableFuture<Void> che completa quando la richiesta è terminata
+     * @return {@code CompletableFuture<Void>} che completa quando la richiesta è terminata
      */
     public CompletableFuture<Void> putAsync(String url, Object request, Object... uriVariables) {
         return CompletableFuture.runAsync(() -> {
@@ -132,7 +132,7 @@ public class AsyncRestTemplateWrapper {
      *
      * @param url URL della richiesta
      * @param uriVariables Variabili URI opzionali
-     * @return CompletableFuture<Void> che completa quando la richiesta è terminata
+     * @return {@code CompletableFuture<Void>} che completa quando la richiesta è terminata
      */
     public CompletableFuture<Void> deleteAsync(String url, Object... uriVariables) {
         return CompletableFuture.runAsync(() -> {

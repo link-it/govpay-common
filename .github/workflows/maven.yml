@@ -1,18 +1,10 @@
-# This workflow will build a Java project with Maven, and cache/restore any dependencies to improve the workflow execution time
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-maven
-
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-name: Java CI with Maven
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ "main" ]
     tags:
-      - '*'  # Trigger per tutti i tag
+      - "[0-9]*" # tag che iniziano con un numero (validiamo X.Y.Z nel job release)
   pull_request:
     branches: [ "main" ]
 
@@ -22,22 +14,26 @@ permissions:
   actions: write
 
 jobs:
-  build:
 
+  # ── Build, Test, Quality ─────────────────────────────────────────────
+  build:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Clona tutta la history Git
+        fetch-depth: 0
+
     - name: Set timezone to Europe/Rome
       run: sudo timedatectl set-timezone Europe/Rome
+
     - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
+
     - name: Check NVD_API_KEY
       run: |
         if [ -z "$NVD_API_KEY" ]; then
@@ -47,6 +43,7 @@ jobs:
         fi
       env:
         NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
     - name: Check OSS_INDEX_USER
       run: |
         if [ -z "$OSS_INDEX_USER" ]; then
@@ -56,6 +53,7 @@ jobs:
         fi
       env:
         OSS_INDEX_USER: ${{ vars.OSS_INDEX_USER }}
+
     - name: Check OSS_INDEX_PASSWORD
       run: |
         if [ -z "$OSS_INDEX_PASSWORD" ]; then
@@ -66,7 +64,6 @@ jobs:
       env:
         OSS_INDEX_PASSWORD: ${{ secrets.OSS_INDEX_PASSWORD }}
 
-    #  Cache .dependency-check/data
     - name: Cache OWASP Dependency-Check DB
       uses: actions/cache@v4
       with:
@@ -127,7 +124,7 @@ jobs:
         path: third-party-licenses
 
     - name: Upload artifact to GitHub
-      uses: actions/upload-artifact@v4.6.0
+      uses: actions/upload-artifact@v4
       with:
         name: govpay-common
         path: |
@@ -137,10 +134,53 @@ jobs:
           target/dependency-check-report.html
           target/dependency-check-report.xml
 
-  release:
-    runs-on: ubuntu-latest
+  # ── Deploy SNAPSHOT su Maven Central (solo push su main) ─────────────
+  snapshot-on-main:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/')  # Esegui solo per i tag
+    if: startsWith(github.ref, 'refs/heads/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java + Maven settings + GPG
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          server-id: central-snapshots
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_TOKEN
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+
+      - name: Read project version
+        id: version
+        run: |
+          VERSION="$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Project version: $VERSION"
+
+      - name: Deploy SNAPSHOT to Sonatype snapshots
+        if: endsWith(steps.version.outputs.version, '-SNAPSHOT')
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: mvn -B -DskipTests deploy -Prelease
+
+      - name: Skip (not a SNAPSHOT)
+        if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}
+        run: echo "Version is stable -> no publish on main."
+
+  # ── GitHub Release (solo tag) ────────────────────────────────────────
+  github-release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
@@ -150,7 +190,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: govpay-common
-        path: target/  # Assicurati che il file venga scaricato nella cartella target
+        path: target/
 
     - name: Download third-party-licenses artifact
       uses: actions/download-artifact@v4
@@ -160,7 +200,7 @@ jobs:
 
     - name: Rename the artifact file to include the tag
       run: |
-        cp target/govpay-common-*.jar target/govpay-common-${{ github.ref_name }}.jar  # Rinominare il file
+        cp target/govpay-common-*.jar target/govpay-common-${{ github.ref_name }}.jar
         cp target/site/jacoco/jacoco.xml target/jacoco.xml
 
     - name: Zip third-party licenses
@@ -187,3 +227,65 @@ jobs:
           target/third-party-licenses.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+  # ── Deploy RELEASE su Maven Central (solo tag) ──────────────────────
+  release-on-tag:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate tag format (must be X.Y.Z)
+        run: |
+          TAG="${{ github.ref_name }}"
+          echo "Tag: $TAG"
+          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Not a release tag (expected X.Y.Z). Aborting."
+            exit 1
+          fi
+
+      - name: Set up Java + Maven settings + GPG
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          server-id: central
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_TOKEN
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+
+      - name: Read project version
+        id: version
+        run: |
+          VERSION="$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Project version: $VERSION"
+
+      - name: Fail if POM is SNAPSHOT on a tag
+        if: endsWith(steps.version.outputs.version, '-SNAPSHOT')
+        run: |
+          echo "Refusing to release a -SNAPSHOT version on tag."
+          exit 1
+
+      - name: Ensure tag matches POM version
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ "$TAG" != "$VERSION" ]]; then
+            echo "Tag ($TAG) does not match POM version ($VERSION). Aborting release."
+            exit 1
+          fi
+          echo "OK: tag matches POM version."
+
+      - name: Deploy RELEASE to Maven Central (Central Portal)
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: mvn -B -DskipTests deploy -Prelease
