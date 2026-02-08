@@ -1,3 +1,18 @@
+2026-02-08  Giuliano Pintori <pintori@link.it>
+
+	* [Build]
+	Corretta autenticazione nella pipeline di pubblicazione Maven Central:
+	- CENTRAL_USERNAME spostato da secret a variable (vars.CENTRAL_USERNAME)
+	- Rimosso GPG dal job snapshot-on-main (non necessario per SNAPSHOT)
+	- Rimosso profilo -Prelease dal deploy SNAPSHOT
+	- Corrette variabili GPG nel job release-on-tag (MAVEN_GPG_PASSPHRASE, MAVEN_GPG_KEY)
+	- Aggiunto step di verifica secrets mancanti in entrambi i job di pubblicazione
+
+2026-02-08  Giuliano Pintori <pintori@link.it>
+
+	* [Build]
+	Cambiato groupId Maven da it.govpay a org.gov4j.govpay
+
 2026-02-07  Giuliano Pintori <pintori@link.it>
 
 	* [Build]

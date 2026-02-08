@@ -145,17 +145,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Java + Maven settings + GPG
+      - name: Set up Java + Maven settings
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: maven
+          # Deve combaciare con <id> del distributionManagement snapshotRepository (es. central-snapshots)
           server-id: central-snapshots
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_TOKEN
-          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: GPG_PASSPHRASE
+
+      - name: Verify required secrets
+        env:
+          CENTRAL_USERNAME: ${{ vars.CENTRAL_USERNAME }}
+          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+        run: |
+          MISSING=()
+          [ -z "$CENTRAL_USERNAME" ] && MISSING+=("CENTRAL_USERNAME")
+          [ -z "$CENTRAL_TOKEN" ] && MISSING+=("CENTRAL_TOKEN")
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "::error::Missing secrets: ${MISSING[*]}"
+            exit 1
+          fi
+          echo "All required secrets are set."
 
       - name: Read project version
         id: version
@@ -167,10 +180,9 @@ jobs:
       - name: Deploy SNAPSHOT to Sonatype snapshots
         if: endsWith(steps.version.outputs.version, '-SNAPSHOT')
         env:
-          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_USERNAME: ${{ vars.CENTRAL_USERNAME }}
           CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: mvn -B -DskipTests deploy -Prelease -Dowasp=none
+        run: mvn -B -DskipTests deploy -Dowasp=none
 
       - name: Skip (not a SNAPSHOT)
         if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}
@@ -254,11 +266,30 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+          # Deve combaciare con publishingServerId del central-publishing-maven-plugin (es. central)
           server-id: central
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_TOKEN
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: GPG_PASSPHRASE
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - name: Verify required secrets
+        env:
+          CENTRAL_USERNAME: ${{ vars.CENTRAL_USERNAME }}
+          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          MISSING=()
+          [ -z "$CENTRAL_USERNAME" ] && MISSING+=("CENTRAL_USERNAME")
+          [ -z "$CENTRAL_TOKEN" ] && MISSING+=("CENTRAL_TOKEN")
+          [ -z "$GPG_PRIVATE_KEY" ] && MISSING+=("GPG_PRIVATE_KEY")
+          [ -z "$GPG_PASSPHRASE" ] && MISSING+=("GPG_PASSPHRASE")
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "::error::Missing secrets: ${MISSING[*]}"
+            exit 1
+          fi
+          echo "All required secrets are set."
 
       - name: Read project version
         id: version
@@ -285,7 +316,8 @@ jobs:
 
       - name: Deploy RELEASE to Maven Central (Central Portal)
         env:
-          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_USERNAME: ${{ vars.CENTRAL_USERNAME }}
           CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          MAVEN_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: mvn -B -DskipTests deploy -Prelease -Dowasp=none
