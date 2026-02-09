@@ -1,3 +1,19 @@
+2026-02-09  Giuliano Pintori <pintori@link.it>
+
+	* [Build]
+	Impostato govpay-bom 1.1.0-SNAPSHOT come parent POM:
+	- Rimossi properties, plugin e configurazioni ridondanti (ereditati dal BOM)
+	- Rimossa dipendenza httpclient 4.x (utilizzato solo httpclient5)
+	- Aggiunto repository snapshot Sonatype Central per risoluzione parent in CI/CD
+
+2026-02-09  Giuliano Pintori <pintori@link.it>
+
+	* [Security]
+	Aggiornate dipendenze nel BOM per risolvere vulnerabilita':
+	- log4j-api 2.24.3 -> 2.25.3 (CVE-2025-68161: TLS hostname verification mancante nel SocketAppender)
+	- mssql-jdbc 12.8.1.jre11 -> 12.8.2.jre11 (CVE-2025-59250: spoofing tramite validazione input impropria)
+	- jakarta-persistence-api 3.2.0 -> 3.1.0 (incompatibilita' SchemaManager con Hibernate 6.6.x)
+
 2026-02-08  Giuliano Pintori <pintori@link.it>
 
 	* [Build]
