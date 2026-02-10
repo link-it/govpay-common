@@ -17,11 +17,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -227,6 +229,33 @@ public class ConnettoreService {
 
     public boolean isCacheEnabled() {
         return cacheEnabled;
+    }
+
+    /**
+     * Restituisce le proprieta' di un connettore come mappa chiave-valore.
+     *
+     * <p>Utile per connettori con proprieta' variabili (es. notifica pagamento)
+     * che non rientrano nel modello fisso {@link Connettore}.
+     *
+     * @param codiceConnettore Codice identificativo del connettore
+     * @return Mappa delle proprieta' (cod_proprieta &rarr; valore)
+     * @throws IllegalArgumentException se il connettore non esiste
+     */
+    @Transactional(readOnly = true)
+    public Map<String, String> getConnettoreAsMap(String codiceConnettore) {
+        log.debug("Caricamento connettore come mappa: {}", codiceConnettore);
+        List<ConnettoreEntity> entities = connettoreEntityRepository.findByCodConnettore(codiceConnettore);
+
+        if (entities.isEmpty()) {
+            throw new IllegalArgumentException("Connettore non trovato: " + codiceConnettore);
+        }
+
+        return entities.stream()
+                .collect(Collectors.toMap(
+                        ConnettoreEntity::getCodProprieta,
+                        ConnettoreEntity::getValore,
+                        (v1, v2) -> v2,
+                        LinkedHashMap::new));
     }
 
     /**
