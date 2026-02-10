@@ -1,7 +1,19 @@
+2026-02-10  Giuliano Pintori <pintori@link.it>
+
+	* [Client]
+	Aggiunto supporto per connettori con proprieta' variabili:
+	- ConnettoreService.getConnettoreAsMap(): restituisce le proprieta' come Map<String,String>
+	- ConnettoreMapUtils: utility per lettura tipizzata (String, Boolean, Integer, Long, Double)
+
+2026-02-10  Giuliano Pintori <pintori@link.it>
+
+	* [Build]
+	Aggiornato parent POM govpay-bom alla versione 1.1.0
+
 2026-02-09  Giuliano Pintori <pintori@link.it>
 
 	* [Build]
-	Impostato govpay-bom 1.1.0-SNAPSHOT come parent POM:
+	Impostato govpay-bom come parent POM:
 	- Rimossi properties, plugin e configurazioni ridondanti (ereditati dal BOM)
 	- Rimossa dipendenza httpclient 4.x (utilizzato solo httpclient5)
 	- Aggiunto repository snapshot Sonatype Central per risoluzione parent in CI/CD
