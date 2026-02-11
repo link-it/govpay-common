@@ -336,7 +336,7 @@ public abstract class AbstractBatchController {
 
     private String getTruncatedExitDescription(JobExecution execution) {
         String description = execution.getExitStatus().getExitDescription();
-        if (description != null && description.length() > 500) {
+        if (description.length() > 500) {
             return description.substring(0, 500) + "...";
         }
         return description;
