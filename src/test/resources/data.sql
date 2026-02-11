@@ -75,3 +75,26 @@ INSERT INTO connettori (cod_connettore, cod_proprieta, valore) VALUES
 ('TEST_NONE', 'URL', 'https://api.test-none.com'),
 ('TEST_NONE', 'TIPOAUTENTICAZIONE', 'NONE'),
 ('TEST_NONE', 'ABILITATO', 'true');
+
+-- Dati di test per configurazione
+
+INSERT INTO configurazione (nome, valore) VALUES
+('giornale_eventi', '{"apiEnte":{"letture":{"log":"SEMPRE","dump":"SEMPRE"},"scritture":{"log":"SEMPRE","dump":"SOLO_ERRORE"}},"apiPagamento":{"letture":{"log":"MAI","dump":"MAI"},"scritture":{"log":"SEMPRE","dump":"SEMPRE"}}}');
+
+INSERT INTO configurazione (nome, valore) VALUES
+('tracciato_csv', '{"tipo":"freemarker","intestazione":"idA2A|idPendenza|idDominio","richiesta":"${idA2A}|${idPendenza}|${idDominio}","risposta":"${esito}"}');
+
+INSERT INTO configurazione (nome, valore) VALUES
+('hardening', '{"abilitato":true,"googleCatpcha":{"serverURL":"https://www.google.com/recaptcha/api/siteverify","siteKey":"test-site-key","secretKey":"test-secret-key","soglia":0.7,"responseParameter":"g-recaptcha-response","denyOnFail":true,"connectionTimeout":5000,"readTimeout":5000}}');
+
+INSERT INTO configurazione (nome, valore) VALUES
+('mail_batch', '{"abilitato":true,"mailserver":{"host":"smtp.test.com","port":587,"username":"test@test.com","password":"secret","from":"noreply@test.com","readTimeout":10000,"connectionTimeout":5000,"startTls":true}}');
+
+INSERT INTO configurazione (nome, valore) VALUES
+('app_io_batch', '{"abilitato":false,"timeToLive":3600,"url":"https://api.io.italia.it"}');
+
+INSERT INTO configurazione (nome, valore) VALUES
+('avvisatura_mail', '{"promemoriaAvviso":{"tipo":"freemarker","oggetto":"Avviso di pagamento","messaggio":"Gentile utente...","allegaPdf":true},"promemoriaRicevuta":{"tipo":"freemarker","oggetto":"Ricevuta di pagamento","messaggio":"Pagamento effettuato...","soloEseguiti":true,"allegaPdf":false},"promemoriaScadenza":{"tipo":"freemarker","oggetto":"Scadenza pagamento","messaggio":"Il pagamento scade...","preavviso":7}}');
+
+INSERT INTO configurazione (nome, valore) VALUES
+('avvisatura_app_io', '{"promemoriaAvviso":{"tipo":"freemarker","oggetto":"Avviso IO","messaggio":"Messaggio IO avviso"},"promemoriaRicevuta":{"tipo":"freemarker","oggetto":"Ricevuta IO","messaggio":"Messaggio IO ricevuta","soloEseguiti":false},"promemoriaScadenza":{"tipo":"freemarker","oggetto":"Scadenza IO","messaggio":"Messaggio IO scadenza","preavviso":3}}');
