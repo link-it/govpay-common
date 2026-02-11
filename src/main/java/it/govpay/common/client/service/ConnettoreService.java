@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @DependsOnDatabaseInitialization
+@Transactional(readOnly = true)
 public class ConnettoreService {
 
     private final ConnettoreEntityRepository connettoreEntityRepository;
@@ -57,7 +58,6 @@ public class ConnettoreService {
         clearCache();
     }
 
-    @Transactional(readOnly = true)
     public void preloadConnettori() {
         log.info("Precaricamento connettori abilitati");
         List<ConnettoreEntity> entities = connettoreEntityRepository.findAllAbilitati();
@@ -91,7 +91,6 @@ public class ConnettoreService {
         });
     }
 
-    @Transactional(readOnly = true)
     public Connettore getConnettore(String codiceConnettore) {
         Connettore connettore = null;
 
@@ -241,7 +240,6 @@ public class ConnettoreService {
      * @return Mappa delle proprieta' (cod_proprieta &rarr; valore)
      * @throws IllegalArgumentException se il connettore non esiste
      */
-    @Transactional(readOnly = true)
     public Map<String, String> getConnettoreAsMap(String codiceConnettore) {
         log.debug("Caricamento connettore come mappa: {}", codiceConnettore);
         List<ConnettoreEntity> entities = connettoreEntityRepository.findByCodConnettore(codiceConnettore);
@@ -263,7 +261,6 @@ public class ConnettoreService {
      *
      * @return Lista di tutti i connettori (abilitati e non)
      */
-    @Transactional(readOnly = true)
     public List<Connettore> getAllConnettori() {
         log.debug("Caricamento di tutti i connettori");
         List<ConnettoreEntity> entities = connettoreEntityRepository.findAll();
@@ -282,7 +279,6 @@ public class ConnettoreService {
      *
      * @return Lista dei connettori con ABILITATO=true
      */
-    @Transactional(readOnly = true)
     public List<Connettore> getAllAbilitati() {
         log.debug("Caricamento connettori abilitati");
         List<ConnettoreEntity> entities = connettoreEntityRepository.findAllAbilitati();
