@@ -98,3 +98,39 @@ INSERT INTO configurazione (nome, valore) VALUES
 
 INSERT INTO configurazione (nome, valore) VALUES
 ('avvisatura_app_io', '{"promemoriaAvviso":{"tipo":"freemarker","oggetto":"Avviso IO","messaggio":"Messaggio IO avviso"},"promemoriaRicevuta":{"tipo":"freemarker","oggetto":"Ricevuta IO","messaggio":"Messaggio IO ricevuta","soloEseguiti":false},"promemoriaScadenza":{"tipo":"freemarker","oggetto":"Scadenza IO","messaggio":"Messaggio IO scadenza","preavviso":3}}');
+
+-- Dati di test per intermediari
+
+INSERT INTO intermediari (cod_intermediario, cod_connettore_pdd, cod_connettore_recupero_rt, cod_connettore_aca, cod_connettore_gpd, cod_connettore_fr, cod_connettore_backoffice_ec, cod_connettore_ftp, denominazione, principal, principal_originale, abilitato)
+VALUES ('12345678901', 'TEST_BASIC', 'TEST_APIKEY', 'TEST_NONE', 'TEST_OAUTH2', 'TEST_AZURE', 'TEST_HTTP_HEADER', 'TEST_CUSTOM_HEADERS', 'Intermediario di Test', 'PRINCIPAL_TEST', 'PRINCIPAL_TEST_ORIG', true);
+
+INSERT INTO intermediari (cod_intermediario, denominazione, abilitato)
+VALUES ('99999999999', 'Intermediario Disabilitato', false);
+
+-- Dati di test per stazioni
+
+INSERT INTO stazioni (cod_stazione, password, abilitato, application_code, versione, id_intermediario)
+VALUES ('12345678901_01', 'password01', true, '01', '2', (SELECT id FROM intermediari WHERE cod_intermediario = '12345678901'));
+
+INSERT INTO stazioni (cod_stazione, password, abilitato, application_code, versione, id_intermediario)
+VALUES ('12345678901_02', 'password02', true, '02', '1', (SELECT id FROM intermediari WHERE cod_intermediario = '12345678901'));
+
+INSERT INTO stazioni (cod_stazione, password, abilitato, application_code, versione, id_intermediario)
+VALUES ('99999999999_01', 'password99', false, '01', '2', (SELECT id FROM intermediari WHERE cod_intermediario = '99999999999'));
+
+-- Dati di test per domini
+
+INSERT INTO domini (cod_dominio, abilitato, ragione_sociale, aux_digit, iuv_prefix, segregation_code, cbill, intermediato, tassonomia_pago_pa, scarica_fr, id_stazione)
+VALUES ('01234567890', true, 'Comune di Test', 3, 'TST', 01, 'ABCDE', true, 'PagoPa_01', true,
+        (SELECT id FROM stazioni WHERE cod_stazione = '12345678901_01'));
+
+INSERT INTO domini (cod_dominio, abilitato, ragione_sociale, aux_digit, intermediato, scarica_fr, id_stazione)
+VALUES ('09876543210', true, 'Provincia di Test', 0, false, false,
+        (SELECT id FROM stazioni WHERE cod_stazione = '12345678901_02'));
+
+INSERT INTO domini (cod_dominio, abilitato, ragione_sociale, aux_digit, intermediato, scarica_fr)
+VALUES ('00000000000', false, 'Ente Disabilitato', 0, false, false);
+
+INSERT INTO domini (cod_dominio, abilitato, ragione_sociale, aux_digit, intermediato, scarica_fr, logo, id_stazione)
+VALUES ('11111111111', true, 'Ente con Logo', 0, true, false, X'89504E47',
+        (SELECT id FROM stazioni WHERE cod_stazione = '12345678901_01'));

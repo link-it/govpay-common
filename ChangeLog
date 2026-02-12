@@ -1,3 +1,17 @@
+2026-02-12  Giuliano Pintori <pintori@link.it>
+
+	* [Intermediario]
+	Aggiunte entity JPA read-only per intermediari e stazioni:
+	- IntermediarioEntity: entity per tabella intermediari (cod_connettore_*, denominazione, principal, abilitato)
+	- StazioneEntity: entity per tabella stazioni con relazione @ManyToOne(LAZY) verso IntermediarioEntity
+	- IntermediarioRepository: findByCodIntermediario(), findByCodDominio() (join domini -> stazioni -> intermediari)
+	- StazioneRepository: findByCodStazione(), findByIntermediario(), findByIntermediarioCodIntermediarioAndCodStazione()
+	- DominioEntity: entity per tabella domini con relazione @ManyToOne(LAZY) verso StazioneEntity (escluso logo)
+	- DominioLogoEntity: entity leggera per lettura logo dominio (solo codDominio + logo)
+	- DominioRepository: findByCodDominio(), findByStazione()
+	- DominioLogoRepository: findLogoByCodDominio() restituisce Optional<byte[]>
+	- IntermediarioAutoConfiguration: auto-configurazione Spring Boot
+
 2026-02-10  Giuliano Pintori <pintori@link.it>
 
 	* [Client]
