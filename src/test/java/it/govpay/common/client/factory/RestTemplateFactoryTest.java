@@ -3,15 +3,26 @@ package it.govpay.common.client.factory;
 import it.govpay.common.client.enums.TipoAutenticazione;
 import it.govpay.common.client.model.Connettore;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpRequest;
+import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
+import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import it.govpay.common.client.gde.GdeCapturingInterceptor;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class RestTemplateFactoryTest {
 
@@ -398,5 +409,176 @@ class RestTemplateFactoryTest {
         assertNotNull(restTemplate);
         // 1 HttpHeader + 1 GdeCapturing
         assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+    }
+
+    @Test
+    @DisplayName("SSL con file non esistente lancia RuntimeException")
+    void testCreateRestTemplate_SSL_FileNotFound() {
+        Connettore connettore = Connettore.builder()
+                .idConnettore("TEST_SSL_BAD")
+                .url("https://api.test.com")
+                .tipoAutenticazione(TipoAutenticazione.SSL)
+                .sslKsLocation("/non/existent/keystore.p12")
+                .sslKsPasswd("password")
+                .sslKsType("PKCS12")
+                .connectionTimeout(5000)
+                .readTimeout(30000)
+                .build();
+
+        assertThrows(RuntimeException.class, () -> factory.createRestTemplate(connettore));
+    }
+
+    @Nested
+    @DisplayName("Interceptor Execution")
+    class InterceptorExecution {
+
+        private ClientHttpResponse mockResponse;
+        private ClientHttpRequestExecution mockExecution;
+
+        @BeforeEach
+        void setUpInterceptorTests() throws IOException {
+            mockResponse = mock(ClientHttpResponse.class);
+            mockExecution = mock(ClientHttpRequestExecution.class);
+            when(mockExecution.execute(any(HttpRequest.class), any(byte[].class))).thenReturn(mockResponse);
+        }
+
+        @Test
+        @DisplayName("BasicAuth interceptor aggiunge header Authorization")
+        void basicAuthInterceptor() throws IOException {
+            Connettore connettore = Connettore.builder()
+                    .idConnettore("TEST_BASIC_EXEC")
+                    .url("https://api.test.com")
+                    .tipoAutenticazione(TipoAutenticazione.HTTPBasic)
+                    .httpUser("user")
+                    .httpPassw("pass")
+                    .build();
+
+            RestTemplate restTemplate = factory.createRestTemplate(connettore);
+            ClientHttpRequestInterceptor interceptor = findNonGdeInterceptor(restTemplate);
+
+            MockClientHttpRequest request = new MockClientHttpRequest();
+            interceptor.intercept(request, new byte[0], mockExecution);
+
+            String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+            assertNotNull(authHeader);
+            assertTrue(authHeader.startsWith("Basic "));
+        }
+
+        @Test
+        @DisplayName("ApiKey interceptor aggiunge header API Key")
+        void apiKeyInterceptor() throws IOException {
+            Connettore connettore = Connettore.builder()
+                    .idConnettore("TEST_APIKEY_EXEC")
+                    .url("https://api.test.com")
+                    .tipoAutenticazione(TipoAutenticazione.API_KEY)
+                    .apiKey("my-api-key-value")
+                    .apiId("X-Custom-Api-Key")
+                    .build();
+
+            RestTemplate restTemplate = factory.createRestTemplate(connettore);
+            ClientHttpRequestInterceptor interceptor = findNonGdeInterceptor(restTemplate);
+
+            MockClientHttpRequest request = new MockClientHttpRequest();
+            interceptor.intercept(request, new byte[0], mockExecution);
+
+            assertEquals("my-api-key-value", request.getHeaders().getFirst("X-Custom-Api-Key"));
+        }
+
+        @Test
+        @DisplayName("HttpHeader interceptor aggiunge headers con separatore ;")
+        void httpHeaderInterceptor() throws IOException {
+            Connettore connettore = Connettore.builder()
+                    .idConnettore("TEST_HEADER_EXEC")
+                    .url("https://api.test.com")
+                    .tipoAutenticazione(TipoAutenticazione.HTTP_HEADER)
+                    .httpHeaderName("X-Auth")
+                    .httpHeaderValue("secret;X-Extra:extra-value")
+                    .build();
+
+            RestTemplate restTemplate = factory.createRestTemplate(connettore);
+            ClientHttpRequestInterceptor interceptor = findNonGdeInterceptor(restTemplate);
+
+            MockClientHttpRequest request = new MockClientHttpRequest();
+            interceptor.intercept(request, new byte[0], mockExecution);
+
+            // The CustomHeadersInterceptor splits by ; then by :
+            // "X-Auth:secret" and "X-Extra:extra-value"
+            assertEquals("secret", request.getHeaders().getFirst("X-Auth"));
+            assertEquals("extra-value", request.getHeaders().getFirst("X-Extra"));
+        }
+
+        @Test
+        @DisplayName("OAuth2 interceptor aggiunge header Bearer")
+        void oauth2Interceptor() throws IOException {
+            Connettore connettore = Connettore.builder()
+                    .idConnettore("TEST_OAUTH2_EXEC")
+                    .url("https://api.test.com")
+                    .tipoAutenticazione(TipoAutenticazione.OAUTH2_CLIENT_CREDENTIALS)
+                    .oauth2ClientCredentialsClientId("client-id")
+                    .oauth2ClientCredentialsClientSecret("client-secret")
+                    .oauth2ClientCredentialsUrlTokenEndpoint("https://auth.com/token")
+                    .build();
+
+            RestTemplate restTemplate = factory.createRestTemplate(connettore);
+            ClientHttpRequestInterceptor interceptor = findNonGdeInterceptor(restTemplate);
+
+            MockClientHttpRequest request = new MockClientHttpRequest();
+            interceptor.intercept(request, new byte[0], mockExecution);
+
+            String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+            assertNotNull(authHeader);
+            assertTrue(authHeader.startsWith("Bearer "));
+        }
+
+        @Test
+        @DisplayName("SubscriptionKey interceptor aggiunge header Ocp-Apim-Subscription-Key")
+        void subscriptionKeyInterceptor() throws IOException {
+            Connettore connettore = Connettore.builder()
+                    .idConnettore("TEST_SUB_EXEC")
+                    .url("https://api.test.com")
+                    .tipoAutenticazione(TipoAutenticazione.NONE)
+                    .subscriptionKeyValue("my-subscription-key")
+                    .build();
+
+            RestTemplate restTemplate = factory.createRestTemplate(connettore);
+            // Find the SubscriptionKey interceptor (not GdeCapturing)
+            ClientHttpRequestInterceptor interceptor = findNonGdeInterceptor(restTemplate);
+
+            MockClientHttpRequest request = new MockClientHttpRequest();
+            interceptor.intercept(request, new byte[0], mockExecution);
+
+            assertEquals("my-subscription-key", request.getHeaders().getFirst("Ocp-Apim-Subscription-Key"));
+        }
+
+        @Test
+        @DisplayName("GenericCustomHeaders interceptor aggiunge tutti gli headers custom")
+        void genericCustomHeadersInterceptor() throws IOException {
+            Map<String, String> customHeaders = new HashMap<>();
+            customHeaders.put("X-Header-A", "value-a");
+            customHeaders.put("X-Header-B", "value-b");
+
+            Connettore connettore = Connettore.builder()
+                    .idConnettore("TEST_GENERIC_EXEC")
+                    .url("https://api.test.com")
+                    .tipoAutenticazione(TipoAutenticazione.NONE)
+                    .customHeaders(customHeaders)
+                    .build();
+
+            RestTemplate restTemplate = factory.createRestTemplate(connettore);
+            ClientHttpRequestInterceptor interceptor = findNonGdeInterceptor(restTemplate);
+
+            MockClientHttpRequest request = new MockClientHttpRequest();
+            interceptor.intercept(request, new byte[0], mockExecution);
+
+            assertEquals("value-a", request.getHeaders().getFirst("X-Header-A"));
+            assertEquals("value-b", request.getHeaders().getFirst("X-Header-B"));
+        }
+
+        private ClientHttpRequestInterceptor findNonGdeInterceptor(RestTemplate restTemplate) {
+            return restTemplate.getInterceptors().stream()
+                    .filter(i -> !(i instanceof GdeCapturingInterceptor))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("No non-GDE interceptor found"));
+        }
     }
 }
