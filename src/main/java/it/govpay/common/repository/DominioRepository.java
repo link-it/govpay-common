@@ -1,7 +1,7 @@
-package it.govpay.common.intermediario.repository;
+package it.govpay.common.repository;
 
-import it.govpay.common.intermediario.entity.DominioEntity;
-import it.govpay.common.intermediario.entity.StazioneEntity;
+import it.govpay.common.entity.DominioEntity;
+import it.govpay.common.entity.StazioneEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

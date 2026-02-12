@@ -1,4 +1,4 @@
-package it.govpay.common.intermediario.repository;
+package it.govpay.common.repository;
 
 import it.govpay.common.client.TestApplication;
 import org.junit.jupiter.api.Test;

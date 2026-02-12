@@ -1,4 +1,4 @@
-package it.govpay.common.intermediario.entity;
+package it.govpay.common.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

@@ -1,7 +1,7 @@
-package it.govpay.common.intermediario.repository;
+package it.govpay.common.repository;
 
 import it.govpay.common.client.TestApplication;
-import it.govpay.common.intermediario.entity.IntermediarioEntity;
+import it.govpay.common.entity.IntermediarioEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

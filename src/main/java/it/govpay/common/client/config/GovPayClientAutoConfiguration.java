@@ -8,9 +8,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @Slf4j
 @Configuration
-@ComponentScan(basePackages = "it.govpay.common.client")
-@EnableJpaRepositories(basePackages = "it.govpay.common.client.repository")
-@EntityScan(basePackages = "it.govpay.common.client.entity")
+@ComponentScan(basePackages = {"it.govpay.common.client", "it.govpay.common.configurazione"})
+@EnableJpaRepositories(basePackages = "it.govpay.common.repository")
+@EntityScan(basePackages = "it.govpay.common.entity")
 public class GovPayClientAutoConfiguration {
 
     public GovPayClientAutoConfiguration() {

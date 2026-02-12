@@ -2,10 +2,10 @@ package it.govpay.common.client.service;
 
 import it.govpay.common.client.async.AsyncRestTemplateWrapper;
 import it.govpay.common.client.converter.ConnettoreConverter;
-import it.govpay.common.client.entity.ConnettoreEntity;
+import it.govpay.common.entity.ConnettoreEntity;
 import it.govpay.common.client.model.Connettore;
 import it.govpay.common.client.factory.RestTemplateFactory;
-import it.govpay.common.client.repository.ConnettoreEntityRepository;
+import it.govpay.common.repository.ConnettoreEntityRepository;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;

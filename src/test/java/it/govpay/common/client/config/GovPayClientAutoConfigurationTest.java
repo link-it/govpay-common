@@ -1,6 +1,6 @@
 package it.govpay.common.client.config;
 
-import it.govpay.common.client.repository.ConnettoreEntityRepository;
+import it.govpay.common.repository.ConnettoreEntityRepository;
 import it.govpay.common.client.service.ConnettoreService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

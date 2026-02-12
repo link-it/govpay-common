@@ -1,6 +1,6 @@
-package it.govpay.common.configurazione.repository;
+package it.govpay.common.repository;
 
-import it.govpay.common.configurazione.entity.ConfigurazioneEntity;
+import it.govpay.common.entity.ConfigurazioneEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -1,6 +1,6 @@
-package it.govpay.common.intermediario.repository;
+package it.govpay.common.repository;
 
-import it.govpay.common.intermediario.entity.DominioLogoEntity;
+import it.govpay.common.entity.DominioLogoEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

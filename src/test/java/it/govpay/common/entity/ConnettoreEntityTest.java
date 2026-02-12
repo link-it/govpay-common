@@ -1,4 +1,4 @@
-package it.govpay.common.client.entity;
+package it.govpay.common.entity;
 
 import org.junit.jupiter.api.Test;
 

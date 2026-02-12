@@ -1,6 +1,6 @@
-package it.govpay.common.client.repository;
+package it.govpay.common.repository;
 
-import it.govpay.common.client.entity.ConnettoreEntity;
+import it.govpay.common.entity.ConnettoreEntity;
 import it.govpay.common.client.model.Connettore;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
