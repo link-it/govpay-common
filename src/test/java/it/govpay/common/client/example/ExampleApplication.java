@@ -1,13 +1,13 @@
 package it.govpay.common.client.example;
 
-import it.govpay.common.client.service.ConnettoreService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.web.client.RestTemplate;
+
+import it.govpay.common.client.service.ConnettoreService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @SpringBootApplication
@@ -28,7 +28,7 @@ public class ExampleApplication implements CommandLineRunner {
         try {
             // Esempio 1: Ottenere un RestTemplate configurato
             log.info("1. Ottenimento RestTemplate per connettore 'ESEMPIO_BASE'");
-            RestTemplate restTemplate = connettoreService.getRestTemplate("ESEMPIO_BASE");
+            connettoreService.getRestTemplate("ESEMPIO_BASE");
             log.info("RestTemplate ottenuto con successo!");
 
             // Esempio 2: Verifica cache

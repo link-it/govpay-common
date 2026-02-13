@@ -2,7 +2,7 @@ package it.govpay.common.entity;
 
 public enum TipoAutenticazione {
     NONE("Nessuna autenticazione"),
-    HTTPBasic("HTTP Basic Authentication"),
+    HTTP_BASIC("HTTP Basic Authentication"),
     SSL("SSL/TLS con certificati client"),
     OAUTH2_CLIENT_CREDENTIALS("OAuth2 Client Credentials"),
     API_KEY("API Key Authentication"),
@@ -24,7 +24,7 @@ public enum TipoAutenticazione {
         }
         return switch (authType) {
             case "NONE" -> NONE;
-            case "HTTPBasic" -> HTTPBasic;
+            case "HTTPBasic" -> HTTP_BASIC;
             case "SSL" -> SSL;
             case "OAUTH2_CLIENT_CREDENTIALS" -> OAUTH2_CLIENT_CREDENTIALS;
             case "API_KEY" -> API_KEY;

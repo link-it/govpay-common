@@ -49,7 +49,7 @@ class GovPayClientIntegrationTest {
         Connettore connettore = connettoreService.getConnettore("TEST_BASIC");
         assertNotNull(connettore);
         assertEquals("TEST_BASIC", connettore.getIdConnettore());
-        assertEquals(TipoAutenticazione.HTTPBasic, connettore.getTipoAutenticazione());
+        assertEquals(TipoAutenticazione.HTTP_BASIC, connettore.getTipoAutenticazione());
 
         // 3. Ottieni RestTemplate configurato
         RestTemplate restTemplate = connettoreService.getRestTemplate("TEST_BASIC");

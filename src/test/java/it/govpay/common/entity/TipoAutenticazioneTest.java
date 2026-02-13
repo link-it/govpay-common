@@ -26,7 +26,7 @@ class TipoAutenticazioneTest {
     @Test
     void testGetDescrizione() {
         assertEquals("Nessuna autenticazione", TipoAutenticazione.NONE.getDescrizione());
-        assertEquals("HTTP Basic Authentication", TipoAutenticazione.HTTPBasic.getDescrizione());
+        assertEquals("HTTP Basic Authentication", TipoAutenticazione.HTTP_BASIC.getDescrizione());
         assertEquals("SSL/TLS con certificati client", TipoAutenticazione.SSL.getDescrizione());
         assertEquals("OAuth2 Client Credentials", TipoAutenticazione.OAUTH2_CLIENT_CREDENTIALS.getDescrizione());
         assertEquals("API Key Authentication", TipoAutenticazione.API_KEY.getDescrizione());
@@ -42,7 +42,7 @@ class TipoAutenticazioneTest {
     private static Stream<Arguments> provideAuthTypeMapping() {
         return Stream.of(
                 Arguments.of("NONE", TipoAutenticazione.NONE),
-                Arguments.of("HTTPBasic", TipoAutenticazione.HTTPBasic),
+                Arguments.of("HTTPBasic", TipoAutenticazione.HTTP_BASIC),
                 Arguments.of("SSL", TipoAutenticazione.SSL),
                 Arguments.of("OAUTH2_CLIENT_CREDENTIALS", TipoAutenticazione.OAUTH2_CLIENT_CREDENTIALS),
                 Arguments.of("API_KEY", TipoAutenticazione.API_KEY),
@@ -81,7 +81,7 @@ class TipoAutenticazioneTest {
     @Test
     void testOrdinal() {
         assertEquals(0, TipoAutenticazione.NONE.ordinal());
-        assertEquals(1, TipoAutenticazione.HTTPBasic.ordinal());
+        assertEquals(1, TipoAutenticazione.HTTP_BASIC.ordinal());
         assertEquals(2, TipoAutenticazione.SSL.ordinal());
         assertEquals(3, TipoAutenticazione.OAUTH2_CLIENT_CREDENTIALS.ordinal());
         assertEquals(4, TipoAutenticazione.API_KEY.ordinal());
@@ -91,7 +91,7 @@ class TipoAutenticazioneTest {
     @Test
     void testName() {
         assertEquals("NONE", TipoAutenticazione.NONE.name());
-        assertEquals("HTTPBasic", TipoAutenticazione.HTTPBasic.name());
+        assertEquals("HTTPBasic", TipoAutenticazione.HTTP_BASIC.name());
         assertEquals("SSL", TipoAutenticazione.SSL.name());
         assertEquals("OAUTH2_CLIENT_CREDENTIALS", TipoAutenticazione.OAUTH2_CLIENT_CREDENTIALS.name());
         assertEquals("API_KEY", TipoAutenticazione.API_KEY.name());

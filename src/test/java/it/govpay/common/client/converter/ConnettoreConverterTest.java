@@ -38,7 +38,7 @@ class ConnettoreConverterTest {
         assertNotNull(result);
         assertEquals("TEST_BASIC", result.getIdConnettore());
         assertEquals("https://api.test.com", result.getUrl());
-        assertEquals(TipoAutenticazione.HTTPBasic, result.getTipoAutenticazione());
+        assertEquals(TipoAutenticazione.HTTP_BASIC, result.getTipoAutenticazione());
         assertEquals("testuser", result.getHttpUser());
         assertEquals("testpass", result.getHttpPassw());
         assertTrue(result.isAbilitato());

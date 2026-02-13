@@ -41,7 +41,7 @@ class ConnettoreTest {
         Connettore connettore = Connettore.builder()
                 .idConnettore("FULL_TEST")
                 .url("https://api.full.com")
-                .tipoAutenticazione(TipoAutenticazione.HTTPBasic)
+                .tipoAutenticazione(TipoAutenticazione.HTTP_BASIC)
                 .httpUser("user")
                 .httpPassw("pass")
                 .tipoSsl(Connettore.EnumSslType.CLIENT)
@@ -70,7 +70,7 @@ class ConnettoreTest {
 
         assertEquals("FULL_TEST", connettore.getIdConnettore());
         assertEquals("https://api.full.com", connettore.getUrl());
-        assertEquals(TipoAutenticazione.HTTPBasic, connettore.getTipoAutenticazione());
+        assertEquals(TipoAutenticazione.HTTP_BASIC, connettore.getTipoAutenticazione());
         assertEquals("user", connettore.getHttpUser());
         assertEquals("pass", connettore.getHttpPassw());
         assertEquals(Connettore.EnumSslType.CLIENT, connettore.getTipoSsl());

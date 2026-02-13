@@ -121,7 +121,7 @@ class ConnettoreServiceWithCacheTest {
         // Load some connectors
         connettoreService.getRestTemplate("TEST_BASIC");
         connettoreService.getRestTemplate("TEST_APIKEY");
-        int sizeBefore = connettoreService.getCacheSize();
+        connettoreService.getCacheSize();
 
         // Refresh entire cache
         connettoreService.refreshCache();

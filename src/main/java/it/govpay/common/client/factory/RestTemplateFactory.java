@@ -1,9 +1,16 @@
 package it.govpay.common.client.factory;
 
-import it.govpay.common.client.model.Connettore;
-import it.govpay.common.entity.TipoAutenticazione;
-import it.govpay.common.client.gde.GdeCapturingInterceptor;
-import lombok.extern.slf4j.Slf4j;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+
+import javax.net.ssl.SSLContext;
+
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
@@ -22,15 +29,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
-import javax.net.ssl.SSLContext;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.KeyStore;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
+import it.govpay.common.client.gde.GdeCapturingInterceptor;
+import it.govpay.common.client.model.Connettore;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
@@ -44,16 +45,16 @@ public class RestTemplateFactory {
 
         // Set timeouts only if configured
         if (connettore.getConnectionTimeout() != null) {
-            builder = builder.setConnectTimeout(Duration.ofMillis(connettore.getConnectionTimeout()));
+            builder = builder.connectTimeout(Duration.ofMillis(connettore.getConnectionTimeout()));
         }
         if (connettore.getReadTimeout() != null) {
-            builder = builder.setReadTimeout(Duration.ofMillis(connettore.getReadTimeout()));
+            builder = builder.readTimeout(Duration.ofMillis(connettore.getReadTimeout()));
         }
 
         List<ClientHttpRequestInterceptor> interceptors = new ArrayList<>();
 
         switch (connettore.getTipoAutenticazione()) {
-            case HTTPBasic -> {
+            case HTTP_BASIC -> {
                 log.debug("Configurazione HTTP Basic Auth per connettore: {}", connettore.getIdConnettore());
                 interceptors.add(new BasicAuthInterceptor(connettore.getHttpUser(), connettore.getHttpPassw()));
             }

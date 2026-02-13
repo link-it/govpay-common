@@ -119,7 +119,7 @@ class GdeUtilsTest {
                 }
             };
 
-            // Jackson serializza come {}
+            // Jackson serializza come un oggetto vuoto, quindi non dovrebbe restituire null ma una stringa JSON vuota
             String result = GdeUtils.writeValueAsString(objectMapper, badObject);
             assertNotNull(result);
         }
