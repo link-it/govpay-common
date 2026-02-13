@@ -174,18 +174,15 @@ class Oauth2ClientCredentialsManagerTest {
         AtomicInteger refreshCount = new AtomicInteger(0);
         CountDownLatch startLatch = new CountDownLatch(1);
         CountDownLatch doneLatch = new CountDownLatch(threadCount);
+        CountDownLatch refreshEnteredLatch = new CountDownLatch(1);
         AtomicReference<String> lastToken = new AtomicReference<>();
 
         Oauth2ClientCredentialsManager spyManager = new Oauth2ClientCredentialsManager() {
             @Override
             Oauth2ClientCredentialsManager.CachedToken refreshToken(Connettore conn) {
                 refreshCount.incrementAndGet();
-                // Simula latenza per aumentare la probabilità di concorrenza
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
+                // Segnala che il refresh è in corso e attende che tutti i thread siano partiti
+                refreshEnteredLatch.countDown();
                 return new CachedToken("concurrent-token", System.currentTimeMillis() / 1000, 3600);
             }
         };
