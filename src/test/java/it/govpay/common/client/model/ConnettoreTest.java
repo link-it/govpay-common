@@ -1,6 +1,6 @@
 package it.govpay.common.client.model;
 
-import it.govpay.common.client.enums.TipoAutenticazione;
+import it.govpay.common.entity.TipoAutenticazione;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -185,17 +185,6 @@ class ConnettoreTest {
         assertEquals(2, Connettore.EnumSslType.values().length);
         assertEquals(Connettore.EnumSslType.CLIENT, Connettore.EnumSslType.valueOf("CLIENT"));
         assertEquals(Connettore.EnumSslType.SERVER, Connettore.EnumSslType.valueOf("SERVER"));
-    }
-
-    @Test
-    void testEnumAuthTypeValues() {
-        assertEquals(6, Connettore.EnumAuthType.values().length);
-        assertEquals(Connettore.EnumAuthType.SSL, Connettore.EnumAuthType.valueOf("SSL"));
-        assertEquals(Connettore.EnumAuthType.HTTPBasic, Connettore.EnumAuthType.valueOf("HTTPBasic"));
-        assertEquals(Connettore.EnumAuthType.HTTP_HEADER, Connettore.EnumAuthType.valueOf("HTTP_HEADER"));
-        assertEquals(Connettore.EnumAuthType.API_KEY, Connettore.EnumAuthType.valueOf("API_KEY"));
-        assertEquals(Connettore.EnumAuthType.OAUTH2_CLIENT_CREDENTIALS, Connettore.EnumAuthType.valueOf("OAUTH2_CLIENT_CREDENTIALS"));
-        assertEquals(Connettore.EnumAuthType.NONE, Connettore.EnumAuthType.valueOf("NONE"));
     }
 
     @Test

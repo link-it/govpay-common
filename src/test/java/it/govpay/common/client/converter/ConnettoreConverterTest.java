@@ -1,7 +1,7 @@
 package it.govpay.common.client.converter;
 
 import it.govpay.common.entity.ConnettoreEntity;
-import it.govpay.common.client.enums.TipoAutenticazione;
+import it.govpay.common.entity.TipoAutenticazione;
 import it.govpay.common.client.model.Connettore;
 import org.junit.jupiter.api.Test;
 

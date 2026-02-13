@@ -1,7 +1,7 @@
 package it.govpay.common.client.integration;
 
 import it.govpay.common.entity.ConnettoreEntity;
-import it.govpay.common.client.enums.TipoAutenticazione;
+import it.govpay.common.entity.TipoAutenticazione;
 import it.govpay.common.client.model.Connettore;
 import it.govpay.common.repository.ConnettoreEntityRepository;
 import it.govpay.common.client.service.ConnettoreService;

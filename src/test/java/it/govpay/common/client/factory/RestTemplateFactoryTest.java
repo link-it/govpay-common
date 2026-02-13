@@ -1,6 +1,6 @@
 package it.govpay.common.client.factory;
 
-import it.govpay.common.client.enums.TipoAutenticazione;
+import it.govpay.common.entity.TipoAutenticazione;
 import it.govpay.common.client.model.Connettore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

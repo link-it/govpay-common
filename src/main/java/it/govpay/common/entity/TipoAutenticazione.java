@@ -1,4 +1,4 @@
-package it.govpay.common.client.enums;
+package it.govpay.common.entity;
 
 public enum TipoAutenticazione {
     NONE("Nessuna autenticazione"),

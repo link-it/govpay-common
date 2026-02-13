@@ -1,6 +1,6 @@
 package it.govpay.common.client.model;
 
-import it.govpay.common.client.enums.TipoAutenticazione;
+import it.govpay.common.entity.TipoAutenticazione;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -44,10 +44,6 @@ public class Connettore {
     // Custom Headers - pattern: X-CUSTOM-HEADER-NAME-N / X-CUSTOM-HEADER-VALUE-N
     public static final String P_CUSTOM_HEADER_NAME_PREFIX = "X-CUSTOM-HEADER-NAME-";
     public static final String P_CUSTOM_HEADER_VALUE_PREFIX = "X-CUSTOM-HEADER-VALUE-";
-
-    public enum EnumAuthType {
-        SSL, HTTPBasic, HTTP_HEADER, API_KEY, OAUTH2_CLIENT_CREDENTIALS, NONE
-    }
 
     public enum EnumSslType {
         CLIENT, SERVER

@@ -1,3 +1,30 @@
+2026-02-13  Giuliano Pintori <pintori@link.it>
+
+	* [Test]
+	Aumento copertura test unitari:
+	- AbstractBatchControllerTest: eseguiJob, getStatus, getLastExecution, getNextExecution, formatInterval
+	- AbstractBatchExecutionListenerTest: beforeJob, afterJob, step semplici e partizionati, estrazione partitionId
+	- AbstractCronJobRunnerTest: tutti gli scenari PreExecutionCheckResult
+	- AbstractScheduledJobRunnerTest: tutti gli scenari PreExecutionCheckResult
+	- AbstractGdeServiceTest: inviaEvento sync/async, OK/KO, determineEsito, extractStatusCode, buildDescrizioneEsito
+	- GdeEventInfoTest: builder, isSuccess, isError, campi transient
+	- BatchCommonAutoConfigurationTest: factory methods con parametri diretti e properties
+	- BatchJobPropertiesTest: valori default, getZoneId, setters
+	- LocalDateFlexibleDeserializerTest: parseLocalDate multi-formato, deserialize
+	- OffsetDateTimeSerializerTest: pattern default e custom, null
+	- TimezoneConfigTest: init, applicationZoneId
+	- RestTemplateFactoryTest: test esecuzione interceptor (BasicAuth, ApiKey, HttpHeader, OAuth2, SubscriptionKey, GenericCustomHeaders, SSL errore)
+
+	* [Refactoring]
+	Risolte segnalazioni Sonar su ConnettoreConverter.toModel():
+	- Ridotta Cognitive Complexity da 36 a sotto 15
+	- Estratti metodi: collectCustomHeader(), applyProperty(), parseIntProperty(), assembleCustomHeaders()
+
+	* [Refactoring]
+	Spostata enum TipoAutenticazione da it.govpay.common.client.enums a it.govpay.common.entity:
+	- Rimossa enum duplicata Connettore.EnumAuthType
+	- Aggiornati tutti gli import
+
 2026-02-12  Giuliano Pintori <pintori@link.it>
 
 	* [Intermediario]

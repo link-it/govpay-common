@@ -1,7 +1,7 @@
 package it.govpay.common.client.factory;
 
 import it.govpay.common.client.model.Connettore;
-import it.govpay.common.client.enums.TipoAutenticazione;
+import it.govpay.common.entity.TipoAutenticazione;
 import it.govpay.common.client.gde.GdeCapturingInterceptor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
