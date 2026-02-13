@@ -108,15 +108,15 @@ public class GdeEventInfo {
 
     /** Risposta HTTP originale (per estrazione dati) */
     @Builder.Default
-    private transient ResponseEntity<?> response = null;
+    private ResponseEntity<?> response = null;
 
     /** Eccezione verificatasi (per estrazione dati errore) */
     @Builder.Default
-    private transient RestClientException exception = null;
+    private RestClientException exception = null;
 
     /** Oggetto richiesta originale (per serializzazione) */
     @Builder.Default
-    private transient Object requestObject = null;
+    private Object requestObject = null;
 
     // ==================== Metodi di utilita' ====================
 
