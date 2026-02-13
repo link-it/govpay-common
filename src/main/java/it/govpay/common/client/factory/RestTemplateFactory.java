@@ -31,11 +31,18 @@ import org.springframework.web.client.RestTemplate;
 
 import it.govpay.common.client.gde.GdeCapturingInterceptor;
 import it.govpay.common.client.model.Connettore;
+import it.govpay.common.client.oauth2.Oauth2ClientCredentialsManager;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
 public class RestTemplateFactory {
+
+    private final Oauth2ClientCredentialsManager oauth2TokenManager;
+
+    public RestTemplateFactory(Oauth2ClientCredentialsManager oauth2TokenManager) {
+        this.oauth2TokenManager = oauth2TokenManager;
+    }
 
     public RestTemplate createRestTemplate(Connettore connettore) {
         log.info("Creazione RestTemplate per connettore: {}", connettore.getIdConnettore());
@@ -70,7 +77,7 @@ public class RestTemplateFactory {
             }
             case OAUTH2_CLIENT_CREDENTIALS -> {
                 log.debug("Configurazione OAuth2 per connettore: {}", connettore.getIdConnettore());
-                interceptors.add(new OAuth2Interceptor(connettore));
+                interceptors.add(new OAuth2Interceptor(connettore.getIdConnettore(), connettore, oauth2TokenManager));
             }
             case SSL -> {
                 log.debug("Configurazione SSL/TLS per connettore: {}", connettore.getIdConnettore());
@@ -220,26 +227,23 @@ public class RestTemplateFactory {
     }
 
     private static class OAuth2Interceptor implements ClientHttpRequestInterceptor {
+        private final String connettoreKey;
         private final Connettore connettore;
-        private String accessToken;
-        private long tokenExpiration;
+        private final Oauth2ClientCredentialsManager tokenManager;
 
-        public OAuth2Interceptor(Connettore connettore) {
+        public OAuth2Interceptor(String connettoreKey, Connettore connettore,
+                Oauth2ClientCredentialsManager tokenManager) {
+            this.connettoreKey = connettoreKey;
             this.connettore = connettore;
+            this.tokenManager = tokenManager;
         }
 
         @Override
         public ClientHttpResponse intercept(HttpRequest request, byte[] body,
                 ClientHttpRequestExecution execution) throws IOException {
-            if (accessToken == null || System.currentTimeMillis() >= tokenExpiration) {
-                refreshToken();
-            }
-            request.getHeaders().set(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
+            String accessToken = tokenManager.getAccessToken(connettoreKey, connettore);
+            request.getHeaders().setBearerAuth(accessToken);
             return execution.execute(request, body);
-        }
-
-        private void refreshToken() {
-            log.debug("Implementazione refresh token OAuth2 - da completare con logica specifica");
         }
     }
 

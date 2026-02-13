@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -27,18 +29,21 @@ import org.springframework.web.client.RestTemplate;
 
 import it.govpay.common.client.gde.GdeCapturingInterceptor;
 import it.govpay.common.client.model.Connettore;
+import it.govpay.common.client.oauth2.Oauth2ClientCredentialsManager;
 import it.govpay.common.entity.TipoAutenticazione;
 
 class RestTemplateFactoryTest {
 
     private RestTemplateFactory factory;
+    private Oauth2ClientCredentialsManager mockOauth2Manager;
 
     // GdeCapturingInterceptor is always added to all RestTemplates
     private static final int GDE_INTERCEPTOR_COUNT = 1;
 
     @BeforeEach
     void setUp() {
-        factory = new RestTemplateFactory();
+        mockOauth2Manager = mock(Oauth2ClientCredentialsManager.class);
+        factory = new RestTemplateFactory(mockOauth2Manager);
     }
 
     @Test
@@ -513,8 +518,11 @@ class RestTemplateFactoryTest {
         }
 
         @Test
-        @DisplayName("OAuth2 interceptor aggiunge header Bearer")
+        @DisplayName("OAuth2 interceptor aggiunge header Bearer tramite Oauth2ClientCredentialsManager")
         void oauth2Interceptor() throws IOException {
+            when(mockOauth2Manager.getAccessToken(anyString(), any(Connettore.class)))
+                    .thenReturn("mock-oauth2-token");
+
             Connettore connettore = Connettore.builder()
                     .idConnettore("TEST_OAUTH2_EXEC")
                     .url("https://api.test.com")
@@ -532,7 +540,8 @@ class RestTemplateFactoryTest {
 
             String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
             assertNotNull(authHeader);
-            assertTrue(authHeader.startsWith("Bearer "));
+            assertEquals("Bearer mock-oauth2-token", authHeader);
+            verify(mockOauth2Manager).getAccessToken("TEST_OAUTH2_EXEC", connettore);
         }
 
         @Test
