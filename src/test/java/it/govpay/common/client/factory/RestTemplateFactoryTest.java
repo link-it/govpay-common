@@ -422,7 +422,7 @@ class RestTemplateFactoryTest {
     }
 
     @Test
-    @DisplayName("SSL con file non esistente lancia RuntimeException")
+    @DisplayName("SSL con file non esistente lancia SslConfigurationException")
     void testCreateRestTemplate_SSL_FileNotFound() {
         Connettore connettore = Connettore.builder()
                 .idConnettore("TEST_SSL_BAD")
@@ -435,7 +435,7 @@ class RestTemplateFactoryTest {
                 .readTimeout(30000)
                 .build();
 
-        assertThrows(RuntimeException.class, () -> factory.createRestTemplate(connettore));
+        assertThrows(RestTemplateFactory.SslConfigurationException.class, () -> factory.createRestTemplate(connettore));
     }
 
     @Nested

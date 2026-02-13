@@ -11,13 +11,16 @@ import java.util.List;
 
 import javax.net.ssl.SSLContext;
 
+import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.io.HttpClientConnectionManager;
+import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
+import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
@@ -95,7 +98,8 @@ public class RestTemplateFactory {
                 } catch (Exception e) {
                     log.error("Errore durante la configurazione SSL per connettore: {}",
                             connettore.getIdConnettore(), e);
-                    throw new RuntimeException("Errore configurazione SSL", e);
+                    throw new SslConfigurationException("Errore configurazione SSL per connettore: "
+                            + connettore.getIdConnettore(), e);
                 }
             }
             case NONE -> log.debug("Nessuna autenticazione configurata per connettore: {}",
@@ -151,11 +155,14 @@ public class RestTemplateFactory {
         }
 
         SSLContext sslContext = sslContextBuilder.build();
-        SSLConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(
+        TlsSocketStrategy tlsStrategy = new DefaultClientTlsStrategy(
                 sslContext, NoopHostnameVerifier.INSTANCE);
 
         HttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
-                .setSSLSocketFactory(socketFactory)
+                .setTlsSocketStrategy(tlsStrategy)
+                .setDefaultConnectionConfig(ConnectionConfig.custom()
+                        .setConnectTimeout(Timeout.ofMilliseconds(connettore.getConnectionTimeout()))
+                        .build())
                 .build();
 
         CloseableHttpClient httpClient = HttpClients.custom()
@@ -163,7 +170,6 @@ public class RestTemplateFactory {
                 .build();
 
         HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(httpClient);
-        factory.setConnectTimeout(connettore.getConnectionTimeout());
         factory.setConnectionRequestTimeout(connettore.getReadTimeout());
 
         return factory;
@@ -260,6 +266,12 @@ public class RestTemplateFactory {
                 ClientHttpRequestExecution execution) throws IOException {
             request.getHeaders().set(SUBSCRIPTION_KEY_HEADER, subscriptionKey);
             return execution.execute(request, body);
+        }
+    }
+
+    public static class SslConfigurationException extends RuntimeException {
+        public SslConfigurationException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 
