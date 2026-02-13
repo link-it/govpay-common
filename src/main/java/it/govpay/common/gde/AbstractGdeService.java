@@ -30,6 +30,8 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import it.govpay.common.client.gde.HttpDataHolder;
+import it.govpay.common.client.service.ConnettoreService;
+import it.govpay.common.configurazione.ConfigurazioneKeys;
 import it.govpay.gde.client.beans.CategoriaEvento;
 import it.govpay.gde.client.beans.EsitoEvento;
 import it.govpay.gde.client.beans.NuovoEvento;
@@ -51,7 +53,6 @@ import lombok.extern.slf4j.Slf4j;
  * <ul>
  *   <li>{@link #convertToGdeEvent(GdeEventInfo)} - conversione in formato GDE specifico</li>
  *   <li>{@link #getGdeEndpoint()} - URL dell'endpoint GDE</li>
- *   <li>{@link #getGdeRestTemplate()} - RestTemplate configurato per il GDE</li>
  * </ul>
  * <p>
  * Esempio d'uso:
@@ -71,16 +72,14 @@ import lombok.extern.slf4j.Slf4j;
  *     protected String getGdeEndpoint() {
  *         return gdeProperties.getEndpoint();
  *     }
- *
- *     @Override
- *     protected RestTemplate getGdeRestTemplate() {
- *         return connettoreService.getRestTemplate("GDE");
- *     }
  * }
  * }</pre>
  */
 @Slf4j
 public abstract class AbstractGdeService {
+
+    /** Codice connettore per il servizio GDE */
+    public static final String COD_CONNETTORE_GDE = ConfigurazioneKeys.COD_CONNETTORE_GDE;
 
     /** Esito OK */
     public static final EsitoEvento ESITO_OK = EsitoEvento.OK;
@@ -99,16 +98,20 @@ public abstract class AbstractGdeService {
 
     protected final ObjectMapper objectMapper;
     protected final Executor asyncExecutor;
+    private final ConnettoreService connettoreService;
 
     /**
      * Costruttore.
      *
-     * @param objectMapper  ObjectMapper per serializzazione JSON
-     * @param asyncExecutor Executor per esecuzione asincrona
+     * @param objectMapper      ObjectMapper per serializzazione JSON
+     * @param asyncExecutor     Executor per esecuzione asincrona
+     * @param connettoreService ConnettoreService per ottenere il RestTemplate GDE
      */
-    protected AbstractGdeService(ObjectMapper objectMapper, Executor asyncExecutor) {
+    protected AbstractGdeService(ObjectMapper objectMapper, Executor asyncExecutor,
+            ConnettoreService connettoreService) {
         this.objectMapper = objectMapper;
         this.asyncExecutor = asyncExecutor;
+        this.connettoreService = connettoreService;
     }
 
     // ==================== Abstract Methods ====================
@@ -129,11 +132,14 @@ public abstract class AbstractGdeService {
     protected abstract String getGdeEndpoint();
 
     /**
-     * Restituisce il RestTemplate configurato per il GDE.
+     * Restituisce il RestTemplate configurato per il GDE,
+     * caricato dal connettore {@link #COD_CONNETTORE_GDE}.
      *
      * @return RestTemplate
      */
-    protected abstract RestTemplate getGdeRestTemplate();
+    protected RestTemplate getGdeRestTemplate() {
+        return connettoreService.getRestTemplate(COD_CONNETTORE_GDE);
+    }
 
     // ==================== Public API ====================
 

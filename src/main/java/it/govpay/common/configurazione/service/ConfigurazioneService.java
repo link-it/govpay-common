@@ -1,30 +1,41 @@
 package it.govpay.common.configurazione.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import it.govpay.common.configurazione.ConfigurazioneKeys;
-import it.govpay.common.entity.ConfigurazioneEntity;
-import it.govpay.common.configurazione.model.*;
-import it.govpay.common.repository.ConfigurazioneRepository;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@Slf4j
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import it.govpay.common.client.model.Connettore;
+import it.govpay.common.client.service.ConnettoreService;
+import it.govpay.common.configurazione.ConfigurazioneKeys;
+import it.govpay.common.configurazione.model.AppIOBatch;
+import it.govpay.common.configurazione.model.AvvisaturaViaAppIo;
+import it.govpay.common.configurazione.model.AvvisaturaViaMail;
+import it.govpay.common.configurazione.model.Giornale;
+import it.govpay.common.configurazione.model.Hardening;
+import it.govpay.common.configurazione.model.MailBatch;
+import it.govpay.common.configurazione.model.TracciatoCsv;
+import it.govpay.common.entity.ConfigurazioneEntity;
+import it.govpay.common.repository.ConfigurazioneRepository;
+
 @Service
 @Transactional(readOnly = true)
 public class ConfigurazioneService {
 
     private final ConfigurazioneRepository repository;
     private final ObjectMapper objectMapper;
+    private final ConnettoreService connettoreService;
 
-    public ConfigurazioneService(ConfigurazioneRepository repository, ObjectMapper objectMapper) {
+    public ConfigurazioneService(ConfigurazioneRepository repository, ObjectMapper objectMapper,
+            ConnettoreService connettoreService) {
         this.repository = repository;
         this.objectMapper = objectMapper;
+        this.connettoreService = connettoreService;
     }
 
     /**
@@ -99,5 +110,9 @@ public class ConfigurazioneService {
 
     public Optional<AvvisaturaViaAppIo> getAvvisaturaViaAppIo() {
         return getAsObject(ConfigurazioneKeys.KEY_AVVISATURA_APP_IO, AvvisaturaViaAppIo.class);
+    }
+
+    public Connettore getServizioGDE() {
+        return connettoreService.getConnettore(ConfigurazioneKeys.COD_CONNETTORE_GDE);
     }
 }

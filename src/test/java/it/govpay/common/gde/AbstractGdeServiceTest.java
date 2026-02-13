@@ -23,6 +23,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import it.govpay.common.client.service.ConnettoreService;
 import it.govpay.gde.client.beans.CategoriaEvento;
 import it.govpay.gde.client.beans.EsitoEvento;
 import it.govpay.gde.client.beans.NuovoEvento;
@@ -37,18 +38,19 @@ class AbstractGdeServiceTest {
     @Mock
     private ObjectMapper objectMapper;
 
+    @Mock
+    private ConnettoreService connettoreService;
+
     private static final String GDE_ENDPOINT = "http://gde.test/eventi";
 
     private TestGdeService gdeService;
 
     static class TestGdeService extends AbstractGdeService {
-        private final RestTemplate restTemplate;
         private final String endpoint;
 
         TestGdeService(ObjectMapper objectMapper, Executor asyncExecutor,
-                      RestTemplate restTemplate, String endpoint) {
-            super(objectMapper, asyncExecutor);
-            this.restTemplate = restTemplate;
+                      ConnettoreService connettoreService, String endpoint) {
+            super(objectMapper, asyncExecutor, connettoreService);
             this.endpoint = endpoint;
         }
 
@@ -61,16 +63,15 @@ class AbstractGdeServiceTest {
 
         @Override
         protected String getGdeEndpoint() { return endpoint; }
-
-        @Override
-        protected RestTemplate getGdeRestTemplate() { return restTemplate; }
     }
 
     @BeforeEach
     void setUp() {
         // Use a synchronous executor for testing
         Executor syncExecutor = Runnable::run;
-        gdeService = new TestGdeService(objectMapper, syncExecutor, restTemplate, GDE_ENDPOINT);
+        lenient().when(connettoreService.getRestTemplate(AbstractGdeService.COD_CONNETTORE_GDE))
+                .thenReturn(restTemplate);
+        gdeService = new TestGdeService(objectMapper, syncExecutor, connettoreService, GDE_ENDPOINT);
     }
 
     @Test
