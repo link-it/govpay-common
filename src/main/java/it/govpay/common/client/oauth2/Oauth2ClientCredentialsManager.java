@@ -30,6 +30,7 @@ public class Oauth2ClientCredentialsManager {
     private static final int TOKEN_ENDPOINT_READ_TIMEOUT_MS = 15000;
 
     private final ConcurrentHashMap<String, CachedToken> tokenCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Object> locks = new ConcurrentHashMap<>();
 
     public String getAccessToken(String key, Connettore connettore) {
         CachedToken cached = tokenCache.get(key);
@@ -38,7 +39,8 @@ public class Oauth2ClientCredentialsManager {
             return cached.accessToken();
         }
 
-        synchronized (key.intern()) {
+        Object lock = locks.computeIfAbsent(key, k -> new Object());
+        synchronized (lock) {
             // Double-check dopo aver acquisito il lock
             cached = tokenCache.get(key);
             if (cached != null && !cached.isExpired()) {

@@ -75,11 +75,6 @@ public class ConnettoreConverter {
                     connettore.setTipoAutenticazione(TipoAutenticazione.fromGovPayAuthType(valore));
             case Connettore.P_HTTPUSER_NAME -> connettore.setHttpUser(valore);
             case Connettore.P_HTTPPASSW_NAME -> connettore.setHttpPassw(valore);
-            case Connettore.P_TIPOSSL_NAME -> {
-                if (valore != null) {
-                    connettore.setTipoSsl(Connettore.EnumSslType.valueOf(valore));
-                }
-            }
             case Connettore.P_SSLKSLOCATION_NAME -> connettore.setSslKsLocation(valore);
             case Connettore.P_SSLKSPASS_WORD_NAME -> connettore.setSslKsPasswd(valore);
             case Connettore.P_SSLKSTYPE_NAME -> connettore.setSslKsType(valore);
@@ -104,6 +99,8 @@ public class ConnettoreConverter {
             case Connettore.P_ABILITATO -> connettore.setAbilitato(Boolean.parseBoolean(valore));
             case Connettore.P_CONNECTION_TIMEOUT -> parseIntProperty(valore, "CONNECTION_TIMEOUT", connettore::setConnectionTimeout);
             case Connettore.P_READ_TIMEOUT -> parseIntProperty(valore, "READ_TIMEOUT", connettore::setReadTimeout);
+            case String p when p.equals(Connettore.P_TIPOSSL_NAME) && valore != null ->
+                    connettore.setTipoSsl(Connettore.EnumSslType.valueOf(valore));
             default -> log.debug("Proprietà non gestita: {}", proprieta);
         }
     }
