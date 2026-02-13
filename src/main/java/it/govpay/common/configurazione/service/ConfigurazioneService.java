@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -114,5 +115,13 @@ public class ConfigurazioneService {
 
     public Connettore getServizioGDE() {
         return connettoreService.getConnettore(ConfigurazioneKeys.COD_CONNETTORE_GDE);
+    }
+
+    public RestTemplate getRestTemplateGDE() {
+        return connettoreService.getRestTemplate(ConfigurazioneKeys.COD_CONNETTORE_GDE);
+    }
+
+    public boolean isServizioGDEAbilitato() {
+        return connettoreService.getConnettore(ConfigurazioneKeys.COD_CONNETTORE_GDE).isAbilitato();
     }
 }

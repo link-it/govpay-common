@@ -30,8 +30,8 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import it.govpay.common.client.gde.HttpDataHolder;
-import it.govpay.common.client.service.ConnettoreService;
 import it.govpay.common.configurazione.ConfigurazioneKeys;
+import it.govpay.common.configurazione.service.ConfigurazioneService;
 import it.govpay.gde.client.beans.CategoriaEvento;
 import it.govpay.gde.client.beans.EsitoEvento;
 import it.govpay.gde.client.beans.NuovoEvento;
@@ -98,20 +98,20 @@ public abstract class AbstractGdeService {
 
     protected final ObjectMapper objectMapper;
     protected final Executor asyncExecutor;
-    private final ConnettoreService connettoreService;
+    private final ConfigurazioneService configurazioneService;
 
     /**
      * Costruttore.
      *
-     * @param objectMapper      ObjectMapper per serializzazione JSON
-     * @param asyncExecutor     Executor per esecuzione asincrona
-     * @param connettoreService ConnettoreService per ottenere il RestTemplate GDE
+     * @param objectMapper          ObjectMapper per serializzazione JSON
+     * @param asyncExecutor         Executor per esecuzione asincrona
+     * @param configurazioneService ConfigurazioneService per ottenere il connettore GDE
      */
     protected AbstractGdeService(ObjectMapper objectMapper, Executor asyncExecutor,
-            ConnettoreService connettoreService) {
+            ConfigurazioneService configurazioneService) {
         this.objectMapper = objectMapper;
         this.asyncExecutor = asyncExecutor;
-        this.connettoreService = connettoreService;
+        this.configurazioneService = configurazioneService;
     }
 
     // ==================== Abstract Methods ====================
@@ -138,10 +138,20 @@ public abstract class AbstractGdeService {
      * @return RestTemplate
      */
     protected RestTemplate getGdeRestTemplate() {
-        return connettoreService.getRestTemplate(COD_CONNETTORE_GDE);
+        return configurazioneService.getRestTemplateGDE();
     }
 
     // ==================== Public API ====================
+
+    /**
+     * Verifica se il servizio GDE e' abilitato controllando
+     * l'esistenza e lo stato del connettore {@link #COD_CONNETTORE_GDE}.
+     *
+     * @return true se il connettore GDE esiste ed e' abilitato
+     */
+    public boolean isAbilitato() {
+        return configurazioneService.isServizioGDEAbilitato();
+    }
 
     /**
      * Invia un evento al GDE in modo asincrono.

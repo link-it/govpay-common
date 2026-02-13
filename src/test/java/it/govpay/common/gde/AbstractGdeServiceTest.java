@@ -23,7 +23,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import it.govpay.common.client.service.ConnettoreService;
+import it.govpay.common.configurazione.service.ConfigurazioneService;
 import it.govpay.gde.client.beans.CategoriaEvento;
 import it.govpay.gde.client.beans.EsitoEvento;
 import it.govpay.gde.client.beans.NuovoEvento;
@@ -39,7 +39,7 @@ class AbstractGdeServiceTest {
     private ObjectMapper objectMapper;
 
     @Mock
-    private ConnettoreService connettoreService;
+    private ConfigurazioneService configurazioneService;
 
     private static final String GDE_ENDPOINT = "http://gde.test/eventi";
 
@@ -49,8 +49,8 @@ class AbstractGdeServiceTest {
         private final String endpoint;
 
         TestGdeService(ObjectMapper objectMapper, Executor asyncExecutor,
-                      ConnettoreService connettoreService, String endpoint) {
-            super(objectMapper, asyncExecutor, connettoreService);
+                      ConfigurazioneService configurazioneService, String endpoint) {
+            super(objectMapper, asyncExecutor, configurazioneService);
             this.endpoint = endpoint;
         }
 
@@ -69,9 +69,8 @@ class AbstractGdeServiceTest {
     void setUp() {
         // Use a synchronous executor for testing
         Executor syncExecutor = Runnable::run;
-        lenient().when(connettoreService.getRestTemplate(AbstractGdeService.COD_CONNETTORE_GDE))
-                .thenReturn(restTemplate);
-        gdeService = new TestGdeService(objectMapper, syncExecutor, connettoreService, GDE_ENDPOINT);
+        lenient().when(configurazioneService.getRestTemplateGDE()).thenReturn(restTemplate);
+        gdeService = new TestGdeService(objectMapper, syncExecutor, configurazioneService, GDE_ENDPOINT);
     }
 
     @Test
@@ -297,5 +296,19 @@ class AbstractGdeServiceTest {
     void buildUrl() {
         String result = gdeService.buildUrl("http://base.url", "/path");
         assertEquals("http://base.url/path", result);
+    }
+
+    @Test
+    @DisplayName("isAbilitato - true quando connettore GDE esiste ed e' abilitato")
+    void isAbilitato_true() {
+        when(configurazioneService.isServizioGDEAbilitato()).thenReturn(true);
+        assertTrue(gdeService.isAbilitato());
+    }
+
+    @Test
+    @DisplayName("isAbilitato - false quando connettore GDE non esiste o non e' abilitato")
+    void isAbilitato_false() {
+        when(configurazioneService.isServizioGDEAbilitato()).thenReturn(false);
+        assertFalse(gdeService.isAbilitato());
     }
 }
