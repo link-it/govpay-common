@@ -201,7 +201,7 @@ public final class GdeUtils {
 
         // Aggiungi operation path
         if (operationPath != null) {
-            if (url.length() > 0 && url.charAt(url.length() - 1) == '/') {
+            if (!url.isEmpty() && url.charAt(url.length() - 1) == '/') {
                 url.append(operationPath.startsWith("/") ? operationPath.substring(1) : operationPath);
             } else {
                 url.append(operationPath.startsWith("/") ? operationPath : "/" + operationPath);

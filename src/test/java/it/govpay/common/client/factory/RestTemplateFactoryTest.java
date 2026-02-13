@@ -1,7 +1,18 @@
 package it.govpay.common.client.factory;
 
-import it.govpay.common.entity.TipoAutenticazione;
-import it.govpay.common.client.model.Connettore;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -14,15 +25,9 @@ import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import it.govpay.common.client.gde.GdeCapturingInterceptor;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import it.govpay.common.client.model.Connettore;
+import it.govpay.common.entity.TipoAutenticazione;
 
 class RestTemplateFactoryTest {
 
@@ -55,7 +60,7 @@ class RestTemplateFactoryTest {
         assertFalse(restTemplate.getInterceptors().isEmpty());
         // 1 BasicAuth + 1 GdeCapturing
         assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
-        assertTrue(restTemplate.getInterceptors().stream().anyMatch(i -> i instanceof GdeCapturingInterceptor));
+        assertTrue(restTemplate.getInterceptors().stream().anyMatch(GdeCapturingInterceptor.class::isInstance));
     }
 
     @Test
@@ -145,7 +150,7 @@ class RestTemplateFactoryTest {
         assertNotNull(restTemplate);
         // Only GdeCapturing interceptor
         assertEquals(GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
-        assertTrue(restTemplate.getInterceptors().stream().anyMatch(i -> i instanceof GdeCapturingInterceptor));
+        assertTrue(restTemplate.getInterceptors().stream().anyMatch(GdeCapturingInterceptor.class::isInstance));
     }
 
     @Test
