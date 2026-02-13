@@ -16,7 +16,7 @@ class TipoAutenticazioneTest {
     void testEnumValues() {
         assertEquals(6, TipoAutenticazione.values().length);
         assertNotNull(TipoAutenticazione.valueOf("NONE"));
-        assertNotNull(TipoAutenticazione.valueOf("HTTPBasic"));
+        assertNotNull(TipoAutenticazione.valueOf("HTTP_BASIC"));
         assertNotNull(TipoAutenticazione.valueOf("SSL"));
         assertNotNull(TipoAutenticazione.valueOf("OAUTH2_CLIENT_CREDENTIALS"));
         assertNotNull(TipoAutenticazione.valueOf("API_KEY"));
@@ -91,7 +91,7 @@ class TipoAutenticazioneTest {
     @Test
     void testName() {
         assertEquals("NONE", TipoAutenticazione.NONE.name());
-        assertEquals("HTTPBasic", TipoAutenticazione.HTTP_BASIC.name());
+        assertEquals("HTTP_BASIC", TipoAutenticazione.HTTP_BASIC.name());
         assertEquals("SSL", TipoAutenticazione.SSL.name());
         assertEquals("OAUTH2_CLIENT_CREDENTIALS", TipoAutenticazione.OAUTH2_CLIENT_CREDENTIALS.name());
         assertEquals("API_KEY", TipoAutenticazione.API_KEY.name());

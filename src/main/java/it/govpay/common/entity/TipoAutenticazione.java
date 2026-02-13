@@ -32,4 +32,16 @@ public enum TipoAutenticazione {
             default -> NONE;
         };
     }
+    
+    @Override
+    public String toString() {
+		return switch (this) {
+		case NONE -> "NONE";
+		case HTTP_BASIC -> "HTTPBasic";
+		case SSL -> "SSL";
+		case OAUTH2_CLIENT_CREDENTIALS -> "OAUTH2_CLIENT_CREDENTIALS";
+		case API_KEY -> "API_KEY";
+		case HTTP_HEADER -> "HTTP_HEADER";
+		};
+    }
 }

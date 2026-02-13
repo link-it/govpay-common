@@ -1,15 +1,19 @@
 package it.govpay.common.client.converter;
 
-import it.govpay.common.entity.ConnettoreEntity;
-import it.govpay.common.entity.TipoAutenticazione;
-import it.govpay.common.client.model.Connettore;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+
+import it.govpay.common.client.model.Connettore;
+import it.govpay.common.entity.ConnettoreEntity;
+import it.govpay.common.entity.TipoAutenticazione;
 
 class ConnettoreConverterTest {
 
@@ -337,8 +341,7 @@ class ConnettoreConverterTest {
         for (TipoAutenticazione tipo : TipoAutenticazione.values()) {
             List<ConnettoreEntity> entities = new ArrayList<>();
             entities.add(createEntity("TEST_" + tipo.name(), "URL", "https://api.test.com"));
-            entities.add(createEntity("TEST_" + tipo.name(), "TIPOAUTENTICAZIONE", tipo.name()));
-
+            entities.add(createEntity("TEST_" + tipo.name(), "TIPOAUTENTICAZIONE", tipo.toString()));
             Connettore result = ConnettoreConverter.toModel(entities);
 
             assertNotNull(result);

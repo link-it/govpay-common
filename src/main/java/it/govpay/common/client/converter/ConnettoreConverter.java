@@ -71,7 +71,7 @@ public class ConnettoreConverter {
     private static void applyProperty(Connettore connettore, String proprieta, String valore) {
         switch (proprieta) {
             case Connettore.P_URL_NAME -> connettore.setUrl(valore);
-            case Connettore.P_TIPOAUTENTICAZIONE_NAME ->
+            case Connettore.P_TIPOAUTENTICAZIONE_NAME -> 
                     connettore.setTipoAutenticazione(TipoAutenticazione.fromGovPayAuthType(valore));
             case Connettore.P_HTTPUSER_NAME -> connettore.setHttpUser(valore);
             case Connettore.P_HTTPPASSW_NAME -> connettore.setHttpPassw(valore);
