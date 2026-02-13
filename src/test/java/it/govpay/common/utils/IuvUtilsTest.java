@@ -23,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import it.govpay.common.entity.DominioEntity;
+
 class IuvUtilsTest {
 
     @Test
@@ -94,7 +96,7 @@ class IuvUtilsTest {
     @Test
     @DisplayName("isIuvInterno - dominio null")
     void isIuvInterno_dominioNull() {
-        assertFalse(IuvUtils.isIuvInterno((IuvUtils.DominioInfo) null, "123456789012345"));
+        assertFalse(IuvUtils.isIuvInterno(null, "123456789012345"));
     }
 
     @Test
@@ -105,24 +107,12 @@ class IuvUtilsTest {
     }
 
     @Test
-    @DisplayName("isIuvInterno - con DominioInfo")
+    @DisplayName("isIuvInterno - con DominioEntity")
     void isIuvInterno_conDominioInfo() {
-        IuvUtils.DominioInfo dominio = new IuvUtils.DominioInfo() {
-            @Override
-            public String getCodDominio() {
-                return "12345678901";
-            }
-
-            @Override
-            public int getAuxDigit() {
-                return 0;
-            }
-
-            @Override
-            public Integer getSegregationCode() {
-                return null;
-            }
-        };
+    	DominioEntity dominio = new DominioEntity();
+    	dominio.setCodDominio("12345678901");
+    	dominio.setAuxDigit(0);
+    	dominio.setSegregationCode(null);
 
         assertTrue(IuvUtils.isIuvInterno(dominio, "123456789012345"));
         assertFalse(IuvUtils.isIuvInterno(dominio, "12345678901234567"));

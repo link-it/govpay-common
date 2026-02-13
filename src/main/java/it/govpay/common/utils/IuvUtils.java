@@ -20,6 +20,7 @@ package it.govpay.common.utils;
 
 import java.math.BigInteger;
 
+import it.govpay.common.entity.DominioEntity;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -112,20 +113,20 @@ public final class IuvUtils {
      * Verifica se uno IUV e' stato generato internamente da GovPay.
      * Versione che accetta un oggetto DominioInfo per i dati del dominio.
      *
-     * @param dominioInfo informazioni sul dominio (null se non censito)
+     * @param dominio informazioni sul dominio (null se non censito)
      * @param iuv         lo IUV da verificare
      * @return true se lo IUV e' interno, false altrimenti
      */
-    public static boolean isIuvInterno(DominioInfo dominioInfo, String iuv) {
-        if (dominioInfo == null) {
+    public static boolean isIuvInterno(DominioEntity dominio, String iuv) {
+        if (dominio == null) {
             log.debug("Dominio non censito, IUV:{} non interno", iuv);
             return false;
         }
 
         return isIuvInterno(
-                dominioInfo.getCodDominio(),
-                dominioInfo.getAuxDigit(),
-                dominioInfo.getSegregationCode(),
+                dominio.getCodDominio(),
+                dominio.getAuxDigit(),
+                dominio.getSegregationCode(),
                 iuv);
     }
 
@@ -146,28 +147,5 @@ public final class IuvUtils {
         } catch (NumberFormatException e) {
             return false;
         }
-    }
-
-    /**
-     * Interfaccia per i dati del dominio necessari alla validazione IUV.
-     * <p>
-     * I progetti batch devono implementare questa interfaccia con le
-     * loro classi entity/DTO specifiche.
-     */
-    public interface DominioInfo {
-        /**
-         * @return codice fiscale del dominio/EC
-         */
-        String getCodDominio();
-
-        /**
-         * @return AuxDigit configurato (0, 1, o 3)
-         */
-        int getAuxDigit();
-
-        /**
-         * @return codice segregazione (solo per AuxDigit 3), o null
-         */
-        Integer getSegregationCode();
     }
 }
