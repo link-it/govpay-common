@@ -31,6 +31,7 @@ import org.springframework.batch.core.JobInstance;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.core.env.Environment;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import it.govpay.common.batch.dto.BatchStatusInfo;
@@ -159,7 +160,7 @@ public abstract class AbstractBatchController {
 
         } catch (Exception e) {
             log.error("Errore durante l'avvio del job: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body(Problem.internalServerError("Errore durante l'avvio: " + e.getMessage()));
+            return problemResponse(Problem.internalServerError("Errore durante l'avvio: " + e.getMessage()));
         }
     }
 
@@ -190,7 +191,7 @@ public abstract class AbstractBatchController {
             return null;
         }
 
-        return ResponseEntity.status(503).body(
+        return problemResponse(
                 Problem.serviceUnavailable("Impossibile terminare forzatamente il job in esecuzione (JobExecution ID: " + currentExecution.getId() + ")"));
     }
 
@@ -202,7 +203,7 @@ public abstract class AbstractBatchController {
             return null;
         }
 
-        return ResponseEntity.status(503).body(
+        return problemResponse(
                 Problem.serviceUnavailable("Impossibile abbandonare il job stale (JobExecution ID: " + currentExecution.getId() + ")"));
     }
 
@@ -215,7 +216,7 @@ public abstract class AbstractBatchController {
                 currentExecution.getId(),
                 runningClusterId);
 
-        return ResponseEntity.status(409).body(Problem.conflict(detail));
+        return problemResponse(Problem.conflict(detail));
     }
 
     private ResponseEntity<Object> avviaJobAsincrono() {
@@ -423,6 +424,14 @@ public abstract class AbstractBatchController {
         } else {
             return String.format("%d secondi", seconds);
         }
+    }
+
+    // ============ HELPER ============
+
+    private ResponseEntity<Object> problemResponse(Problem problem) {
+        return ResponseEntity.status(problem.getStatus())
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(problem);
     }
 
     // ============ ACCESSORS ============
