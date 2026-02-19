@@ -1,5 +1,8 @@
 package it.govpay.common.entity;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,7 +24,7 @@ public class ConfigurazioneEntity {
     @Column(name = "nome", nullable = false, unique = true, length = 255)
     private String nome;
 
-    @Lob
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(name = "valore")
     private String valore;
 }
