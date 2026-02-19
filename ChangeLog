@@ -1,6 +1,10 @@
 2026-02-13  Giuliano Pintori <pintori@link.it>
 
 	* [Batch]
+	Aggiunto metodo astratto clearCache() ad AbstractBatchController:
+	- Ogni sottoclasse implementa la logica di reset delle proprie cache
+
+	* [Batch]
 	Risposte errore Problem conformi a RFC 7807:
 	- Content-Type impostato a application/problem+json per tutte le risposte errore
 	- Centralizzata costruzione risposta nel metodo problemResponse()

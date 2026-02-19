@@ -434,6 +434,18 @@ public abstract class AbstractBatchController {
                 .body(problem);
     }
 
+    // ============ CACHE ============
+
+    /**
+     * Svuota le cache applicative del batch.
+     * <p>
+     * Ogni sottoclasse implementa la logica specifica di reset delle proprie cache
+     * (es. connettori, configurazione, dati di dominio, ecc.).
+     *
+     * @return ResponseEntity con messaggio di conferma
+     */
+    protected abstract ResponseEntity<String> clearCache();
+
     // ============ ACCESSORS ============
 
     protected JobExecutionHelper getJobExecutionHelper() {

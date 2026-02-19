@@ -75,6 +75,9 @@ class AbstractBatchControllerTest {
         @Override
         protected String getJobName() { return jobName; }
 
+        @Override
+        protected ResponseEntity<String> clearCache() { return ResponseEntity.ok("Cache svuotata"); }
+
         // Expose protected methods for testing
         public ResponseEntity<Object> testEseguiJob(boolean force) { return eseguiJob(force); }
         public ResponseEntity<BatchStatusInfo> testGetStatus() { return getStatus(); }
