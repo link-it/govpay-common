@@ -110,13 +110,13 @@ VALUES ('99999999999', 'Intermediario Disabilitato', false);
 -- Dati di test per stazioni
 
 INSERT INTO stazioni (cod_stazione, password, abilitato, application_code, versione, id_intermediario)
-VALUES ('12345678901_01', 'password01', true, '01', '2', (SELECT id FROM intermediari WHERE cod_intermediario = '12345678901'));
+VALUES ('12345678901_01', 'password01', true, 1, '2', (SELECT id FROM intermediari WHERE cod_intermediario = '12345678901'));
 
 INSERT INTO stazioni (cod_stazione, password, abilitato, application_code, versione, id_intermediario)
-VALUES ('12345678901_02', 'password02', true, '02', '1', (SELECT id FROM intermediari WHERE cod_intermediario = '12345678901'));
+VALUES ('12345678901_02', 'password02', true, 2, '1', (SELECT id FROM intermediari WHERE cod_intermediario = '12345678901'));
 
 INSERT INTO stazioni (cod_stazione, password, abilitato, application_code, versione, id_intermediario)
-VALUES ('99999999999_01', 'password99', false, '01', '2', (SELECT id FROM intermediari WHERE cod_intermediario = '99999999999'));
+VALUES ('99999999999_01', 'password99', false, 1, '2', (SELECT id FROM intermediari WHERE cod_intermediario = '99999999999'));
 
 -- Dati di test per domini
 

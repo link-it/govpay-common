@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS stazioni (
     cod_stazione VARCHAR(255) NOT NULL,
     password VARCHAR(255),
     abilitato BOOLEAN NOT NULL,
-    application_code VARCHAR(255),
+    application_code INTEGER,
     versione VARCHAR(255),
     id_intermediario BIGINT NOT NULL,
     CONSTRAINT uk_stazioni_cod UNIQUE (cod_stazione),

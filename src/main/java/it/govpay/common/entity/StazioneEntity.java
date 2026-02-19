@@ -27,8 +27,8 @@ public class StazioneEntity {
     @Column(name = "abilitato", nullable = false)
     private Boolean abilitato;
 
-    @Column(name = "application_code", length = 255)
-    private String applicationCode;
+    @Column(name = "application_code")
+    private Integer applicationCode;
 
     @Column(name = "versione", length = 255)
     private String versione;

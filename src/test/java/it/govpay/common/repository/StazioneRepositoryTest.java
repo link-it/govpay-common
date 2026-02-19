@@ -34,7 +34,7 @@ class StazioneRepositoryTest {
         assertEquals("12345678901_01", stazione.getCodStazione());
         assertEquals("password01", stazione.getPassword());
         assertTrue(stazione.getAbilitato());
-        assertEquals("01", stazione.getApplicationCode());
+        assertEquals(1, stazione.getApplicationCode());
         assertEquals("2", stazione.getVersione());
         assertNotNull(stazione.getIntermediario());
         assertEquals("12345678901", stazione.getIntermediario().getCodIntermediario());
