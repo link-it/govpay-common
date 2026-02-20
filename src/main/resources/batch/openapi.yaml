@@ -1,0 +1,233 @@
+openapi: 3.0.1
+info:
+  title: Batch Controller API
+  description: API per la gestione e il monitoraggio dei job batch
+  version: v0
+servers:
+  - url: http://localhost:8080
+    description: Generated server url
+paths:
+  /run:
+    post:
+      tags:
+        - batch
+      summary: Esecuzione manuale del job batch
+      description: Avvia l'esecuzione del job batch in modo asincrono. Se il job è già in esecuzione restituisce errore, a meno che non venga forzata l'esecuzione.
+      operationId: eseguiJob
+      parameters:
+        - name: force
+          in: query
+          description: Forza l'esecuzione anche se il job è già in corso, abbandonando l'esecuzione precedente.
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '202':
+          description: Job avviato con successo.
+        '409':
+          $ref: "#/components/responses/409Conflict"
+        '500':
+          $ref: "#/components/responses/500InternalServerError"
+        '503':
+          $ref: "#/components/responses/503ServiceUnavailable"
+  /status:
+    get:
+      tags:
+        - batch
+      summary: Stato corrente del job batch
+      description: Restituisce lo stato corrente dell'esecuzione del job batch.
+      operationId: getStatus
+      responses:
+        '200':
+          description: Stato corrente del job.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchStatusInfo"
+        '500':
+          $ref: "#/components/responses/500InternalServerError"
+  /last-execution:
+    get:
+      tags:
+        - batch
+      summary: Ultima esecuzione completata
+      description: Restituisce le informazioni sull'ultima esecuzione completata del job batch.
+      operationId: getLastExecution
+      responses:
+        '200':
+          description: Informazioni sull'ultima esecuzione.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LastExecutionInfo"
+        '500':
+          $ref: "#/components/responses/500InternalServerError"
+  /next-execution:
+    get:
+      tags:
+        - batch
+      summary: Prossima esecuzione pianificata
+      description: Restituisce le informazioni sulla prossima esecuzione pianificata del job batch.
+      operationId: getNextExecution
+      responses:
+        '200':
+          description: Informazioni sulla prossima esecuzione.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NextExecutionInfo"
+        '500':
+          $ref: "#/components/responses/500InternalServerError"
+  /cache/clear:
+    post:
+      tags:
+        - batch
+      summary: Svuota la cache dell'applicazione
+      description: Svuota la cache dell'applicazione e restituisce un messaggio di conferma.
+      operationId: clearCache
+      responses:
+        '200':
+          description: Cache svuotata con successo.
+          content:
+            application/json:
+              schema:
+                type: string
+        '500':
+          $ref: "#/components/responses/500InternalServerError"
+components:
+  responses:
+    '409Conflict':
+      description: Job già in esecuzione.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            detail: Job already running.
+            status: 409
+            title: Conflict
+            type: https://www.rfc-editor.org/rfc/rfc9110.html#name-409-conflict
+    '500InternalServerError':
+      description: Errore interno del server.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            detail: Internal server error.
+            status: 500
+            title: Internal Server Error
+            type: https://www.rfc-editor.org/rfc/rfc9110.html#name-500-internal-server-error
+    '503ServiceUnavailable':
+      description: Servizio non disponibile.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            detail: Request Can't be fulfilled at the moment.
+            status: 503
+            title: Service Unavailable
+            type: https://www.rfc-editor.org/rfc/rfc9110.html#name-503-service-unavailable
+  schemas:
+    BatchStatusInfo:
+      type: object
+      properties:
+        running:
+          type: boolean
+          description: Indica se il job batch è attualmente in esecuzione.
+        executionId:
+          type: integer
+          format: int64
+          description: Identificativo dell'esecuzione corrente.
+        clusterId:
+          type: string
+          description: Identificativo del nodo del cluster che sta eseguendo il job.
+        startTime:
+          type: string
+          format: date-time
+          description: Data e ora di inizio dell'esecuzione corrente.
+        runningSeconds:
+          type: integer
+          format: int64
+          description: Durata in secondi dell'esecuzione corrente.
+        status:
+          type: string
+          description: Stato dell'esecuzione (STARTED, STARTING, etc.).
+        currentStep:
+          type: string
+          description: Nome dello step attualmente in esecuzione.
+      required:
+        - running
+    LastExecutionInfo:
+      type: object
+      properties:
+        executionId:
+          type: integer
+          format: int64
+          description: Identificativo dell'ultima esecuzione.
+        clusterId:
+          type: string
+          description: Identificativo del nodo del cluster che ha eseguito il job.
+        startTime:
+          type: string
+          format: date-time
+          description: Data e ora di inizio dell'ultima esecuzione.
+        endTime:
+          type: string
+          format: date-time
+          description: Data e ora di fine dell'ultima esecuzione.
+        durationSeconds:
+          type: integer
+          format: int64
+          description: Durata in secondi dell'ultima esecuzione.
+        status:
+          type: string
+          description: Stato finale dell'esecuzione (COMPLETED, FAILED, STOPPED, etc.).
+        exitCode:
+          type: string
+          description: Codice di uscita dell'esecuzione.
+        exitDescription:
+          type: string
+          description: Descrizione dello stato di uscita.
+    NextExecutionInfo:
+      type: object
+      properties:
+        schedulingMode:
+          type: string
+          description: Modalità di scheduling ("scheduler" per interno, "cron" per esterno).
+        nextExecutionTime:
+          type: string
+          format: date-time
+          description: Data e ora stimata della prossima esecuzione (null se in modalità cron).
+        intervalMillis:
+          type: integer
+          format: int64
+          description: Intervallo di scheduling in millisecondi (solo per scheduler interno).
+        intervalFormatted:
+          type: string
+          description: Intervallo in formato leggibile (es. "10 minutes", "2 hours").
+        lastCompletedTime:
+          type: string
+          format: date-time
+          description: Data e ora dell'ultima esecuzione completata.
+        message:
+          type: string
+          description: Messaggio aggiuntivo (es. "Managed by external cron", "Running").
+    Problem:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri

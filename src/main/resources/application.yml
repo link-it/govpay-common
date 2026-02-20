@@ -40,11 +40,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        # Per MySQL: org.hibernate.dialect.MySQL8Dialect
-        # Per Oracle: org.hibernate.dialect.Oracle12cDialect
-        # Per SQL Server: org.hibernate.dialect.SQLServerDialect
-        # Per HSQLDB: org.hibernate.dialect.HSQLDialect
 
 govpay:
   client:
