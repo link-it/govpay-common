@@ -33,6 +33,7 @@ import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 
 import it.govpay.common.batch.dto.BatchStatusInfo;
 import it.govpay.common.batch.dto.LastExecutionInfo;
@@ -445,6 +446,11 @@ public abstract class AbstractBatchController {
      * @return ResponseEntity con messaggio di conferma
      */
     protected abstract ResponseEntity<String> clearCache();
+
+    @GetMapping("/cache/clear")
+    public ResponseEntity<String> clearCacheEndpoint() {
+        return clearCache();
+    }
 
     // ============ ACCESSORS ============
 
