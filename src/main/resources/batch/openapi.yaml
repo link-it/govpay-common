@@ -8,7 +8,7 @@ servers:
     description: Generated server url
 paths:
   /run:
-    post:
+    get:
       tags:
         - batch
       summary: Esecuzione manuale del job batch
@@ -47,7 +47,7 @@ paths:
                 $ref: "#/components/schemas/BatchStatusInfo"
         '500':
           $ref: "#/components/responses/500InternalServerError"
-  /last-execution:
+  /lastExecution:
     get:
       tags:
         - batch
@@ -63,7 +63,7 @@ paths:
                 $ref: "#/components/schemas/LastExecutionInfo"
         '500':
           $ref: "#/components/responses/500InternalServerError"
-  /next-execution:
+  /nextExecution:
     get:
       tags:
         - batch
@@ -80,7 +80,7 @@ paths:
         '500':
           $ref: "#/components/responses/500InternalServerError"
   /cache/clear:
-    post:
+    get:
       tags:
         - batch
       summary: Svuota la cache dell'applicazione
