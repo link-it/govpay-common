@@ -27,6 +27,9 @@ import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 import it.govpay.common.client.gde.GdeCapturingInterceptor;
 import it.govpay.common.client.model.Connettore;
 import it.govpay.common.client.oauth2.Oauth2ClientCredentialsManager;
@@ -43,7 +46,9 @@ class RestTemplateFactoryTest {
     @BeforeEach
     void setUp() {
         mockOauth2Manager = mock(Oauth2ClientCredentialsManager.class);
-        factory = new RestTemplateFactory(mockOauth2Manager);
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        factory = new RestTemplateFactory(mockOauth2Manager, objectMapper);
     }
 
     @Test

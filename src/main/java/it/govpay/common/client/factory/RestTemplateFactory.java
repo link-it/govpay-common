@@ -24,6 +24,7 @@ import org.apache.hc.core5.util.Timeout;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
@@ -31,6 +32,8 @@ import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import it.govpay.common.client.gde.GdeCapturingInterceptor;
 import it.govpay.common.client.model.Connettore;
@@ -42,9 +45,11 @@ import lombok.extern.slf4j.Slf4j;
 public class RestTemplateFactory {
 
     private final Oauth2ClientCredentialsManager oauth2TokenManager;
+    private final ObjectMapper objectMapper;
 
-    public RestTemplateFactory(Oauth2ClientCredentialsManager oauth2TokenManager) {
+    public RestTemplateFactory(Oauth2ClientCredentialsManager oauth2TokenManager, ObjectMapper objectMapper) {
         this.oauth2TokenManager = oauth2TokenManager;
+        this.objectMapper = objectMapper;
     }
 
     public RestTemplate createRestTemplate(Connettore connettore) {
@@ -92,6 +97,7 @@ public class RestTemplateFactory {
                     List<ClientHttpRequestInterceptor> sslInterceptors = new ArrayList<>(interceptors);
                     sslInterceptors.add(new GdeCapturingInterceptor());
                     restTemplate.setInterceptors(sslInterceptors);
+                    configureObjectMapper(restTemplate);
 
                     log.debug("Aggiunto GdeCapturingInterceptor per connettore SSL: {}", connettore.getIdConnettore());
                     return restTemplate;
@@ -125,9 +131,17 @@ public class RestTemplateFactory {
 
         RestTemplate restTemplate = builder.build();
         restTemplate.setInterceptors(interceptors);
+        configureObjectMapper(restTemplate);
 
         log.info("RestTemplate creato con successo per connettore: {}", connettore.getIdConnettore());
         return restTemplate;
+    }
+
+    private void configureObjectMapper(RestTemplate restTemplate) {
+        restTemplate.getMessageConverters().stream()
+                .filter(MappingJackson2HttpMessageConverter.class::isInstance)
+                .map(MappingJackson2HttpMessageConverter.class::cast)
+                .forEach(converter -> converter.setObjectMapper(objectMapper));
     }
 
     private HttpComponentsClientHttpRequestFactory createSslRequestFactory(Connettore connettore) throws Exception {
