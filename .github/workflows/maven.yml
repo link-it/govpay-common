@@ -212,7 +212,11 @@ jobs:
 
     - name: Rename the artifact file to include the tag
       run: |
-        cp target/govpay-common-*.jar target/govpay-common-${{ github.ref_name }}.jar
+        SRC=$(ls target/govpay-common-*.jar)
+        DEST="target/govpay-common-${{ github.ref_name }}.jar"
+        if [ "$SRC" != "$DEST" ]; then
+          cp "$SRC" "$DEST"
+        fi
         cp target/site/jacoco/jacoco.xml target/jacoco.xml
 
     - name: Zip third-party licenses
