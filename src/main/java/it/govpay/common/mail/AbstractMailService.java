@@ -62,6 +62,11 @@ import lombok.extern.slf4j.Slf4j;
  *   <li>Invio sincrono e asincrono</li>
  * </ul>
  *
+ * <p>La configurazione {@link MailBatch} viene cachata in memoria per evitare
+ * query ripetute al database. Il TTL di default e' {@value #DEFAULT_CACHE_TTL_MS} ms
+ * (60 secondi) e puo' essere personalizzato tramite il costruttore.
+ * Il metodo {@link #resetCache()} invalida la cache immediatamente.
+ *
  * <p>Esempio d'uso:
  * <pre>{@code
  * @Service
@@ -75,10 +80,53 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class AbstractMailService {
 
+    /** TTL di default della cache di configurazione: 60 secondi. */
+    public static final long DEFAULT_CACHE_TTL_MS = 60_000L;
+
     private final ConfigurazioneService configurazioneService;
+    private final long cacheTtlMs;
+
+    private volatile MailBatch cachedMailBatch;
+    private volatile long cacheTimestamp;
 
     protected AbstractMailService(ConfigurazioneService configurazioneService) {
+        this(configurazioneService, DEFAULT_CACHE_TTL_MS);
+    }
+
+    protected AbstractMailService(ConfigurazioneService configurazioneService, long cacheTtlMs) {
         this.configurazioneService = configurazioneService;
+        this.cacheTtlMs = cacheTtlMs;
+    }
+
+    /**
+     * Restituisce la configurazione {@link MailBatch} dalla cache, ricaricandola
+     * dal database solo se assente o scaduta.
+     * <p>
+     * In caso di accessi concorrenti a cache scaduta, piu' thread potrebbero
+     * eseguire la query contemporaneamente: e' accettabile perche' il risultato
+     * e' idempotente e il costo e' trascurabile.
+     *
+     * @return configurazione MailBatch, o {@link java.util.Optional#empty()} se assente
+     */
+    private java.util.Optional<MailBatch> getMailBatchCached() {
+        long now = System.currentTimeMillis();
+        if (cachedMailBatch == null || (now - cacheTimestamp) > cacheTtlMs) {
+            cachedMailBatch = configurazioneService.getMailBatch().orElse(null);
+            cacheTimestamp = now;
+            log.debug("Configurazione MailBatch caricata dal database");
+        }
+        return java.util.Optional.ofNullable(cachedMailBatch);
+    }
+
+    /**
+     * Invalida la cache della configurazione {@link MailBatch}.
+     * <p>
+     * La chiamata successiva a {@link #isAbilitato()} o {@link #inviaEmail(MailInfo)}
+     * rileggera' la configurazione dal database.
+     */
+    public void resetCache() {
+        cachedMailBatch = null;
+        log.debug("Cache MailBatch invalidata");
     }
 
     /**
@@ -87,7 +135,7 @@ public abstract class AbstractMailService {
      * @return true se la configurazione MailBatch esiste ed e' abilitata
      */
     public boolean isAbilitato() {
-        return configurazioneService.getMailBatch()
+        return getMailBatchCached()
                 .map(MailBatch::isAbilitato)
                 .orElse(false);
     }
@@ -100,7 +148,7 @@ public abstract class AbstractMailService {
      * @throws IllegalStateException se il servizio non e' abilitato o non configurato
      */
     public void inviaEmail(MailInfo mailInfo) throws MailException {
-        MailBatch mailBatch = configurazioneService.getMailBatch()
+        MailBatch mailBatch = getMailBatchCached()
                 .orElseThrow(() -> new IllegalStateException("Configurazione MailBatch non trovata"));
 
         if (!mailBatch.isAbilitato()) {

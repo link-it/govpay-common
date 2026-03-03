@@ -55,6 +55,12 @@ class AbstractMailServiceTest {
             this.overrideMailSender = overrideMailSender;
         }
 
+        TestMailService(ConfigurazioneService configurazioneService, JavaMailSender overrideMailSender,
+                long cacheTtlMs) {
+            super(configurazioneService, cacheTtlMs);
+            this.overrideMailSender = overrideMailSender;
+        }
+
         @Override
         protected JavaMailSender buildMailSender(MailServer mailServer) {
             return overrideMailSender;
@@ -545,6 +551,78 @@ class AbstractMailServiceTest {
             assertNotNull(future);
             assertTrue(future.isDone());
             assertFalse(future.isCompletedExceptionally());
+        }
+    }
+
+    // ==================== Cache MailBatch ====================
+
+    @Nested
+    @DisplayName("Cache MailBatch")
+    class CacheMailBatch {
+
+        @Test
+        @DisplayName("seconda inviaEmail entro TTL non rilegge la configurazione dal DB")
+        void cacheHitNonInterrogaDb() {
+            when(configurazioneService.getMailBatch())
+                    .thenReturn(Optional.of(abilitato(defaultMailServer())));
+            lenient().when(mockMailSender.createMimeMessage()).thenReturn(newMimeMessage());
+
+            MailInfo mailInfo = MailInfo.builder().to(List.of("dest@test.local")).build();
+            mailService.inviaEmail(mailInfo);
+            mailService.inviaEmail(mailInfo);
+
+            verify(configurazioneService, times(1)).getMailBatch();
+        }
+
+        @Test
+        @DisplayName("resetCache forza la rilettura dal DB alla chiamata successiva")
+        void resetCacheForceDbRead() {
+            when(configurazioneService.getMailBatch())
+                    .thenReturn(Optional.of(abilitato(defaultMailServer())));
+            lenient().when(mockMailSender.createMimeMessage()).thenReturn(newMimeMessage());
+
+            MailInfo mailInfo = MailInfo.builder().to(List.of("dest@test.local")).build();
+            mailService.inviaEmail(mailInfo);
+            mailService.resetCache();
+            mailService.inviaEmail(mailInfo);
+
+            verify(configurazioneService, times(2)).getMailBatch();
+        }
+
+        @Test
+        @DisplayName("cache scaduta forza la rilettura dal DB")
+        void cacheScadutaForceDbRead() throws InterruptedException {
+            TestMailService shortTtlService =
+                    new TestMailService(configurazioneService, mockMailSender, 1L);
+
+            when(configurazioneService.getMailBatch())
+                    .thenReturn(Optional.of(abilitato(defaultMailServer())));
+            lenient().when(mockMailSender.createMimeMessage()).thenReturn(newMimeMessage());
+
+            MailInfo mailInfo = MailInfo.builder().to(List.of("dest@test.local")).build();
+            shortTtlService.inviaEmail(mailInfo);
+            Thread.sleep(10);
+            shortTtlService.inviaEmail(mailInfo);
+
+            verify(configurazioneService, times(2)).getMailBatch();
+        }
+
+        @Test
+        @DisplayName("isAbilitato usa la cache")
+        void isAbilitatoUsaCache() {
+            when(configurazioneService.getMailBatch())
+                    .thenReturn(Optional.of(abilitato(defaultMailServer())));
+
+            mailService.isAbilitato();
+            mailService.isAbilitato();
+
+            verify(configurazioneService, times(1)).getMailBatch();
+        }
+
+        @Test
+        @DisplayName("DEFAULT_CACHE_TTL_MS e' 60 secondi")
+        void defaultTtl() {
+            assertEquals(60_000L, AbstractMailService.DEFAULT_CACHE_TTL_MS);
         }
     }
 
