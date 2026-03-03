@@ -1,3 +1,19 @@
+2026-03-03  Giuliano Pintori <pintori@link.it>
+
+	* Avanzamento versione 1.1.0-SNAPSHOT
+
+	* [Mail]
+	Aggiunto servizio astratto per l'invio di email (parita' funzionale con openspcoop2-utils-mail):
+	- Nuovo DTO MailInfo con campi: to, cc, bcc, from, oggetto, testo, html, encoding,
+	  allegati (byte[]), userAgent, contentLanguage, messageIdDomain
+	- AbstractMailService con invio sincrono (inviaEmail) e asincrono (inviaEmailAsync)
+	- Supporto body HTML e plain text con encoding configurabile (default UTF-8)
+	- SSL/TLS completo: keystore PKCS12 e truststore JKS personalizzati tramite SslConfig,
+	  controllo hostname verifier, STARTTLS
+	- Header custom: User-Agent, Content-Language, Message-ID con dominio configurabile
+	- Configurazione SMTP da MailBatch/MailServer (host, port, credenziali, timeout)
+	- Dipendenza spring-boot-starter-mail aggiunta come optional
+
 2026-02-25  Giuliano Pintori <pintori@link.it>
 
 	* Rilascio versione 1.0.0
