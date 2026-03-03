@@ -276,10 +276,10 @@ public abstract class AbstractMailService {
         try {
             String protocol = StringUtils.hasText(sslConfig.getType()) ? sslConfig.getType() : "TLS";
             SSLContext sslContext = SSLContext.getInstance(protocol);
-            sslContext.init(
-                    loadKeyManagers(sslConfig.getKeyStore()),
-                    loadTrustManagers(sslConfig.getTrustStore()),
-                    null);
+            KeyManager[] loadKeyManagers = sslConfig.getKeyStore() != null ? loadKeyManagers(sslConfig.getKeyStore()) : null;
+            TrustManager[] loadTrustManagers = sslConfig.getTrustStore() != null ? loadTrustManagers(sslConfig.getTrustStore()) : null;
+            
+            sslContext.init(loadKeyManagers, loadTrustManagers, null);
             return sslContext;
         } catch (Exception e) {
             throw new MailSendException("Errore nella configurazione SSL: " + e.getMessage(), e);
@@ -288,9 +288,6 @@ public abstract class AbstractMailService {
 
     private KeyManager[] loadKeyManagers(it.govpay.common.configurazione.model.KeyStore ksConfig)
             throws Exception {
-        if (ksConfig == null || !StringUtils.hasText(ksConfig.getLocation())) {
-            return null;
-        }
         String type = StringUtils.hasText(ksConfig.getType()) ? ksConfig.getType() : "PKCS12";
         char[] pwd = ksConfig.getPassword() != null ? ksConfig.getPassword().toCharArray() : null;
         java.security.KeyStore ks = java.security.KeyStore.getInstance(type);
@@ -308,9 +305,6 @@ public abstract class AbstractMailService {
 
     private TrustManager[] loadTrustManagers(it.govpay.common.configurazione.model.KeyStore tsConfig)
             throws Exception {
-        if (tsConfig == null || !StringUtils.hasText(tsConfig.getLocation())) {
-            return null;
-        }
         String type = StringUtils.hasText(tsConfig.getType()) ? tsConfig.getType() : "JKS";
         char[] pwd = tsConfig.getPassword() != null ? tsConfig.getPassword().toCharArray() : null;
         java.security.KeyStore ts = java.security.KeyStore.getInstance(type);
