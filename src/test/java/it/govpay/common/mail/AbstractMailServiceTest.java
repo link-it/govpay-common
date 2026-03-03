@@ -55,12 +55,6 @@ class AbstractMailServiceTest {
             this.overrideMailSender = overrideMailSender;
         }
 
-        TestMailService(ConfigurazioneService configurazioneService, JavaMailSender overrideMailSender,
-                long cacheTtlMs) {
-            super(configurazioneService, cacheTtlMs);
-            this.overrideMailSender = overrideMailSender;
-        }
-
         @Override
         protected JavaMailSender buildMailSender(MailServer mailServer) {
             return overrideMailSender;
@@ -591,18 +585,19 @@ class AbstractMailServiceTest {
 
         @Test
         @DisplayName("cache scaduta forza la rilettura dal DB")
-        void cacheScadutaForceDbRead() throws InterruptedException {
-            TestMailService shortTtlService =
-                    new TestMailService(configurazioneService, mockMailSender, 1L);
+        void cacheScadutaForceDbRead() {
+            long[] fakeTime = {0L};
+            TestMailService service = new TestMailService(configurazioneService, mockMailSender);
+            service.clock = () -> fakeTime[0];
 
             when(configurazioneService.getMailBatch())
                     .thenReturn(Optional.of(abilitato(defaultMailServer())));
             lenient().when(mockMailSender.createMimeMessage()).thenReturn(newMimeMessage());
 
             MailInfo mailInfo = MailInfo.builder().to(List.of("dest@test.local")).build();
-            shortTtlService.inviaEmail(mailInfo);
-            Thread.sleep(10);
-            shortTtlService.inviaEmail(mailInfo);
+            service.inviaEmail(mailInfo);                                    // cache at t=0
+            fakeTime[0] = AbstractMailService.DEFAULT_CACHE_TTL_MS + 1;     // advance past TTL
+            service.inviaEmail(mailInfo);                                    // cache expired
 
             verify(configurazioneService, times(2)).getMailBatch();
         }

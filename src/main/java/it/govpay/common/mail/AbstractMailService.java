@@ -25,6 +25,7 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.LongSupplier;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -89,6 +90,9 @@ public abstract class AbstractMailService {
     private volatile MailBatch cachedMailBatch;
     private volatile long cacheTimestamp;
 
+    /** Orologio usato per il TTL della cache; sostituibile nei test per evitare Thread.sleep. */
+    LongSupplier clock = System::currentTimeMillis;
+
     protected AbstractMailService(ConfigurazioneService configurazioneService) {
         this(configurazioneService, DEFAULT_CACHE_TTL_MS);
     }
@@ -109,7 +113,7 @@ public abstract class AbstractMailService {
      * @return configurazione MailBatch, o {@link java.util.Optional#empty()} se assente
      */
     private java.util.Optional<MailBatch> getMailBatchCached() {
-        long now = System.currentTimeMillis();
+        long now = clock.getAsLong();
         if (cachedMailBatch == null || (now - cacheTimestamp) > cacheTtlMs) {
             cachedMailBatch = configurazioneService.getMailBatch().orElse(null);
             cacheTimestamp = now;
