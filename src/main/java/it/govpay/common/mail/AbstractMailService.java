@@ -150,32 +150,37 @@ public abstract class AbstractMailService {
             }
 
             if (multipart) {
-                for (Map.Entry<String, byte[]> entry : allegati.entrySet()) {
-                    helper.addAttachment(entry.getKey(), new ByteArrayResource(entry.getValue()));
-                }
+                addAttachments(helper, allegati);
             }
+
+            applyCustomHeaders(mimeMessage, mailInfo);
         } catch (MessagingException e) {
             throw new MailSendException("Errore nella costruzione del messaggio email: " + e.getMessage(), e);
         }
 
-        // Header custom impostati direttamente sul MimeMessage
-        try {
-            if (StringUtils.hasText(mailInfo.getUserAgent())) {
-                mimeMessage.setHeader("User-Agent", mailInfo.getUserAgent());
-            }
-            if (StringUtils.hasText(mailInfo.getContentLanguage())) {
-                mimeMessage.setHeader("Content-Language", mailInfo.getContentLanguage());
-            }
-            if (StringUtils.hasText(mailInfo.getMessageIdDomain())) {
-                mimeMessage.setHeader("Message-ID",
-                        "<" + UUID.randomUUID() + "@" + mailInfo.getMessageIdDomain() + ">");
-            }
-        } catch (MessagingException e) {
-            throw new MailSendException("Errore nell'impostazione degli header del messaggio: " + e.getMessage(), e);
-        }
-
         mailSender.send(mimeMessage);
         log.info("Email inviata con successo a {}: oggetto={}", to, oggetto);
+    }
+
+    private void addAttachments(MimeMessageHelper helper, Map<String, byte[]> allegati)
+            throws MessagingException {
+        for (Map.Entry<String, byte[]> entry : allegati.entrySet()) {
+            helper.addAttachment(entry.getKey(), new ByteArrayResource(entry.getValue()));
+        }
+    }
+
+    private void applyCustomHeaders(MimeMessage mimeMessage, MailInfo mailInfo)
+            throws MessagingException {
+        if (StringUtils.hasText(mailInfo.getUserAgent())) {
+            mimeMessage.setHeader("User-Agent", mailInfo.getUserAgent());
+        }
+        if (StringUtils.hasText(mailInfo.getContentLanguage())) {
+            mimeMessage.setHeader("Content-Language", mailInfo.getContentLanguage());
+        }
+        if (StringUtils.hasText(mailInfo.getMessageIdDomain())) {
+            mimeMessage.setHeader("Message-ID",
+                    "<" + UUID.randomUUID() + "@" + mailInfo.getMessageIdDomain() + ">");
+        }
     }
 
     /**
