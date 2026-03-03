@@ -271,49 +271,53 @@ public abstract class AbstractMailService {
         try {
             String protocol = StringUtils.hasText(sslConfig.getType()) ? sslConfig.getType() : "TLS";
             SSLContext sslContext = SSLContext.getInstance(protocol);
-
-            KeyManager[] keyManagers = null;
-            TrustManager[] trustManagers = null;
-
-            it.govpay.common.configurazione.model.KeyStore ksConfig = sslConfig.getKeyStore();
-            if (ksConfig != null && StringUtils.hasText(ksConfig.getLocation())) {
-                String ksType = StringUtils.hasText(ksConfig.getType()) ? ksConfig.getType() : "PKCS12";
-                java.security.KeyStore ks = java.security.KeyStore.getInstance(ksType);
-                char[] ksPwd = ksConfig.getPassword() != null ? ksConfig.getPassword().toCharArray() : null;
-                try (FileInputStream fis = new FileInputStream(ksConfig.getLocation())) {
-                    ks.load(fis, ksPwd);
-                }
-                String algorithm = StringUtils.hasText(ksConfig.getManagementAlgorithm())
-                        ? ksConfig.getManagementAlgorithm()
-                        : KeyManagerFactory.getDefaultAlgorithm();
-                KeyManagerFactory kmf = KeyManagerFactory.getInstance(algorithm);
-                kmf.init(ks, ksPwd);
-                keyManagers = kmf.getKeyManagers();
-                log.debug("SSL keystore caricato: {}", ksConfig.getLocation());
-            }
-
-            it.govpay.common.configurazione.model.KeyStore tsConfig = sslConfig.getTrustStore();
-            if (tsConfig != null && StringUtils.hasText(tsConfig.getLocation())) {
-                String tsType = StringUtils.hasText(tsConfig.getType()) ? tsConfig.getType() : "JKS";
-                java.security.KeyStore ts = java.security.KeyStore.getInstance(tsType);
-                char[] tsPwd = tsConfig.getPassword() != null ? tsConfig.getPassword().toCharArray() : null;
-                try (FileInputStream fis = new FileInputStream(tsConfig.getLocation())) {
-                    ts.load(fis, tsPwd);
-                }
-                String algorithm = StringUtils.hasText(tsConfig.getManagementAlgorithm())
-                        ? tsConfig.getManagementAlgorithm()
-                        : TrustManagerFactory.getDefaultAlgorithm();
-                TrustManagerFactory tmf = TrustManagerFactory.getInstance(algorithm);
-                tmf.init(ts);
-                trustManagers = tmf.getTrustManagers();
-                log.debug("SSL truststore caricato: {}", tsConfig.getLocation());
-            }
-
-            sslContext.init(keyManagers, trustManagers, null);
+            sslContext.init(
+                    loadKeyManagers(sslConfig.getKeyStore()),
+                    loadTrustManagers(sslConfig.getTrustStore()),
+                    null);
             return sslContext;
-
         } catch (Exception e) {
             throw new MailSendException("Errore nella configurazione SSL: " + e.getMessage(), e);
         }
+    }
+
+    private KeyManager[] loadKeyManagers(it.govpay.common.configurazione.model.KeyStore ksConfig)
+            throws Exception {
+        if (ksConfig == null || !StringUtils.hasText(ksConfig.getLocation())) {
+            return null;
+        }
+        String type = StringUtils.hasText(ksConfig.getType()) ? ksConfig.getType() : "PKCS12";
+        char[] pwd = ksConfig.getPassword() != null ? ksConfig.getPassword().toCharArray() : null;
+        java.security.KeyStore ks = java.security.KeyStore.getInstance(type);
+        try (FileInputStream fis = new FileInputStream(ksConfig.getLocation())) {
+            ks.load(fis, pwd);
+        }
+        String algorithm = StringUtils.hasText(ksConfig.getManagementAlgorithm())
+                ? ksConfig.getManagementAlgorithm()
+                : KeyManagerFactory.getDefaultAlgorithm();
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance(algorithm);
+        kmf.init(ks, pwd);
+        log.debug("SSL keystore caricato: {}", ksConfig.getLocation());
+        return kmf.getKeyManagers();
+    }
+
+    private TrustManager[] loadTrustManagers(it.govpay.common.configurazione.model.KeyStore tsConfig)
+            throws Exception {
+        if (tsConfig == null || !StringUtils.hasText(tsConfig.getLocation())) {
+            return null;
+        }
+        String type = StringUtils.hasText(tsConfig.getType()) ? tsConfig.getType() : "JKS";
+        char[] pwd = tsConfig.getPassword() != null ? tsConfig.getPassword().toCharArray() : null;
+        java.security.KeyStore ts = java.security.KeyStore.getInstance(type);
+        try (FileInputStream fis = new FileInputStream(tsConfig.getLocation())) {
+            ts.load(fis, pwd);
+        }
+        String algorithm = StringUtils.hasText(tsConfig.getManagementAlgorithm())
+                ? tsConfig.getManagementAlgorithm()
+                : TrustManagerFactory.getDefaultAlgorithm();
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance(algorithm);
+        tmf.init(ts);
+        log.debug("SSL truststore caricato: {}", tsConfig.getLocation());
+        return tmf.getTrustManagers();
     }
 }
