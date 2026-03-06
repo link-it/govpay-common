@@ -99,6 +99,14 @@ INSERT INTO configurazione (nome, valore) VALUES
 INSERT INTO configurazione (nome, valore) VALUES
 ('avvisatura_app_io', '{"promemoriaAvviso":{"tipo":"freemarker","oggetto":"Avviso IO","messaggio":"Messaggio IO avviso"},"promemoriaRicevuta":{"tipo":"freemarker","oggetto":"Ricevuta IO","messaggio":"Messaggio IO ricevuta","soloEseguiti":false},"promemoriaScadenza":{"tipo":"freemarker","oggetto":"Scadenza IO","messaggio":"Messaggio IO scadenza","preavviso":3}}');
 
+-- Dati di test per applicazioni
+
+INSERT INTO applicazioni (cod_applicazione, auto_iuv, firma_ricevuta, trusted, cod_connettore_integrazione, cod_applicazione_iuv)
+VALUES ('APP_CON_CONNETTORE', true, 'N', true, 'TEST_BASIC', 'ACN');
+
+INSERT INTO applicazioni (cod_applicazione, auto_iuv, firma_ricevuta, trusted)
+VALUES ('APP_SENZA_CONNETTORE', false, 'N', false);
+
 -- Dati di test per intermediari
 
 INSERT INTO intermediari (cod_intermediario, cod_connettore_pdd, cod_connettore_recupero_rt, cod_connettore_aca, cod_connettore_gpd, cod_connettore_fr, cod_connettore_backoffice_ec, cod_connettore_ftp, denominazione, principal, principal_originale, abilitato)
