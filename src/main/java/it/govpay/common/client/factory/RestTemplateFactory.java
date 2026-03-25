@@ -38,6 +38,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import it.govpay.common.client.gde.GdeCapturingInterceptor;
 import it.govpay.common.client.model.Connettore;
 import it.govpay.common.client.oauth2.Oauth2ClientCredentialsManager;
+import it.govpay.common.entity.TipoAutenticazione;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -55,19 +56,35 @@ public class RestTemplateFactory {
     public RestTemplate createRestTemplate(Connettore connettore) {
         log.info("Creazione RestTemplate per connettore: {}", connettore.getIdConnettore());
 
-        RestTemplateBuilder builder = new RestTemplateBuilder()
-                .rootUri(connettore.getUrl());
+        RestTemplateBuilder builder = configureTimeouts(new RestTemplateBuilder().rootUri(connettore.getUrl()), connettore);
+        List<ClientHttpRequestInterceptor> interceptors = new ArrayList<>();
 
-        // Set timeouts only if configured
+        if (connettore.getTipoAutenticazione().equals(TipoAutenticazione.SSL)) {
+            return createSslRestTemplate(builder, connettore, interceptors);
+        }
+
+        addAuthInterceptor(connettore, interceptors);
+        addCommonInterceptors(connettore, interceptors);
+
+        RestTemplate restTemplate = builder.build();
+        restTemplate.setInterceptors(interceptors);
+        configureObjectMapper(restTemplate);
+
+        log.info("RestTemplate creato con successo per connettore: {}", connettore.getIdConnettore());
+        return restTemplate;
+    }
+
+    private RestTemplateBuilder configureTimeouts(RestTemplateBuilder builder, Connettore connettore) {
         if (connettore.getConnectionTimeout() != null) {
             builder = builder.connectTimeout(Duration.ofMillis(connettore.getConnectionTimeout()));
         }
         if (connettore.getReadTimeout() != null) {
             builder = builder.readTimeout(Duration.ofMillis(connettore.getReadTimeout()));
         }
+        return builder;
+    }
 
-        List<ClientHttpRequestInterceptor> interceptors = new ArrayList<>();
-
+    private void addAuthInterceptor(Connettore connettore, List<ClientHttpRequestInterceptor> interceptors) {
         switch (connettore.getTipoAutenticazione()) {
             case HTTP_BASIC -> {
                 log.debug("Configurazione HTTP Basic Auth per connettore: {}", connettore.getIdConnettore());
@@ -80,61 +97,49 @@ public class RestTemplateFactory {
             }
             case HTTP_HEADER -> {
                 log.debug("Configurazione Custom Headers per connettore: {}", connettore.getIdConnettore());
-                String customHeader = connettore.getHttpHeaderName() + ":" + connettore.getHttpHeaderValue();
-                interceptors.add(new CustomHeadersInterceptor(customHeader));
+                interceptors.add(new CustomHeadersInterceptor(connettore.getHttpHeaderName() + ":" + connettore.getHttpHeaderValue()));
             }
             case OAUTH2_CLIENT_CREDENTIALS -> {
                 log.debug("Configurazione OAuth2 per connettore: {}", connettore.getIdConnettore());
                 interceptors.add(new OAuth2Interceptor(connettore.getIdConnettore(), connettore, oauth2TokenManager));
             }
-            case SSL -> {
-                log.debug("Configurazione SSL/TLS per connettore: {}", connettore.getIdConnettore());
-                try {
-                    HttpComponentsClientHttpRequestFactory factory = createSslRequestFactory(connettore);
-                    RestTemplate restTemplate = builder.requestFactory(() -> factory).build();
-
-                    // Add GDE capturing interceptor for SSL connections too
-                    List<ClientHttpRequestInterceptor> sslInterceptors = new ArrayList<>(interceptors);
-                    sslInterceptors.add(new GdeCapturingInterceptor());
-                    restTemplate.setInterceptors(sslInterceptors);
-                    configureObjectMapper(restTemplate);
-
-                    log.debug("Aggiunto GdeCapturingInterceptor per connettore SSL: {}", connettore.getIdConnettore());
-                    return restTemplate;
-                } catch (Exception e) {
-                    log.error("Errore durante la configurazione SSL per connettore: {}",
-                            connettore.getIdConnettore(), e);
-                    throw new SslConfigurationException("Errore configurazione SSL per connettore: "
-                            + connettore.getIdConnettore(), e);
-                }
-            }
             case NONE -> log.debug("Nessuna autenticazione configurata per connettore: {}",
                     connettore.getIdConnettore());
+            default -> { /* SSL gestito separatamente */ }
         }
+    }
 
-        // Gestione Subscription Key (Azure APIM) se presente
+    private void addCommonInterceptors(Connettore connettore, List<ClientHttpRequestInterceptor> interceptors) {
         if (StringUtils.hasText(connettore.getSubscriptionKeyValue())) {
             log.debug("Configurazione Subscription Key per connettore: {}", connettore.getIdConnettore());
             interceptors.add(new SubscriptionKeyInterceptor(connettore.getSubscriptionKeyValue()));
         }
-
-        // Gestione Custom Headers generici se presenti
         if (connettore.getCustomHeaders() != null && !connettore.getCustomHeaders().isEmpty()) {
             log.debug("Configurazione {} Custom Headers per connettore: {}",
                     connettore.getCustomHeaders().size(), connettore.getIdConnettore());
             interceptors.add(new GenericCustomHeadersInterceptor(connettore.getCustomHeaders()));
         }
-
-        // Add GDE capturing interceptor LAST so it captures all headers after other interceptors add them
         interceptors.add(new GdeCapturingInterceptor());
         log.debug("Aggiunto GdeCapturingInterceptor per connettore: {}", connettore.getIdConnettore());
+    }
 
-        RestTemplate restTemplate = builder.build();
-        restTemplate.setInterceptors(interceptors);
-        configureObjectMapper(restTemplate);
+    private RestTemplate createSslRestTemplate(RestTemplateBuilder builder, Connettore connettore,
+            List<ClientHttpRequestInterceptor> interceptors) {
+        log.debug("Configurazione SSL/TLS per connettore: {}", connettore.getIdConnettore());
+        try {
+            HttpComponentsClientHttpRequestFactory factory = createSslRequestFactory(connettore);
+            RestTemplate restTemplate = builder.requestFactory(() -> factory).build();
 
-        log.info("RestTemplate creato con successo per connettore: {}", connettore.getIdConnettore());
-        return restTemplate;
+            addCommonInterceptors(connettore, interceptors);
+            restTemplate.setInterceptors(interceptors);
+            configureObjectMapper(restTemplate);
+            return restTemplate;
+        } catch (Exception e) {
+            log.error("Errore durante la configurazione SSL per connettore: {}",
+                    connettore.getIdConnettore(), e);
+            throw new SslConfigurationException("Errore configurazione SSL per connettore: "
+                    + connettore.getIdConnettore(), e);
+        }
     }
 
     private void configureObjectMapper(RestTemplate restTemplate) {
@@ -284,7 +289,10 @@ public class RestTemplateFactory {
     }
 
     public static class SslConfigurationException extends RuntimeException {
-        public SslConfigurationException(String message, Throwable cause) {
+    	
+        private static final long serialVersionUID = 1L;
+
+		public SslConfigurationException(String message, Throwable cause) { 
             super(message, cause);
         }
     }
