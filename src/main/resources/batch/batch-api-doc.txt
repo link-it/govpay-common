@@ -1,0 +1,117 @@
+Batch Controller API - Documentazione Operazioni
+==================================================
+
+API REST per la gestione e il monitoraggio dei job batch.
+Tutte le risposte di errore seguono il formato RFC 7807 (Problem Details).
+
+
+1. Esecuzione manuale del job batch
+-------------------------------------
+  Endpoint:  GET /run
+  OperationId: eseguiJob
+
+  Avvia l'esecuzione del job batch in modo asincrono.
+  Se il job e' gia' in esecuzione restituisce errore, a meno che non venga
+  forzata l'esecuzione.
+
+  Parametri:
+    - force (query, opzionale, boolean, default: false)
+      Forza l'esecuzione anche se il job e' gia' in corso, abbandonando
+      l'esecuzione precedente.
+
+  Risposte:
+    202 Accepted     - Job avviato con successo
+    409 Conflict      - Job gia' in esecuzione (Problem)
+    500 Internal      - Errore interno del server (Problem)
+    503 Unavailable   - Servizio non disponibile (Problem)
+
+
+2. Stato corrente del job batch
+--------------------------------
+  Endpoint:  GET /status
+  OperationId: getStatus
+
+  Restituisce lo stato corrente dell'esecuzione del job batch.
+
+  Risposta 200 - BatchStatusInfo:
+    - running (boolean, obbligatorio) - Indica se il job e' attualmente in esecuzione
+    - executionId (long)              - Identificativo dell'esecuzione corrente
+    - clusterId (string)              - Nodo del cluster che sta eseguendo il job
+    - startTime (date-time)           - Data e ora di inizio dell'esecuzione corrente
+    - runningSeconds (long)           - Durata in secondi dell'esecuzione corrente
+    - status (string)                 - Stato dell'esecuzione (STARTED, STARTING, etc.)
+    - currentStep (string)            - Nome dello step attualmente in esecuzione
+
+  Risposte errore:
+    500 Internal - Errore interno del server (Problem)
+
+
+3. Ultima esecuzione completata
+---------------------------------
+  Endpoint:  GET /lastExecution
+  OperationId: getLastExecution
+
+  Restituisce le informazioni sull'ultima esecuzione completata del job batch.
+
+  Risposta 200 - LastExecutionInfo:
+    - executionId (long)           - Identificativo dell'ultima esecuzione
+    - clusterId (string)           - Nodo del cluster che ha eseguito il job
+    - startTime (date-time)        - Data e ora di inizio
+    - endTime (date-time)          - Data e ora di fine
+    - durationSeconds (long)       - Durata in secondi
+    - status (string)              - Stato finale (COMPLETED, FAILED, STOPPED, etc.)
+    - exitCode (string)            - Codice di uscita dell'esecuzione
+    - exitDescription (string)     - Descrizione dello stato di uscita
+
+  Risposte errore:
+    500 Internal - Errore interno del server (Problem)
+
+
+4. Prossima esecuzione pianificata
+------------------------------------
+  Endpoint:  GET /nextExecution
+  OperationId: getNextExecution
+
+  Restituisce le informazioni sulla prossima esecuzione pianificata del job batch.
+
+  Risposta 200 - NextExecutionInfo:
+    - schedulingMode (string)      - Modalita' di scheduling ("scheduler" per interno,
+                                     "cron" per esterno)
+    - nextExecutionTime (date-time) - Data e ora stimata della prossima esecuzione
+                                     (null se in modalita' cron)
+    - intervalMillis (long)        - Intervallo di scheduling in millisecondi
+                                     (solo per scheduler interno)
+    - intervalFormatted (string)   - Intervallo in formato leggibile
+                                     (es. "10 minutes", "2 hours")
+    - lastCompletedTime (date-time) - Data e ora dell'ultima esecuzione completata
+    - message (string)             - Messaggio aggiuntivo
+                                     (es. "Managed by external cron", "Running")
+
+  Risposte errore:
+    500 Internal - Errore interno del server (Problem)
+
+
+5. Svuota cache applicazione
+------------------------------
+  Endpoint:  GET /cache/clear
+  OperationId: clearCache
+
+  Svuota la cache dell'applicazione e restituisce un messaggio di conferma.
+
+  Risposta 200:
+    - string - Messaggio di conferma
+
+  Risposte errore:
+    500 Internal - Errore interno del server (Problem)
+
+
+Formato errori (RFC 7807 - Problem Details)
+---------------------------------------------
+  Tutte le risposte di errore restituiscono un oggetto Problem in formato
+  application/problem+json con i seguenti campi:
+
+    - type (uri)       - URI che identifica il tipo di errore
+    - title (string)   - Titolo dell'errore
+    - status (integer) - Codice HTTP
+    - detail (string)  - Descrizione dettagliata dell'errore
+    - instance (uri)   - URI dell'istanza specifica dell'errore

@@ -18,6 +18,7 @@
  */
 package it.govpay.common.gde;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -31,8 +32,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import it.govpay.common.client.gde.HttpDataHolder;
 import it.govpay.common.configurazione.ConfigurazioneKeys;
+import it.govpay.common.configurazione.model.GdeEvento;
+import it.govpay.common.configurazione.model.GdeInterfaccia;
+import it.govpay.common.configurazione.model.Giornale;
 import it.govpay.common.configurazione.service.ConfigurazioneService;
 import it.govpay.gde.client.beans.CategoriaEvento;
+import it.govpay.gde.client.beans.ComponenteEvento;
 import it.govpay.gde.client.beans.EsitoEvento;
 import it.govpay.gde.client.beans.NuovoEvento;
 import it.govpay.gde.client.beans.RuoloEvento;
@@ -132,6 +137,50 @@ public abstract class AbstractGdeService {
     protected abstract String getGdeEndpoint();
 
     /**
+     * Determina se l'operazione descritta dall'evento e' una lettura.
+     * <p>
+     * L'implementazione di default delega a
+     * {@link GdeUtils#isRequestLettura(String, ComponenteEvento, String)}
+     * che gestisce API_PAGOPA (operazione SOAP), tracciati notifica pagamenti e
+     * il fallback sul metodo HTTP.
+     * Le sottoclassi possono sovrascrivere per logiche specifiche.
+     *
+     * @param eventInfo informazioni dell'evento
+     * @return true se l'operazione e' una lettura
+     */
+    protected boolean isRequestLettura(GdeEventInfo eventInfo) {
+        return GdeUtils.isRequestLettura(eventInfo.getMetodoHttp(), eventInfo.getComponente(), eventInfo.getTipoEvento());
+    }
+
+    /**
+     * Determina se l'operazione descritta dall'evento e' una scrittura.
+     * <p>
+     * L'implementazione di default delega a
+     * {@link GdeUtils#isRequestScrittura(String, ComponenteEvento, String)}
+     * che gestisce API_PAGOPA (operazione SOAP), tracciati notifica pagamenti e
+     * il fallback sul metodo HTTP.
+     * Le sottoclassi possono sovrascrivere per logiche specifiche.
+     *
+     * @param eventInfo informazioni dell'evento
+     * @return true se l'operazione e' una scrittura
+     */
+    protected boolean isRequestScrittura(GdeEventInfo eventInfo) {
+        return GdeUtils.isRequestScrittura(eventInfo.getMetodoHttp(), eventInfo.getComponente(), eventInfo.getTipoEvento());
+    }
+
+    /**
+     * Restituisce la configurazione GDE per la componente specificata.
+     * <p>
+     * Ogni progetto implementa il proprio mapping; per i casi comuni e' possibile
+     * delegare a {@link GdeUtils#getConfigurazioneComponente(ComponenteEvento, Giornale)}.
+     *
+     * @param componente componente che genera l'evento
+     * @param giornale   configurazione completa del giornale degli eventi
+     * @return la configurazione dell'interfaccia, o null se la componente non e' gestita
+     */
+    protected abstract GdeInterfaccia getConfigurazioneComponente(ComponenteEvento componente, Giornale giornale);
+
+    /**
      * Restituisce il RestTemplate configurato per il GDE,
      * caricato dal connettore {@link #COD_CONNETTORE_GDE}.
      *
@@ -174,23 +223,88 @@ public abstract class AbstractGdeService {
 
     /**
      * Invia un evento al GDE in modo sincrono.
+     * <p>
+     * Prima di inviare, consulta la configurazione {@link Giornale} per verificare
+     * la policy di log e dump per la componente e il tipo di operazione (lettura/scrittura).
+     * Se la policy {@code log} indica che l'evento non deve essere registrato, l'invio viene saltato.
+     * Se la policy {@code dump} indica che il payload non deve essere incluso, i campi
+     * payload vengono rimossi dall'evento prima dell'invio.
      *
      * @param eventInfo informazioni dell'evento da inviare
      * @throws RestClientException se l'invio fallisce
      */
     public void inviaEvento(GdeEventInfo eventInfo) {
+        // Valuta la policy di log/dump dalla configurazione Giornale
+        GdeEvento gdeEventoPolicy = resolveGdeEventoPolicy(eventInfo);
+        EsitoEvento esito = eventInfo.getEsito();
+
+        // Se la policy e' presente, valuta log e dump; se assente, invia comunque
+        if (gdeEventoPolicy != null) {
+            boolean logEvento = GdeUtils.logEvento(gdeEventoPolicy, esito);
+            if (!logEvento) {
+                log.debug("Evento GDE non registrato per policy: componente={}, esito={}, lettura={}",
+                        eventInfo.getComponente(), esito, isRequestLettura(eventInfo));
+                return;
+            }
+
+            boolean dumpEvento = GdeUtils.dumpEvento(gdeEventoPolicy, esito);
+            if (!dumpEvento) {
+                log.debug("Dump disabilitato per policy: rimozione payload dall'evento");
+                eventInfo.setPayloadRichiesta(null);
+                eventInfo.setPayloadRisposta(null);
+            }
+        }
+
         NuovoEvento gdeEvent = convertToGdeEvent(eventInfo);
         String endpoint = getGdeEndpoint();
         RestTemplate restTemplate = getGdeRestTemplate();
 
         log.debug("Invio evento GDE a {}: componente={}, esito={}",
-                endpoint, eventInfo.getComponente(), eventInfo.getEsito());
+                endpoint, eventInfo.getComponente(), esito);
 
         try {
             ResponseEntity<Void> response = restTemplate.postForEntity(endpoint, gdeEvent, Void.class);
             log.debug("Evento GDE inviato con successo: status={}", response.getStatusCode());
         } finally {
             HttpDataHolder.clear();
+        }
+    }
+
+    /**
+     * Risolve la configurazione {@link GdeEvento} (policy log/dump) applicabile all'evento.
+     * <p>
+     * Il metodo consulta la configurazione {@link Giornale} dal database, determina la
+     * {@link GdeInterfaccia} per la componente dell'evento, e seleziona la sezione
+     * {@code letture} o {@code scritture} in base alla classificazione dell'operazione.
+     * Se l'operazione non e' classificabile come lettura ne' come scrittura, restituisce null
+     * e l'evento non verra' registrato.
+     *
+     * @param eventInfo informazioni dell'evento
+     * @return la policy GdeEvento applicabile, o null se la configurazione non e' disponibile
+     *         o l'operazione non e' classificabile
+     */
+    protected GdeEvento resolveGdeEventoPolicy(GdeEventInfo eventInfo) {
+        Optional<Giornale> giornaleOpt = configurazioneService.getGiornale();
+        if (giornaleOpt.isEmpty()) {
+            log.debug("Configurazione Giornale non presente, policy non applicabile");
+            return null;
+        }
+
+        GdeInterfaccia interfaccia = getConfigurazioneComponente(eventInfo.getComponente(), giornaleOpt.get());
+        if (interfaccia == null) {
+            log.warn("Configurazione GDE non trovata per componente {}", eventInfo.getComponente());
+            return null;
+        }
+
+        if (isRequestLettura(eventInfo)) {
+            log.debug("Tipo operazione: lettura");
+            return interfaccia.getLetture();
+        } else if (isRequestScrittura(eventInfo)) {
+            log.debug("Tipo operazione: scrittura");
+            return interfaccia.getScritture();
+        } else {
+            log.debug("Tipo operazione non riconosciuta, l'evento non verra' registrato");
+            return null;
         }
     }
 

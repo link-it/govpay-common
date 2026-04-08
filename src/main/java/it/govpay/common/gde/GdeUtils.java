@@ -35,6 +35,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import it.govpay.common.client.gde.HttpDataHolder;
+import it.govpay.common.configurazione.model.GdeEvento;
+import it.govpay.common.configurazione.model.GdeInterfaccia;
+import it.govpay.common.configurazione.model.Giornale;
+import it.govpay.gde.client.beans.ComponenteEvento;
+import it.govpay.gde.client.beans.EsitoEvento;
 import it.govpay.gde.client.beans.Header;
 import lombok.extern.slf4j.Slf4j;
 
@@ -356,6 +361,236 @@ public final class GdeUtils {
         header.setNome(name);
         header.setValore(value);
         return header;
+    }
+
+    // ==================== Configurazione Componente ====================
+
+    /**
+     * Mapping di default tra {@link ComponenteEvento} e la configurazione {@link GdeInterfaccia}
+     * presente nel {@link Giornale}.
+     * <p>
+     * Copre i casi comuni; le sottoclassi di {@link AbstractGdeService} che necessitano di
+     * mapping aggiuntivi (es. API_MYPIVOT, API_SECIM, GOVPAY) devono sovrascrivere
+     * {@code getConfigurazioneComponente} e gestire i casi specifici prima di delegare qui.
+     *
+     * @param componente componente che genera l'evento
+     * @param giornale   configurazione completa del giornale degli eventi
+     * @return la configurazione dell'interfaccia, o null se la componente non e' gestita
+     */
+    public static GdeInterfaccia getConfigurazioneComponente(ComponenteEvento componente, Giornale giornale) {
+        if (componente == null) return null;
+        return switch (componente) {
+            case API_BACKOFFICE -> giornale.getApiBackoffice();
+            case API_ENTE -> giornale.getApiEnte();
+            case API_PAGAMENTO -> giornale.getApiPagamento();
+            case API_PAGOPA -> giornale.getApiPagoPA();
+            case API_PENDENZE -> giornale.getApiPendenze();
+            case API_RAGIONERIA -> giornale.getApiRagioneria();
+            case API_BACKEND_IO -> giornale.getApiBackendIO();
+            case API_MAGGIOLI_JPPA -> giornale.getApiMaggioliJPPA();
+            default -> null;
+        };
+    }
+
+    // ==================== Policy Evaluation ====================
+
+    /**
+     * Valuta se l'evento deve essere registrato (log) in base alla policy configurata e all'esito.
+     *
+     * @param evento configurazione policy per l'evento (letture o scritture)
+     * @param esito  esito dell'operazione
+     * @return true se l'evento deve essere registrato
+     */
+    public static boolean logEvento(GdeEvento evento, EsitoEvento esito) {
+        if (evento == null || evento.getLog() == null) {
+            return false;
+        }
+        return switch (evento.getLog()) {
+            case MAI -> false;
+            case SEMPRE -> true;
+            case SOLO_ERRORE -> !EsitoEvento.OK.equals(esito);
+        };
+    }
+
+    /**
+     * Valuta se il payload (dump) deve essere incluso nell'evento in base alla policy configurata e all'esito.
+     *
+     * @param evento configurazione policy per l'evento (letture o scritture)
+     * @param esito  esito dell'operazione
+     * @return true se il payload deve essere incluso
+     */
+    public static boolean dumpEvento(GdeEvento evento, EsitoEvento esito) {
+        if (evento == null || evento.getDump() == null) {
+            return false;
+        }
+        return switch (evento.getDump()) {
+            case MAI -> false;
+            case SEMPRE -> true;
+            case SOLO_ERRORE -> !EsitoEvento.OK.equals(esito);
+        };
+    }
+
+    /**
+     * Valuta se l'evento deve essere registrato (log) in base alla policy configurata e al codice HTTP di risposta.
+     *
+     * @param evento       configurazione policy per l'evento (letture o scritture)
+     * @param responseCode codice HTTP della risposta
+     * @return true se l'evento deve essere registrato
+     */
+    public static boolean logEvento(GdeEvento evento, Integer responseCode) {
+        if (evento == null || evento.getLog() == null) {
+            return false;
+        }
+        return switch (evento.getLog()) {
+            case MAI -> false;
+            case SEMPRE -> true;
+            case SOLO_ERRORE -> responseCode > 399;
+        };
+    }
+
+    /**
+     * Valuta se il payload (dump) deve essere incluso nell'evento in base alla policy configurata e al codice HTTP di risposta.
+     *
+     * @param evento       configurazione policy per l'evento (letture o scritture)
+     * @param responseCode codice HTTP della risposta
+     * @return true se il payload deve essere incluso
+     */
+    public static boolean dumpEvento(GdeEvento evento, Integer responseCode) {
+        if (evento == null || evento.getDump() == null) {
+            return false;
+        }
+        return switch (evento.getDump()) {
+            case MAI -> false;
+            case SEMPRE -> true;
+            case SOLO_ERRORE -> responseCode > 399;
+        };
+    }
+
+    // ==================== Classificazione Operazioni ====================
+
+    /**
+     * Verifica se l'operazione API pagoPA e' una scrittura.
+     *
+     * @param operazione nome dell'operazione (tipo evento)
+     * @return true se l'operazione e' una scrittura
+     */
+    public static boolean isOperazioneScrittura(String operazione) {
+        return GdeCostanti.APIPAGOPA_TIPOEVENTO_NODOCHIEDICOPIART.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_NODOCHIEDISTATORPT.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_NODOINVIARPT.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_NODOINVIACARRELLORPT.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_NODOINVIARICHIESTASTORNO.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_NODOINVIARISPOSTAREVOCA.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_PAAVERIFICARPT.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_PAAATTIVARPT.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_PAAINVIAESITOSTORNO.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_PAAINVIARICHIESTAREVOCA.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_PAAINVIART.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_PAVERIFYPAYMENTNOTICE.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_PAGETPAYMENT.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_PASENDRT.equals(operazione);
+    }
+
+    /**
+     * Verifica se l'operazione e' una scrittura relativa ai tracciati di notifica pagamenti.
+     *
+     * @param operazione nome dell'operazione (tipo evento)
+     * @return true se l'operazione e' una scrittura di tracciati notifica pagamenti
+     */
+    public static boolean isOperazioneScritturaTracciatiNotificaPagamenti(String operazione) {
+        return GdeCostanti.APIMYPIVOT_TIPOEVENTO_MYPIVOTINVIATRACCIATOEMAIL.equals(operazione)
+                || GdeCostanti.APIMYPIVOT_TIPOEVENTO_MYPIVOTINVIATRACCIATOFILESYSTEM.equals(operazione)
+                || GdeCostanti.APIMYPIVOT_TIPOEVENTO_PIVOTSILINVIAFLUSSO.equals(operazione)
+                || GdeCostanti.APISECIM_TIPOEVENTO_SECIMINVIATRACCIATOEMAIL.equals(operazione)
+                || GdeCostanti.APISECIM_TIPOEVENTO_SECIMINVIATRACCIATOFILESYSTEM.equals(operazione)
+                || GdeCostanti.APIGOVPAY_TIPOEVENTO_GOVPAYINVIATRACCIATOEMAIL.equals(operazione)
+                || GdeCostanti.APIGOVPAY_TIPOEVENTO_GOVPAYINVIATRACCIATOFILESYSTEM.equals(operazione)
+                || GdeCostanti.APIGOVPAY_TIPOEVENTO_GOVPAYINVIATRACCIATOREST.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_INVIAFLUSSORENDICONTAZIONE.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_INVIARPP.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_INVIASINTESIFLUSSIRENDICONTAZIONE.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_INVIASINTESIPAGAMENTI.equals(operazione)
+                || GdeCostanti.APIHYPERSICAPKAPPA_TIPOEVENTO_HYPERSIC_APKINVIATRACCIATOEMAIL.equals(operazione)
+                || GdeCostanti.APIHYPERSICAPKAPPA_TIPOEVENTO_HYPERSIC_APKINVIATRACCIATOFILESYSTEM.equals(operazione);
+    }
+
+    /**
+     * Verifica se la richiesta e' una lettura in base al metodo HTTP.
+     *
+     * @param httpMethod metodo HTTP (GET, POST, ecc.)
+     * @return true se il metodo HTTP corrisponde a una lettura
+     */
+    public static boolean isRequestLettura(String httpMethod) {
+        if (httpMethod == null) return false;
+        return switch (httpMethod.toUpperCase()) {
+            case "GET", "OPTIONS", "HEAD", "TRACE" -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * Verifica se la richiesta e' una scrittura in base al metodo HTTP.
+     *
+     * @param httpMethod metodo HTTP (GET, POST, ecc.)
+     * @return true se il metodo HTTP corrisponde a una scrittura
+     */
+    public static boolean isRequestScrittura(String httpMethod) {
+        if (httpMethod == null) return false;
+        return switch (httpMethod.toUpperCase()) {
+            case "PUT", "POST", "DELETE", "PATCH", "LINK", "UNLINK" -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * Verifica se la richiesta e' una lettura, tenendo conto della componente e dell'operazione.
+     * <p>
+     * Per API_PAGOPA la classificazione si basa sull'operazione SOAP, non sul metodo HTTP.
+     * Per le componenti di tracciati notifica pagamenti (API_SECIM, API_MYPIVOT, API_GOVPAY,
+     * API_HYPERSIC_APK) si usa la classificazione specifica per tracciati.
+     * Per tutte le altre componenti si usa il metodo HTTP.
+     *
+     * @param httpMethod metodo HTTP
+     * @param componente componente che genera l'evento
+     * @param operazione nome dell'operazione (tipo evento)
+     * @return true se l'operazione e' una lettura
+     */
+    public static boolean isRequestLettura(String httpMethod, ComponenteEvento componente, String operazione) {
+        if (ComponenteEvento.API_PAGOPA.equals(componente)) {
+            return operazione != null && !isOperazioneScrittura(operazione);
+        }
+
+        if (ComponenteEvento.API_SECIM.equals(componente)
+                || ComponenteEvento.API_MYPIVOT.equals(componente)
+                || ComponenteEvento.API_GOVPAY.equals(componente)
+                || ComponenteEvento.API_HYPERSIC_APK.equals(componente)) {
+            return operazione != null && !isOperazioneScritturaTracciatiNotificaPagamenti(operazione);
+        }
+
+        return isRequestLettura(httpMethod);
+    }
+
+    /**
+     * Verifica se la richiesta e' una scrittura, tenendo conto della componente e dell'operazione.
+     *
+     * @param httpMethod metodo HTTP
+     * @param componente componente che genera l'evento
+     * @param operazione nome dell'operazione (tipo evento)
+     * @return true se l'operazione e' una scrittura
+     */
+    public static boolean isRequestScrittura(String httpMethod, ComponenteEvento componente, String operazione) {
+        if (ComponenteEvento.API_PAGOPA.equals(componente)) {
+            return isOperazioneScrittura(operazione);
+        }
+
+        if (ComponenteEvento.API_SECIM.equals(componente)
+                || ComponenteEvento.API_MYPIVOT.equals(componente)
+                || ComponenteEvento.API_GOVPAY.equals(componente)
+                || ComponenteEvento.API_HYPERSIC_APK.equals(componente)) {
+            return isOperazioneScritturaTracciatiNotificaPagamenti(operazione);
+        }
+
+        return isRequestScrittura(httpMethod);
     }
 
     // ==================== Functional Interfaces ====================

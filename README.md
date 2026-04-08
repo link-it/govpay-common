@@ -6,24 +6,32 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://raw.githubusercontent.com/link-it/govpay-common/main/LICENSE)
 
-Libreria Spring Boot per la gestione dinamica di RestTemplate configurabili a partire dalla tabella `connettori` di GovPay.
+Libreria Spring Boot condivisa tra tutti i moduli GovPay. Fornisce:
 
-## Caratteristiche
+- **Connettori HTTP**: RestTemplate configurabili da database (tabella `connettori`, struttura EAV)
+- **GDE (Giornale degli Eventi)**: Invio e gestione eventi con policy log/dump configurabili
+- **Batch**: Componenti riutilizzabili per job Spring Batch multi-nodo
+- **Configurazione**: Accesso tipizzato alle configurazioni da database (tabella `configurazione`)
+- **Mail**: Invio email con supporto SSL/TLS
+- **Date/Time**: Serializzatori Jackson per formati pagoPA
 
-- **Configurazione da Database**: Carica le configurazioni dei connettori dalla tabella `connettori` di GovPay (struttura EAV)
-- **Cache Intelligente**: Sistema di caching per ottimizzare le performance
-- **Supporto Multi-Database**: PostgreSQL, MySQL, Oracle, SQL Server, HSQLDB
-- **Autenticazione Multipla**: Supporto per vari tipi di autenticazione:
-  - HTTP Basic Authentication
-  - SSL/TLS con certificati client
-  - OAuth2 Client Credentials
-  - API Key
-  - Custom HTTP Headers
-  - Nessuna autenticazione
+## Installazione
 
-## Struttura della Tabella Connettori
+```xml
+<dependency>
+    <groupId>org.gov4j.govpay</groupId>
+    <artifactId>govpay-common</artifactId>
+    <version>1.1.1</version>
+</dependency>
+```
 
-La tabella `connettori` utilizza un approccio EAV (Entity-Attribute-Value):
+## Moduli
+
+### Connettori HTTP (`it.govpay.common.client`)
+
+Configurazione dinamica di RestTemplate dalla tabella `connettori` di GovPay (struttura EAV).
+
+#### Struttura della Tabella
 
 ```sql
 CREATE TABLE connettori (
@@ -35,92 +43,35 @@ CREATE TABLE connettori (
 );
 ```
 
-## Proprietà Supportate
+#### Tipi di Autenticazione
 
-| Proprietà | Descrizione |
-|-----------|-------------|
+| Tipo | Descrizione |
+|------|-------------|
+| `NONE` | Nessuna autenticazione |
+| `HTTPBasic` | Basic auth con username/password |
+| `SSL` | Certificato client (keystore/truststore) |
+| `API_KEY` | API key in header configurabile |
+| `HTTP_HEADER` | Header di autenticazione personalizzato |
+| `OAUTH2_CLIENT_CREDENTIALS` | OAuth2 client credentials flow |
+
+#### Proprieta' Supportate
+
+| Proprieta' | Descrizione |
+|------------|-------------|
 | `URL` | URL base del servizio |
-| `TIPOAUTENTICAZIONE` | Tipo di autenticazione (NONE, HTTPBasic, SSL, API_KEY, HTTP_HEADER, OAUTH2_CLIENT_CREDENTIALS) |
-| `HTTPUSER` | Username per HTTP Basic Auth |
-| `HTTPPASSW` | Password per HTTP Basic Auth |
-| `SSLKSLOCATION` | Path del keystore |
-| `SSLKSPASSWD` | Password del keystore |
-| `SSLKSTYPE` | Tipo di keystore (JKS, PKCS12) |
-| `SSLPKEYPASSWD` | Password della chiave privata |
-| `SSLTSLOCATION` | Path del truststore |
-| `SSLTSPASSWD` | Password del truststore |
-| `SSLTSTYPE` | Tipo di truststore |
-| `HTTP_HEADER_AUTH_HEADER_NAME` | Nome dell'header personalizzato |
-| `HTTP_HEADER_AUTH_HEADER_VALUE` | Valore dell'header personalizzato |
-| `API_KEY_AUTH_API_KEY_NAME` | Nome dell'API Key |
-| `API_KEY_AUTH_API_ID_NAME` | ID dell'API |
-| `OAUTH2_CLIENT_CREDENTIALS_CLIENT_ID_NAME` | Client ID OAuth2 |
-| `OAUTH2_CLIENT_CREDENTIALS_CLIENT_SECRET_NAME` | Client Secret OAuth2 |
-| `OAUTH2_CLIENT_CREDENTIALS_URL_TOKEN_ENDPOINT_NAME` | URL token endpoint OAuth2 |
-| `OAUTH2_CLIENT_CREDENTIALS_SCOPE_NAME` | Scope OAuth2 |
-| `SUBSCRIPTION_KEY_VALUE` | Subscription Key per Azure APIM (header: Ocp-Apim-Subscription-Key) |
-| `X-CUSTOM-HEADER-NAME-N` | Nome di un custom header generico (N = indice numerico) |
-| `X-CUSTOM-HEADER-VALUE-N` | Valore del custom header corrispondente (stesso indice N) |
+| `TIPOAUTENTICAZIONE` | Tipo di autenticazione |
+| `HTTPUSER` / `HTTPPASSW` | Credenziali HTTP Basic |
+| `SSLKSLOCATION` / `SSLKSPASSWD` / `SSLKSTYPE` / `SSLPKEYPASSWD` | Configurazione keystore SSL |
+| `SSLTSLOCATION` / `SSLTSPASSWD` / `SSLTSTYPE` | Configurazione truststore SSL |
+| `HTTP_HEADER_AUTH_HEADER_NAME` / `VALUE` | Header autenticazione personalizzato |
+| `API_KEY_AUTH_API_KEY_NAME` / `API_ID_NAME` | Configurazione API Key |
+| `OAUTH2_CLIENT_CREDENTIALS_*` | Client ID, Secret, Token URL, Scope per OAuth2 |
+| `SUBSCRIPTION_KEY_VALUE` | Subscription Key per Azure APIM (Ocp-Apim-Subscription-Key) |
+| `X-CUSTOM-HEADER-NAME-N` / `VALUE-N` | Custom header generici (N = indice numerico) |
 | `ABILITATO` | Flag di abilitazione (true/false) |
-| `CONNECTION_TIMEOUT` | Timeout di connessione in millisecondi |
-| `READ_TIMEOUT` | Timeout di lettura in millisecondi |
+| `CONNECTION_TIMEOUT` / `READ_TIMEOUT` | Timeout in millisecondi |
 
-## Installazione
-
-Aggiungi la dipendenza al tuo `pom.xml`:
-
-```xml
-<dependency>
-    <groupId>it.govpay</groupId>
-    <artifactId>govpay-client-commons</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
-</dependency>
-```
-
-## Configurazione
-
-### application.yml
-
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/govpay
-    username: govpay
-    password: govpay
-    driver-class-name: org.postgresql.Driver
-
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-
-govpay:
-  client:
-    cache:
-      # Abilita/disabilita il caching delle configurazioni
-      # Default: false (disabilitato)
-      enabled: false
-```
-
-### Abilitazione Auto-Configuration
-
-La libreria si auto-configura automaticamente. Assicurati che lo scan delle componenti includa il package:
-
-```java
-@SpringBootApplication
-@ComponentScan(basePackages = {"it.govpay.client.commons", "com.tuoprogetto"})
-public class Application {
-    public static void main(String[] args) {
-        SpringApplication.run(Application.class, args);
-    }
-}
-```
-
-## Utilizzo
-
-### Chiamate Sincrone con RestTemplate
+#### Utilizzo
 
 ```java
 @Service
@@ -129,357 +80,362 @@ public class MioServizio {
     @Autowired
     private ConnettoreService connettoreService;
 
-    public void chiamataEsempio() {
-        // Ottieni il RestTemplate configurato per il connettore
+    public void chiamataSincrona() {
         RestTemplate restTemplate = connettoreService.getRestTemplate("COD_CONNETTORE");
-
-        // Usa il RestTemplate per le chiamate REST
         ResponseEntity<String> response = restTemplate.getForEntity("/api/endpoint", String.class);
-        System.out.println(response.getBody());
     }
-}
-```
 
-### Chiamate Asincrone con CompletableFuture
-
-Per batch ad alto volume o chiamate parallele, usa `AsyncRestTemplateWrapper`:
-
-```java
-@Service
-public class MyPivotBatchService {
-
-    @Autowired
-    private ConnettoreService connettoreService;
-
-    @Scheduled(cron = "0 0 2 * * *")
-    public void batchMyPivot() {
-        // Ottieni il wrapper asincrono
+    public void chiamataAsincrona() {
         AsyncRestTemplateWrapper asyncClient =
-            connettoreService.getAsyncRestTemplate("MYPIVOT_CLIENT");
+            connettoreService.getAsyncRestTemplate("COD_CONNETTORE");
 
-        // GET asincrono
-        CompletableFuture<ResponseEntity<FlussiDTO>> future =
-            asyncClient.getForEntityAsync("/api/flussi", FlussiDTO.class);
+        CompletableFuture<ResponseEntity<DataDTO>> future =
+            asyncClient.getForEntityAsync("/api/data", DataDTO.class);
 
-        future.thenAccept(response -> {
-            log.info("Ricevuti {} flussi", response.getBody().size());
-            processaFlussi(response.getBody());
-        });
-
-        // POST asincrono
-        CompletableFuture<ResponseEntity<RispostaDTO>> postFuture =
-            asyncClient.postForEntityAsync("/api/posizioni", request, RispostaDTO.class);
-
-        postFuture.thenAccept(response ->
-            log.info("Posizione creata: {}", response.getBody())
-        );
+        future.thenAccept(response -> processData(response.getBody()));
     }
 }
 ```
 
-### Chiamate Parallele Multiple
-
-```java
-@Service
-public class RendicontazioneBatchService {
-
-    @Autowired
-    private ConnettoreService connettoreService;
-
-    @Scheduled(cron = "0 0 3 * * *")
-    public void elaboraRendicontazioni() {
-        AsyncRestTemplateWrapper asyncClient =
-            connettoreService.getAsyncRestTemplate("ENTE_CREDITORE");
-
-        List<String> codiciEnte = Arrays.asList("E001", "E002", "E003", "E004", "E005");
-
-        // Crea una lista di future per chiamate parallele
-        List<CompletableFuture<ResponseEntity<RendicontazioneDTO>>> futures =
-            codiciEnte.stream()
-                .map(codice -> asyncClient.getForEntityAsync(
-                    "/api/rendicontazioni/" + codice,
-                    RendicontazioneDTO.class
-                ))
-                .toList();
-
-        // Attendi il completamento di tutte le chiamate
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-            .thenRun(() -> {
-                List<RendicontazioneDTO> results = futures.stream()
-                    .map(CompletableFuture::join)
-                    .map(ResponseEntity::getBody)
-                    .toList();
-
-                log.info("Elaborate {} rendicontazioni", results.size());
-                saveToDatabase(results);
-            });
-    }
-}
-```
-
-### Gestione Errori Asincrona
-
-```java
-asyncClient.getForEntityAsync("/api/data", DataDTO.class)
-    .exceptionally(ex -> {
-        log.error("Errore nella chiamata: {}", ex.getMessage());
-        return ResponseEntity.status(500).body(new DataDTO()); // Fallback
-    })
-    .thenAccept(response -> {
-        if (response.getStatusCode().is2xxSuccessful()) {
-            processData(response.getBody());
-        }
-    });
-```
-
-### Configurazione Thread Pool Asincrono
-
-Il thread pool per le operazioni asincrone è configurabile tramite properties:
-
-```yaml
-govpay:
-  client:
-    async:
-      core-pool-size: 10       # Thread sempre attivi (default: 10)
-      max-pool-size: 50        # Thread massimi (default: 50)
-      queue-capacity: 100      # Task in coda (default: 100)
-      thread-name-prefix: async-http-  # Prefisso nome thread
-```
-
-**Dimensionamento suggerito:**
-- Batch low-volume (< 50 chiamate): core=5, max=20
-- Batch medium-volume (50-200 chiamate): core=10, max=50 (default)
-- Batch high-volume (> 200 chiamate): core=20, max=100
-
-### Gestione della Cache
-
-La cache è **disabilitata di default** per garantire che le modifiche alla configurazione nel database siano immediatamente effettive.
-
-#### Abilitazione Cache
-
-Per abilitare la cache e migliorare le performance:
+#### Configurazione Cache e Thread Pool
 
 ```yaml
 govpay:
   client:
     cache:
-      enabled: true
+      enabled: false  # Default: disabilitata. Ogni getRestTemplate() carica dal DB.
+    async:
+      core-pool-size: 10
+      max-pool-size: 50
+      queue-capacity: 100
+      thread-name-prefix: async-http-
 ```
 
 #### Operazioni sulla Cache
 
 ```java
-// Verifica se la cache è abilitata
-boolean enabled = connettoreService.isCacheEnabled();
-
-// Invalida la cache per un connettore specifico
 connettoreService.invalidateCache("COD_CONNETTORE");
-
-// Ricarica un connettore specifico
 connettoreService.reloadConnettore("COD_CONNETTORE");
-
-// Refresh completo della cache
 connettoreService.refreshCache();
-
-// Verifica dimensione cache
-int size = connettoreService.getCacheSize();
-
-// Verifica se un connettore è in cache
-boolean inCache = connettoreService.isInCache("COD_CONNETTORE");
 ```
 
-**Note:**
-- Se la cache è disabilitata, tutte le operazioni di gestione cache vengono ignorate
-- Con cache disabilitata, ogni chiamata a `getRestTemplate()` carica la configurazione dal database
-- Con cache abilitata, le configurazioni vengono precaricate all'avvio e mantenute in memoria
-- Ricorda di invalidare la cache dopo aver modificato le configurazioni nel database
+---
 
-## Esempio di Configurazione nel Database
+### GDE - Giornale degli Eventi (`it.govpay.common.gde`)
 
-### Connettore con HTTP Basic Auth
+Componenti per l'invio di eventi al Giornale degli Eventi di GovPay con policy di log/dump configurabili da database.
+
+#### Architettura
+
+```
+RestTemplate con GdeCapturingInterceptor
+    |
+HttpDataHolder (cattura request/response)
+    |
+GdeEventInfo (DTO con dati evento)
+    |
+AbstractGdeService.inviaEvento()
+    |--- resolveGdeEventoPolicy() --> ConfigurazioneService.getGiornale() --> DB
+    |--- isRequestLettura/Scrittura() --> GdeUtils (classifica operazione)
+    |--- logEvento/dumpEvento policy check
+    |--- convertToGdeEvent()
+    |
+NuovoEvento --> EventiApi.addEvento() --> GDE Backend
+```
+
+#### Componenti
+
+- **AbstractGdeService**: Classe base astratta per servizi GDE con:
+  - Invio sincrono e asincrono di eventi
+  - Valutazione automatica policy log/dump dal Giornale in database
+  - Classificazione lettura/scrittura con logica specifica per API_PAGOPA e tracciati
+  - Metodi di utilita' (determineEsito, extractStatusCode, buildUrl, ecc.)
+
+- **GdeEventInfo**: DTO builder per costruire eventi GDE
+
+- **GdeUtils**: Metodi statici per:
+  - Serializzazione payload in Base64
+  - Costruzione URL con path/query parameters
+  - Gestione headers HTTP
+  - Valutazione policy log/dump (`logEvento`, `dumpEvento`)
+  - Classificazione operazioni (`isRequestLettura`, `isRequestScrittura`, `isOperazioneScrittura`)
+  - Mapping componente/configurazione (`getConfigurazioneComponente`)
+
+- **GdeCostanti**: Costanti per nomi eventi (API pagoPA, GPD, MyPivot, Secim, GovPay, HyperSIC APKappa)
+
+- **GdeCapturingInterceptor**: Interceptor RestTemplate che cattura request/response in HttpDataHolder
+
+#### Implementazione
+
+```java
+@Service
+public class MyGdeService extends AbstractGdeService {
+
+    public MyGdeService(ObjectMapper objectMapper, Executor asyncExecutor,
+                        ConfigurazioneService configurazioneService) {
+        super(objectMapper, asyncExecutor, configurazioneService);
+    }
+
+    @Override
+    protected NuovoEvento convertToGdeEvent(GdeEventInfo eventInfo) {
+        NuovoEvento evento = new NuovoEvento();
+        evento.setComponente(eventInfo.getComponente());
+        evento.setEsito(eventInfo.getEsito());
+        // ... mapping specifico del progetto
+        return evento;
+    }
+
+    @Override
+    protected String getGdeEndpoint() {
+        return "https://gde.govpay.it/eventi";
+    }
+
+    @Override
+    protected GdeInterfaccia getConfigurazioneComponente(ComponenteEvento c, Giornale g) {
+        // Per i casi comuni, delega a GdeUtils
+        return GdeUtils.getConfigurazioneComponente(c, g);
+    }
+}
+```
+
+#### Invio eventi
+
+```java
+GdeEventInfo eventInfo = GdeEventInfo.builder()
+    .componente(ComponenteEvento.API_BACKOFFICE)
+    .categoriaEvento(CategoriaEvento.INTERFACCIA)
+    .ruolo(RuoloEvento.CLIENT)
+    .tipoEvento("invioNotifica")
+    .metodoHttp("POST")
+    .esito(EsitoEvento.OK)
+    .urlRichiesta("https://api.example.com/notifiche")
+    .build();
+
+// Asincrono (non bloccante)
+gdeService.inviaEventoAsync(eventInfo);
+gdeService.inviaEventoOk(eventInfo);   // imposta esito=OK
+gdeService.inviaEventoKo(eventInfo);   // imposta esito=KO
+
+// Sincrono (bloccante)
+gdeService.inviaEvento(eventInfo);
+```
+
+#### Policy Log/Dump
+
+La configurazione e' letta dalla tabella `configurazione` (chiave `giornale_eventi`):
+
+```json
+{
+  "apiEnte": {
+    "letture": { "log": "SEMPRE", "dump": "SEMPRE" },
+    "scritture": { "log": "SEMPRE", "dump": "SOLO_ERRORE" }
+  },
+  "apiPagamento": {
+    "letture": { "log": "MAI", "dump": "MAI" },
+    "scritture": { "log": "SEMPRE", "dump": "SEMPRE" }
+  }
+}
+```
+
+Valori possibili per `log` e `dump`: `SEMPRE`, `MAI`, `SOLO_ERRORE`.
+
+---
+
+### Batch (`it.govpay.common.batch`)
+
+Componenti riutilizzabili per job Spring Batch con coordinamento multi-nodo.
+
+#### Componenti
+
+- **JobConcurrencyService**: Previene esecuzioni concorrenti su piu' nodi tramite JobExplorer. Rileva job stale/bloccati.
+- **JobExecutionHelper**: Helper per eseguire job con parametri standard (JobID, When, ClusterID).
+- **AbstractCronJobRunner**: Classe base per esecuzione CLI (profilo `cron`). Esegue una volta ed esce.
+- **AbstractScheduledJobRunner**: Classe base per scheduling interno (profilo `default`) con `@Scheduled`.
+- **AbstractBatchController**: Controller REST con endpoint per esecuzione manuale, stato, ultima/prossima esecuzione.
+- **AbstractBatchExecutionListener**: Logging strutturato per esecuzioni batch con statistiche aggregate per step partizionati.
+- **DTOs**: `BatchStatusInfo`, `LastExecutionInfo`, `NextExecutionInfo`, `Problem` (RFC 7807)
+
+#### Configurazione
+
+```java
+@Configuration
+@ConfigurationProperties(prefix = "govpay.batch")
+public class MyBatchProperties extends BatchJobProperties {}
+
+@Bean
+public JobConcurrencyService jobConcurrencyService(JobExplorer e, JobRepository r, MyBatchProperties p) {
+    return BatchCommonAutoConfiguration.createJobConcurrencyService(e, r, p);
+}
+
+@Bean
+public JobExecutionHelper jobExecutionHelper(JobLauncher l, JobConcurrencyService s, MyBatchProperties p) {
+    return BatchCommonAutoConfiguration.createJobExecutionHelper(l, s, p);
+}
+```
+
+#### Rilevamento Job Stale
+
+I job sono considerati stale se in stato UNKNOWN/ABANDONED o senza aggiornamenti per oltre `stale-threshold-minutes` (default: 120).
+
+#### API REST Batch
+
+**`GET /run?force=false`** - Esecuzione manuale del job
+
+```
+HTTP 202 Accepted
+```
+```json
+// HTTP 409 - Job gia' in esecuzione
+{ "type": "https://www.rfc-editor.org/rfc/rfc9110.html#name-409-conflict",
+  "title": "Conflict", "status": 409, "detail": "Job already running." }
+```
+
+**`GET /status`** - Stato corrente del job
+
+```json
+{
+  "running": true,
+  "executionId": 42,
+  "clusterId": "node-1",
+  "startTime": "2026-04-07T10:30:00.000+02:00",
+  "runningSeconds": 120,
+  "status": "STARTED",
+  "currentStep": "invioNotificheStep"
+}
+```
+
+**`GET /lastExecution`** - Ultima esecuzione completata
+
+```json
+{
+  "executionId": 41,
+  "clusterId": "node-1",
+  "startTime": "2026-04-07T08:00:00.000+02:00",
+  "endTime": "2026-04-07T08:05:30.000+02:00",
+  "durationSeconds": 330,
+  "status": "COMPLETED",
+  "exitCode": "COMPLETED",
+  "exitDescription": ""
+}
+```
+
+**`GET /nextExecution`** - Prossima esecuzione pianificata
+
+```json
+{
+  "schedulingMode": "scheduler",
+  "nextExecutionTime": "2026-04-07T12:00:00.000+02:00",
+  "intervalMillis": 600000,
+  "intervalFormatted": "10 minutes",
+  "lastCompletedTime": "2026-04-07T11:50:00.000+02:00",
+  "message": null
+}
+```
+
+**`GET /cache/clear`** - Svuota cache applicazione
+
+```json
+"Cache svuotata con successo"
+```
+
+---
+
+### Configurazione (`it.govpay.common.configurazione`)
+
+Accesso tipizzato alle configurazioni JSON memorizzate nella tabella `configurazione`.
+
+#### Struttura della Tabella
 
 ```sql
-INSERT INTO connettori (cod_connettore, cod_proprieta, valore) VALUES
-('SERVIZIO_BASIC', 'URL', 'https://api.example.com'),
-('SERVIZIO_BASIC', 'TIPOAUTENTICAZIONE', 'HTTPBasic'),
-('SERVIZIO_BASIC', 'HTTPUSER', 'username'),
-('SERVIZIO_BASIC', 'HTTPPASSW', 'password'),
-('SERVIZIO_BASIC', 'ABILITATO', 'true'),
-('SERVIZIO_BASIC', 'CONNECTION_TIMEOUT', '5000'),
-('SERVIZIO_BASIC', 'READ_TIMEOUT', '30000');
+CREATE TABLE configurazione (
+    id BIGINT PRIMARY KEY,
+    nome VARCHAR(255) NOT NULL UNIQUE,
+    valore CLOB
+);
 ```
 
-### Connettore con API Key
+#### Configurazioni Disponibili
 
-```sql
-INSERT INTO connettori (cod_connettore, cod_proprieta, valore) VALUES
-('SERVIZIO_APIKEY', 'URL', 'https://api.withkey.com'),
-('SERVIZIO_APIKEY', 'TIPOAUTENTICAZIONE', 'API_KEY'),
-('SERVIZIO_APIKEY', 'API_KEY_AUTH_API_KEY_NAME', 'your-api-key'),
-('SERVIZIO_APIKEY', 'API_KEY_AUTH_API_ID_NAME', 'X-API-Key'),
-('SERVIZIO_APIKEY', 'ABILITATO', 'true');
+| Chiave | Tipo | Descrizione |
+|--------|------|-------------|
+| `giornale_eventi` | `Giornale` | Policy log/dump per ogni interfaccia API |
+| `tracciato_csv` | `TracciatoCsv` | Template per tracciati CSV |
+| `hardening` | `Hardening` | Configurazione Google reCAPTCHA |
+| `mail_batch` | `MailBatch` | Configurazione server SMTP |
+| `app_io_batch` | `AppIOBatch` | Configurazione API App IO |
+| `avvisatura_mail` | `AvvisaturaViaMail` | Template promemoria email |
+| `avvisatura_app_io` | `AvvisaturaViaAppIo` | Template promemoria App IO |
+
+#### Utilizzo
+
+```java
+@Autowired
+private ConfigurazioneService configurazioneService;
+
+Optional<Giornale> giornale = configurazioneService.getGiornale();
+Optional<MailBatch> mailBatch = configurazioneService.getMailBatch();
+Optional<Hardening> hardening = configurazioneService.getHardening();
+
+// Accesso generico
+Optional<String> raw = configurazioneService.getValore("chiave");
+Optional<MyType> typed = configurazioneService.getAsObject("chiave", MyType.class);
 ```
 
-### Connettore con OAuth2
+---
 
-```sql
-INSERT INTO connettori (cod_connettore, cod_proprieta, valore) VALUES
-('SERVIZIO_OAUTH2', 'URL', 'https://api.oauth.com'),
-('SERVIZIO_OAUTH2', 'TIPOAUTENTICAZIONE', 'OAUTH2_CLIENT_CREDENTIALS'),
-('SERVIZIO_OAUTH2', 'OAUTH2_CLIENT_CREDENTIALS_CLIENT_ID_NAME', 'client-id'),
-('SERVIZIO_OAUTH2', 'OAUTH2_CLIENT_CREDENTIALS_CLIENT_SECRET_NAME', 'client-secret'),
-('SERVIZIO_OAUTH2', 'OAUTH2_CLIENT_CREDENTIALS_URL_TOKEN_ENDPOINT_NAME', 'https://auth.oauth.com/token'),
-('SERVIZIO_OAUTH2', 'OAUTH2_CLIENT_CREDENTIALS_SCOPE_NAME', 'read write'),
-('SERVIZIO_OAUTH2', 'ABILITATO', 'true');
-```
+### Mail (`it.govpay.common.mail`)
 
-### Connettore con Azure APIM Subscription Key
+Invio email con supporto SSL/TLS, allegati e configurazione da database.
 
-```sql
-INSERT INTO connettori (cod_connettore, cod_proprieta, valore) VALUES
-('SERVIZIO_AZURE', 'URL', 'https://myapi.azure-api.net'),
-('SERVIZIO_AZURE', 'TIPOAUTENTICAZIONE', 'NONE'),
-('SERVIZIO_AZURE', 'SUBSCRIPTION_KEY_VALUE', 'your-subscription-key-here'),
-('SERVIZIO_AZURE', 'ABILITATO', 'true');
-```
+- **AbstractMailService**: Template Method per invio email. Le sottoclassi implementano `getMailServer()`.
+- **MailInfo**: DTO con to, cc, bcc, from, oggetto, testo, html, encoding, allegati, userAgent, contentLanguage, messageIdDomain.
 
-Questo configurerà automaticamente l'header `Ocp-Apim-Subscription-Key` per le chiamate verso Azure API Management.
+---
 
-### Connettore con Custom Headers Generici
+### Date/Time (`it.govpay.common.utils`)
 
-Il sistema supporta l'aggiunta di header HTTP personalizzati utilizzando coppie di proprietà con pattern indicizzato:
+Serializzatori/deserializzatori Jackson per formati data pagoPA.
 
-```sql
-INSERT INTO connettori (cod_connettore, cod_proprieta, valore) VALUES
-('SERVIZIO_CUSTOM_HEADERS', 'URL', 'https://api.example.com'),
-('SERVIZIO_CUSTOM_HEADERS', 'TIPOAUTENTICAZIONE', 'NONE'),
--- Custom header 1: API versioning
-('SERVIZIO_CUSTOM_HEADERS', 'X-CUSTOM-HEADER-NAME-1', 'X-Api-Version'),
-('SERVIZIO_CUSTOM_HEADERS', 'X-CUSTOM-HEADER-VALUE-1', '2.0'),
--- Custom header 2: Tracing
-('SERVIZIO_CUSTOM_HEADERS', 'X-CUSTOM-HEADER-NAME-2', 'X-Trace-Id'),
-('SERVIZIO_CUSTOM_HEADERS', 'X-CUSTOM-HEADER-VALUE-2', 'govpay-trace'),
--- Custom header 3: Client identification
-('SERVIZIO_CUSTOM_HEADERS', 'X-CUSTOM-HEADER-NAME-3', 'X-Client-Name'),
-('SERVIZIO_CUSTOM_HEADERS', 'X-CUSTOM-HEADER-VALUE-3', 'GovPay'),
-('SERVIZIO_CUSTOM_HEADERS', 'ABILITATO', 'true');
-```
+- **OffsetDateTimeSerializer**: Serializza con pattern configurabile (default: `yyyy-MM-dd'T'HH:mm:ss.SSSXXX`)
+- **OffsetDateTimeDeserializer**: Deserializza con fallback multipli per formati pagoPA variabili (millisecondi 1-9 cifre, timezone opzionale)
+- **LocalDateFlexibleDeserializer**: Gestisce sia `yyyy-MM-dd` che datetime completi
+- **IuvUtils**: Validazione IUV pagoPA basata su AuxDigit e codice segregazione
 
-**Caratteristiche:**
-- Gli indici (N) devono essere uguali per nome e valore dello stesso header
-- Non c'è limite al numero di custom headers (usa indici sequenziali: 1, 2, 3, ...)
-- Gli header personalizzati sono applicati a tutte le chiamate HTTP del connettore
-- I custom headers sono compatibili con tutti i tipi di autenticazione
-- Possono essere combinati con Subscription Key di Azure APIM
+---
 
-**Esempio combinato (API Key + Custom Headers):**
-```sql
-INSERT INTO connettori (cod_connettore, cod_proprieta, valore) VALUES
-('SERVIZIO_COMBINATO', 'URL', 'https://api.partner.com'),
-('SERVIZIO_COMBINATO', 'TIPOAUTENTICAZIONE', 'API_KEY'),
-('SERVIZIO_COMBINATO', 'API_KEY_AUTH_API_KEY_NAME', 'secret-api-key-123'),
-('SERVIZIO_COMBINATO', 'API_KEY_AUTH_API_ID_NAME', 'X-API-Key'),
--- Custom headers aggiuntivi
-('SERVIZIO_COMBINATO', 'X-CUSTOM-HEADER-NAME-1', 'X-Partner-Id'),
-('SERVIZIO_COMBINATO', 'X-CUSTOM-HEADER-VALUE-1', 'GOVPAY_001'),
-('SERVIZIO_COMBINATO', 'X-CUSTOM-HEADER-NAME-2', 'X-Request-Source'),
-('SERVIZIO_COMBINATO', 'X-CUSTOM-HEADER-VALUE-2', 'GovPay-Backend'),
-('SERVIZIO_COMBINATO', 'ABILITATO', 'true');
-```
-
-Questo configurerà:
-- Header `X-API-Key: secret-api-key-123` (autenticazione)
-- Header `X-Partner-Id: GOVPAY_001` (custom)
-- Header `X-Request-Source: GovPay-Backend` (custom)
-
-## Logging
-
-Configura il livello di log in `application.yml`:
-
-```yaml
-logging:
-  level:
-    it.govpay.client.commons: DEBUG
-```
-
-## Architettura
-
-### Componenti Principali
-
-- **ConnettoreEntity**: Entity JPA che mappa la tabella `connettori` (struttura EAV)
-- **Connettore**: Model di dominio che rappresenta un connettore con tutte le sue proprietà
-- **ConnettoreConverter**: Converte da EAV (lista di entity) a model di dominio
-- **ConnettoreEntityRepository**: Repository per accedere alla tabella
-- **RestTemplateFactory**: Factory per creare RestTemplate configurati
-- **ConnettoreService**: Service principale con gestione cache e lifecycle
-
-### Test Suite
-
-- **68 test automatici** con copertura ~85%
-- Unit test: ConnettoreConverter, RestTemplateFactory
-- Integration test: ConnettoreService (cache on/off)
-- End-to-end test con H2 in-memory database
-- 9 connettori di test pre-configurati
-
-## Quality Assurance
-
-La libreria include strumenti di Quality Assurance integrati per garantire sicurezza e qualità del codice.
-
-### Code Coverage con Jacoco
-
-Jacoco è configurato per generare report di code coverage durante l'esecuzione dei test.
+## Build
 
 ```bash
-# Esegui test con coverage
+# Build completa
+mvn clean install
+
+# Test
 mvn clean test
 
-# Report disponibile in: target/site/jacoco/index.html
-```
+# Test singolo
+mvn test -Dtest=ConnettoreServiceWithCacheTest
+mvn test -Dtest=ConnettoreConverterTest#testToModelWithBasicAuth
 
-**Report generati:**
-- `target/site/jacoco/index.html` - Report HTML navigabile
-- `target/site/jacoco/jacoco.xml` - Report XML per SonarQube
-
-### OWASP Dependency Check
-
-Plugin per rilevare vulnerabilità note (CVE) nelle dipendenze del progetto.
-
-```bash
-# Esegui analisi vulnerabilità durante verify
+# OWASP dependency check
 mvn clean verify
 
-# Esegui solo dependency check
-mvn dependency-check:aggregate
-
-# Report disponibile in: target/dependency-check-report.html
+# Disabilitare OWASP durante sviluppo
+mvn clean verify -Dowasp.phase=none
 ```
 
-**Configurazione:**
-- `failBuildOnCVSS: 0` - Build fallisce per qualsiasi vulnerabilità rilevata
-- `autoUpdate: true` - Aggiorna automaticamente il database CVE
-- `nvdApiDelay: 120000` - Delay 2 minuti tra richieste NVD API
+## Test
 
-**Per disabilitare il check durante sviluppo:**
-```bash
-mvn clean verify -Dowasp=none
-```
+- **535 test automatici**
+- Unit test con Mockito
+- Integration test con database H2 in-memory
+- Test GDE con verifica policy log/dump da database
 
-**Per modificare la soglia di fallimento:**
-```xml
-<!-- pom.xml -->
-<owasp.plugin.failBuildOnCVSS>7</owasp.plugin.failBuildOnCVSS>
-```
-- `0` = Fallisce per qualsiasi vulnerabilità
-- `7` = Fallisce solo per vulnerabilità HIGH/CRITICAL (CVSS ≥ 7.0)
-- `11` = Non fallisce mai (max CVSS è 10.0)
-
-## Compatibilità
+## Compatibilita'
 
 - Java 21+
-- Spring Boot 3.5.6+
-- Apache Tomcat 10.1.48+ (CVE-2025-61795 fixed)
-- Database supportati: PostgreSQL, MySQL, Oracle, SQL Server, HSQLDB
+- Spring Boot 3.x
+- Database supportati: PostgreSQL, MySQL, Oracle, SQL Server, H2
 
 ## Licenza
 
-Copyright (c) 2025 - Licenza GNU GPL v3
+Copyright (c) 2014-2025 Link.it srl - Licenza GNU GPL v3

@@ -3,6 +3,7 @@ package it.govpay.common.gde;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -23,8 +24,14 @@ import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import it.govpay.common.configurazione.model.GdeEvento;
+import it.govpay.common.configurazione.model.GdeEvento.DumpEnum;
+import it.govpay.common.configurazione.model.GdeEvento.LogEnum;
+import it.govpay.common.configurazione.model.GdeInterfaccia;
+import it.govpay.common.configurazione.model.Giornale;
 import it.govpay.common.configurazione.service.ConfigurazioneService;
 import it.govpay.gde.client.beans.CategoriaEvento;
+import it.govpay.gde.client.beans.ComponenteEvento;
 import it.govpay.gde.client.beans.EsitoEvento;
 import it.govpay.gde.client.beans.NuovoEvento;
 import it.govpay.gde.client.beans.RuoloEvento;
@@ -47,6 +54,7 @@ class AbstractGdeServiceTest {
 
     static class TestGdeService extends AbstractGdeService {
         private final String endpoint;
+        private boolean forceLettura = false;
 
         TestGdeService(ObjectMapper objectMapper, Executor asyncExecutor,
                       ConfigurazioneService configurazioneService, String endpoint) {
@@ -63,6 +71,27 @@ class AbstractGdeServiceTest {
 
         @Override
         protected String getGdeEndpoint() { return endpoint; }
+
+        @Override
+        protected boolean isRequestLettura(GdeEventInfo eventInfo) {
+            if (forceLettura) return true;
+            return super.isRequestLettura(eventInfo);
+        }
+
+        @Override
+        protected boolean isRequestScrittura(GdeEventInfo eventInfo) {
+            if (forceLettura) return false;
+            return super.isRequestScrittura(eventInfo);
+        }
+
+        @Override
+        protected GdeInterfaccia getConfigurazioneComponente(ComponenteEvento componente, Giornale giornale) {
+            return GdeUtils.getConfigurazioneComponente(componente, giornale);
+        }
+
+        void setForceLettura(boolean forceLettura) {
+            this.forceLettura = forceLettura;
+        }
     }
 
     @BeforeEach
@@ -70,13 +99,38 @@ class AbstractGdeServiceTest {
         // Use a synchronous executor for testing
         Executor syncExecutor = Runnable::run;
         lenient().when(configurazioneService.getRestTemplateGDE()).thenReturn(restTemplate);
+        // Default: Giornale con policy SEMPRE per log e dump su tutte le interfacce
+        lenient().when(configurazioneService.getGiornale()).thenReturn(Optional.of(createGiornaleSempre()));
         gdeService = new TestGdeService(objectMapper, syncExecutor, configurazioneService, GDE_ENDPOINT);
+    }
+
+    private static Giornale createGiornaleSempre() {
+        return createGiornale(LogEnum.SEMPRE, DumpEnum.SEMPRE);
+    }
+
+    private static Giornale createGiornale(LogEnum logEnum, DumpEnum dumpEnum) {
+        GdeEvento evento = new GdeEvento();
+        evento.setLog(logEnum);
+        evento.setDump(dumpEnum);
+        GdeInterfaccia interfaccia = new GdeInterfaccia();
+        interfaccia.setLetture(evento);
+        interfaccia.setScritture(evento);
+        Giornale giornale = new Giornale();
+        giornale.setApiBackoffice(interfaccia);
+        giornale.setApiPagamento(interfaccia);
+        giornale.setApiPagoPA(interfaccia);
+        giornale.setApiPendenze(interfaccia);
+        giornale.setApiRagioneria(interfaccia);
+        giornale.setApiBackendIO(interfaccia);
+        return giornale;
     }
 
     @Test
     @DisplayName("inviaEvento - successo")
     void inviaEvento_success() {
         GdeEventInfo eventInfo = GdeEventInfo.builder()
+                .componente(ComponenteEvento.API_BACKOFFICE)
+                .metodoHttp("POST")
                 .esito(EsitoEvento.OK)
                 .build();
 
@@ -90,19 +144,24 @@ class AbstractGdeServiceTest {
     @Test
     @DisplayName("inviaEvento - HttpDataHolder.clear() chiamato anche in caso di errore")
     void inviaEvento_clearsHttpDataHolder() {
-        GdeEventInfo eventInfo = GdeEventInfo.builder().esito(EsitoEvento.OK).build();
+        GdeEventInfo eventInfo = GdeEventInfo.builder()
+                .componente(ComponenteEvento.API_BACKOFFICE)
+                .metodoHttp("POST")
+                .esito(EsitoEvento.OK)
+                .build();
 
         when(restTemplate.postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class)))
                 .thenThrow(new RestClientException("connection refused"));
 
         assertThrows(RestClientException.class, () -> gdeService.inviaEvento(eventInfo));
-        // HttpDataHolder.clear() is called in finally block - no assertion needed, just verify no leak
     }
 
     @Test
     @DisplayName("inviaEventoAsync - delega a executor")
     void inviaEventoAsync() {
         GdeEventInfo eventInfo = GdeEventInfo.builder()
+                .componente(ComponenteEvento.API_BACKOFFICE)
+                .metodoHttp("POST")
                 .esito(EsitoEvento.OK)
                 .build();
 
@@ -120,6 +179,8 @@ class AbstractGdeServiceTest {
     @DisplayName("inviaEventoAsync - errore non propagato")
     void inviaEventoAsync_errorNotPropagated() {
         GdeEventInfo eventInfo = GdeEventInfo.builder()
+                .componente(ComponenteEvento.API_BACKOFFICE)
+                .metodoHttp("POST")
                 .esito(EsitoEvento.OK)
                 .build();
 
@@ -137,7 +198,10 @@ class AbstractGdeServiceTest {
     @Test
     @DisplayName("inviaEventoOk - imposta esito OK")
     void inviaEventoOk() {
-        GdeEventInfo eventInfo = GdeEventInfo.builder().build();
+        GdeEventInfo eventInfo = GdeEventInfo.builder()
+                .componente(ComponenteEvento.API_BACKOFFICE)
+                .metodoHttp("POST")
+                .build();
 
         when(restTemplate.postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class)))
                 .thenReturn(ResponseEntity.ok().build());
@@ -150,7 +214,10 @@ class AbstractGdeServiceTest {
     @Test
     @DisplayName("inviaEventoKo - imposta esito KO")
     void inviaEventoKo() {
-        GdeEventInfo eventInfo = GdeEventInfo.builder().build();
+        GdeEventInfo eventInfo = GdeEventInfo.builder()
+                .componente(ComponenteEvento.API_BACKOFFICE)
+                .metodoHttp("POST")
+                .build();
 
         when(restTemplate.postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class)))
                 .thenReturn(ResponseEntity.ok().build());
@@ -158,6 +225,215 @@ class AbstractGdeServiceTest {
         gdeService.inviaEventoKo(eventInfo);
 
         assertEquals(EsitoEvento.KO, eventInfo.getEsito());
+    }
+
+    @Nested
+    @DisplayName("Policy log/dump")
+    class PolicyLogDump {
+
+        @Test
+        @DisplayName("log=MAI - evento non inviato")
+        void logMai_eventoNonInviato() {
+            when(configurazioneService.getGiornale()).thenReturn(Optional.of(createGiornale(LogEnum.MAI, DumpEnum.SEMPRE)));
+
+            GdeEventInfo eventInfo = GdeEventInfo.builder()
+                    .componente(ComponenteEvento.API_BACKOFFICE)
+                    .metodoHttp("POST")
+                    .esito(EsitoEvento.OK)
+                    .build();
+
+            gdeService.inviaEvento(eventInfo);
+
+            verify(restTemplate, never()).postForEntity(anyString(), any(), any());
+        }
+
+        @Test
+        @DisplayName("log=SOLO_ERRORE con esito OK - evento non inviato")
+        void logSoloErrore_esitoOk_nonInviato() {
+            when(configurazioneService.getGiornale()).thenReturn(Optional.of(createGiornale(LogEnum.SOLO_ERRORE, DumpEnum.SEMPRE)));
+
+            GdeEventInfo eventInfo = GdeEventInfo.builder()
+                    .componente(ComponenteEvento.API_BACKOFFICE)
+                    .metodoHttp("POST")
+                    .esito(EsitoEvento.OK)
+                    .build();
+
+            gdeService.inviaEvento(eventInfo);
+
+            verify(restTemplate, never()).postForEntity(anyString(), any(), any());
+        }
+
+        @Test
+        @DisplayName("log=SOLO_ERRORE con esito KO - evento inviato")
+        void logSoloErrore_esitoKo_inviato() {
+            when(configurazioneService.getGiornale()).thenReturn(Optional.of(createGiornale(LogEnum.SOLO_ERRORE, DumpEnum.SEMPRE)));
+
+            GdeEventInfo eventInfo = GdeEventInfo.builder()
+                    .componente(ComponenteEvento.API_BACKOFFICE)
+                    .metodoHttp("POST")
+                    .esito(EsitoEvento.KO)
+                    .build();
+
+            when(restTemplate.postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class)))
+                    .thenReturn(ResponseEntity.ok().build());
+
+            gdeService.inviaEvento(eventInfo);
+
+            verify(restTemplate).postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class));
+        }
+
+        @Test
+        @DisplayName("log=SEMPRE - evento sempre inviato")
+        void logSempre_inviato() {
+            GdeEventInfo eventInfo = GdeEventInfo.builder()
+                    .componente(ComponenteEvento.API_BACKOFFICE)
+                    .metodoHttp("POST")
+                    .esito(EsitoEvento.OK)
+                    .build();
+
+            when(restTemplate.postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class)))
+                    .thenReturn(ResponseEntity.ok().build());
+
+            gdeService.inviaEvento(eventInfo);
+
+            verify(restTemplate).postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class));
+        }
+
+        @Test
+        @DisplayName("dump=MAI - payload rimossi dall'evento")
+        void dumpMai_payloadRimossi() {
+            when(configurazioneService.getGiornale()).thenReturn(Optional.of(createGiornale(LogEnum.SEMPRE, DumpEnum.MAI)));
+
+            GdeEventInfo eventInfo = GdeEventInfo.builder()
+                    .componente(ComponenteEvento.API_BACKOFFICE)
+                    .metodoHttp("POST")
+                    .esito(EsitoEvento.OK)
+                    .payloadRichiesta("cGF5bG9hZA==")
+                    .payloadRisposta("cmVzcG9uc2U=")
+                    .build();
+
+            when(restTemplate.postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class)))
+                    .thenReturn(ResponseEntity.ok().build());
+
+            gdeService.inviaEvento(eventInfo);
+
+            assertNull(eventInfo.getPayloadRichiesta());
+            assertNull(eventInfo.getPayloadRisposta());
+            verify(restTemplate).postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class));
+        }
+
+        @Test
+        @DisplayName("dump=SOLO_ERRORE con esito OK - payload rimossi")
+        void dumpSoloErrore_esitoOk_payloadRimossi() {
+            when(configurazioneService.getGiornale()).thenReturn(Optional.of(createGiornale(LogEnum.SEMPRE, DumpEnum.SOLO_ERRORE)));
+
+            GdeEventInfo eventInfo = GdeEventInfo.builder()
+                    .componente(ComponenteEvento.API_BACKOFFICE)
+                    .metodoHttp("POST")
+                    .esito(EsitoEvento.OK)
+                    .payloadRichiesta("cGF5bG9hZA==")
+                    .payloadRisposta("cmVzcG9uc2U=")
+                    .build();
+
+            when(restTemplate.postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class)))
+                    .thenReturn(ResponseEntity.ok().build());
+
+            gdeService.inviaEvento(eventInfo);
+
+            assertNull(eventInfo.getPayloadRichiesta());
+            assertNull(eventInfo.getPayloadRisposta());
+        }
+
+        @Test
+        @DisplayName("dump=SOLO_ERRORE con esito KO - payload mantenuti")
+        void dumpSoloErrore_esitoKo_payloadMantenuti() {
+            when(configurazioneService.getGiornale()).thenReturn(Optional.of(createGiornale(LogEnum.SEMPRE, DumpEnum.SOLO_ERRORE)));
+
+            GdeEventInfo eventInfo = GdeEventInfo.builder()
+                    .componente(ComponenteEvento.API_BACKOFFICE)
+                    .metodoHttp("POST")
+                    .esito(EsitoEvento.KO)
+                    .payloadRichiesta("cGF5bG9hZA==")
+                    .payloadRisposta("cmVzcG9uc2U=")
+                    .build();
+
+            when(restTemplate.postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class)))
+                    .thenReturn(ResponseEntity.ok().build());
+
+            gdeService.inviaEvento(eventInfo);
+
+            assertNotNull(eventInfo.getPayloadRichiesta());
+            assertNotNull(eventInfo.getPayloadRisposta());
+        }
+
+        @Test
+        @DisplayName("Giornale assente - evento inviato (policy non applicabile)")
+        void giornaleAssente_eventoInviato() {
+            when(configurazioneService.getGiornale()).thenReturn(Optional.empty());
+
+            GdeEventInfo eventInfo = GdeEventInfo.builder()
+                    .componente(ComponenteEvento.API_BACKOFFICE)
+                    .metodoHttp("POST")
+                    .esito(EsitoEvento.OK)
+                    .build();
+
+            when(restTemplate.postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class)))
+                    .thenReturn(ResponseEntity.ok().build());
+
+            gdeService.inviaEvento(eventInfo);
+
+            verify(restTemplate).postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class));
+        }
+
+        @Test
+        @DisplayName("Lettura con policy letture=MAI - evento non inviato")
+        void letturaConPolicyMai() {
+            when(configurazioneService.getGiornale()).thenReturn(Optional.of(createGiornaleLettureScrittureDiversi()));
+
+            GdeEventInfo eventInfo = GdeEventInfo.builder()
+                    .componente(ComponenteEvento.API_BACKOFFICE)
+                    .metodoHttp("GET")
+                    .esito(EsitoEvento.OK)
+                    .build();
+
+            gdeService.inviaEvento(eventInfo);
+
+            verify(restTemplate, never()).postForEntity(anyString(), any(), any());
+        }
+
+        @Test
+        @DisplayName("Scrittura con policy scritture=SEMPRE - evento inviato")
+        void scritturaConPolicySempre() {
+            when(configurazioneService.getGiornale()).thenReturn(Optional.of(createGiornaleLettureScrittureDiversi()));
+
+            GdeEventInfo eventInfo = GdeEventInfo.builder()
+                    .componente(ComponenteEvento.API_BACKOFFICE)
+                    .metodoHttp("POST")
+                    .esito(EsitoEvento.OK)
+                    .build();
+
+            when(restTemplate.postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class)))
+                    .thenReturn(ResponseEntity.ok().build());
+
+            gdeService.inviaEvento(eventInfo);
+
+            verify(restTemplate).postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class));
+        }
+
+        private Giornale createGiornaleLettureScrittureDiversi() {
+            GdeEvento letture = new GdeEvento();
+            letture.setLog(LogEnum.MAI);
+            letture.setDump(DumpEnum.MAI);
+            GdeEvento scritture = new GdeEvento();
+            scritture.setLog(LogEnum.SEMPRE);
+            scritture.setDump(DumpEnum.SEMPRE);
+            GdeInterfaccia interfaccia = new GdeInterfaccia();
+            interfaccia.setLetture(letture);
+            interfaccia.setScritture(scritture);
+            Giornale giornale = new Giornale();
+            giornale.setApiBackoffice(interfaccia);
+            return giornale;
+        }
     }
 
     @Nested
