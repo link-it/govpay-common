@@ -1,9 +1,11 @@
 package it.govpay.common.client.oauth2;
 
-import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.apache.hc.client5.http.config.ConnectionConfig;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -55,10 +58,15 @@ public class Oauth2ClientCredentialsManager {
     }
 
     CachedToken refreshToken(Connettore connettore) {
-        RestTemplate tokenRestTemplate = new RestTemplateBuilder()
-                .connectTimeout(Duration.ofMillis(TOKEN_ENDPOINT_CONNECT_TIMEOUT_MS))
-                .readTimeout(Duration.ofMillis(TOKEN_ENDPOINT_READ_TIMEOUT_MS))
+        var connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
+                .setDefaultConnectionConfig(ConnectionConfig.custom()
+                        .setConnectTimeout(Timeout.ofMilliseconds(TOKEN_ENDPOINT_CONNECT_TIMEOUT_MS))
+                        .build())
                 .build();
+        var httpClient = HttpClients.custom().setConnectionManager(connectionManager).build();
+        var factory = new HttpComponentsClientHttpRequestFactory(httpClient);
+        factory.setConnectionRequestTimeout(TOKEN_ENDPOINT_READ_TIMEOUT_MS);
+        RestTemplate tokenRestTemplate = new RestTemplate(factory);
 
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add("grant_type", "client_credentials");

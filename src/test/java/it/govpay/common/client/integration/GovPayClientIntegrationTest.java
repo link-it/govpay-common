@@ -66,7 +66,7 @@ class GovPayClientIntegrationTest {
         try {
             interceptor.intercept(mockRequest, new byte[0], (request, body) -> null);
             // Verifica che l'header Authorization sia stato aggiunto
-            assertTrue(mockRequest.getHeaders().containsKey(HttpHeaders.AUTHORIZATION));
+            assertTrue(mockRequest.getHeaders().containsHeader(HttpHeaders.AUTHORIZATION));
             String authHeader = mockRequest.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
             assertNotNull(authHeader);
             assertTrue(authHeader.startsWith("Basic "));
@@ -93,7 +93,7 @@ class GovPayClientIntegrationTest {
 
         try {
             interceptor.intercept(mockRequest, new byte[0], (request, body) -> null);
-            assertTrue(mockRequest.getHeaders().containsKey("X-API-Key"));
+            assertTrue(mockRequest.getHeaders().containsHeader("X-API-Key"));
             assertEquals("test-api-key-123", mockRequest.getHeaders().getFirst("X-API-Key"));
         } catch (IOException e) {
             // Expected
@@ -119,8 +119,8 @@ class GovPayClientIntegrationTest {
 
         try {
             interceptor.intercept(mockRequest, new byte[0], (request, body) -> null);
-            assertTrue(mockRequest.getHeaders().containsKey("X-Api-Version"));
-            assertTrue(mockRequest.getHeaders().containsKey("X-Trace-Id"));
+            assertTrue(mockRequest.getHeaders().containsHeader("X-Api-Version"));
+            assertTrue(mockRequest.getHeaders().containsHeader("X-Trace-Id"));
             assertEquals("2.0", mockRequest.getHeaders().getFirst("X-Api-Version"));
             assertEquals("test-trace", mockRequest.getHeaders().getFirst("X-Trace-Id"));
         } catch (IOException e) {
@@ -145,7 +145,7 @@ class GovPayClientIntegrationTest {
 
         try {
             interceptor.intercept(mockRequest, new byte[0], (request, body) -> null);
-            assertTrue(mockRequest.getHeaders().containsKey("Ocp-Apim-Subscription-Key"));
+            assertTrue(mockRequest.getHeaders().containsHeader("Ocp-Apim-Subscription-Key"));
             assertEquals("test-subscription-key",
                     mockRequest.getHeaders().getFirst("Ocp-Apim-Subscription-Key"));
         } catch (IOException e) {
@@ -180,9 +180,9 @@ class GovPayClientIntegrationTest {
         }
 
         // Verifica che tutti gli header siano stati aggiunti
-        assertTrue(mockRequest.getHeaders().containsKey("X-API-Key"));
-        assertTrue(mockRequest.getHeaders().containsKey("Ocp-Apim-Subscription-Key"));
-        assertTrue(mockRequest.getHeaders().containsKey("X-Partner-Id"));
+        assertTrue(mockRequest.getHeaders().containsHeader("X-API-Key"));
+        assertTrue(mockRequest.getHeaders().containsHeader("Ocp-Apim-Subscription-Key"));
+        assertTrue(mockRequest.getHeaders().containsHeader("X-Partner-Id"));
         assertEquals("combined-api-key", mockRequest.getHeaders().getFirst("X-API-Key"));
         assertEquals("combined-subscription",
                 mockRequest.getHeaders().getFirst("Ocp-Apim-Subscription-Key"));

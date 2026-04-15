@@ -25,8 +25,8 @@ import java.util.Set;
 
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.ExitStatus;
-import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.explore.JobExplorer;
+import org.springframework.batch.core.job.JobExecution;
+import org.springframework.batch.core.repository.explore.JobExplorer;
 import org.springframework.batch.core.repository.JobRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -265,9 +265,10 @@ public class JobConcurrencyService {
             return null;
         }
 
-        var params = jobExecution.getJobParameters().getParameters();
-        if (params.containsKey(clusterIdParamName)) {
-            return params.get(clusterIdParamName).getValue().toString();
+        var params = jobExecution.getJobParameters();
+        String value = params.getString(clusterIdParamName);
+        if (value != null) {
+            return value;
         }
 
         return null;

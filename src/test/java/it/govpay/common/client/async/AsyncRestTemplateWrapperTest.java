@@ -234,7 +234,7 @@ class AsyncRestTemplateWrapperTest {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("Exchange Response", org.springframework.http.MediaType.TEXT_PLAIN));
 
-        org.springframework.http.HttpEntity<?> requestEntity = new org.springframework.http.HttpEntity<>(null);
+        org.springframework.http.HttpEntity<?> requestEntity = new org.springframework.http.HttpEntity<>((Object) null);
 
         CompletableFuture<ResponseEntity<String>> future =
                 asyncWrapper.exchangeAsync("/api/exchange", HttpMethod.GET, requestEntity, String.class);

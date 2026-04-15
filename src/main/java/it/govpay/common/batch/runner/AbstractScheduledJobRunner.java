@@ -18,12 +18,12 @@
  */
 package it.govpay.common.batch.runner;
 
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.JobParametersInvalidException;
-import org.springframework.batch.core.repository.JobExecutionAlreadyRunningException;
-import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
-import org.springframework.batch.core.repository.JobRestartException;
+import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.JobExecution;
+import org.springframework.batch.core.job.parameters.InvalidJobParametersException;
+import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
+import org.springframework.batch.core.launch.JobInstanceAlreadyCompleteException;
+import org.springframework.batch.core.launch.JobRestartException;
 
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionResult;
 import lombok.extern.slf4j.Slf4j;
@@ -91,10 +91,10 @@ public abstract class AbstractScheduledJobRunner {
      * @throws JobExecutionAlreadyRunningException se il job è già in esecuzione
      * @throws JobRestartException se il job non può essere riavviato
      * @throws JobInstanceAlreadyCompleteException se l'istanza del job è già completata
-     * @throws JobParametersInvalidException se i parametri non sono validi
+     * @throws InvalidJobParametersException se i parametri non sono validi
      */
     protected JobExecution executeScheduledJob() throws JobExecutionAlreadyRunningException,
-            JobRestartException, JobInstanceAlreadyCompleteException, JobParametersInvalidException {
+            JobRestartException, JobInstanceAlreadyCompleteException, InvalidJobParametersException {
 
         log.info("Esecuzione schedulata di {}", jobName);
 
@@ -137,7 +137,7 @@ public abstract class AbstractScheduledJobRunner {
      * Esegue il job e notifica il completamento.
      */
     private JobExecution executeJob() throws JobExecutionAlreadyRunningException, JobRestartException,
-            JobInstanceAlreadyCompleteException, JobParametersInvalidException {
+            JobInstanceAlreadyCompleteException, InvalidJobParametersException {
 
         JobExecution execution = jobExecutionHelper.runJob(job, jobName);
 

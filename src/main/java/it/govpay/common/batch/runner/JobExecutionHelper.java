@@ -21,15 +21,15 @@ package it.govpay.common.batch.runner;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.JobParameters;
-import org.springframework.batch.core.JobParametersBuilder;
-import org.springframework.batch.core.JobParametersInvalidException;
+import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.JobExecution;
+import org.springframework.batch.core.job.parameters.JobParameters;
+import org.springframework.batch.core.job.parameters.JobParametersBuilder;
+import org.springframework.batch.core.job.parameters.InvalidJobParametersException;
 import org.springframework.batch.core.launch.JobLauncher;
-import org.springframework.batch.core.repository.JobExecutionAlreadyRunningException;
-import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
-import org.springframework.batch.core.repository.JobRestartException;
+import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
+import org.springframework.batch.core.launch.JobInstanceAlreadyCompleteException;
+import org.springframework.batch.core.launch.JobRestartException;
 
 import it.govpay.common.batch.service.JobConcurrencyService;
 import lombok.extern.slf4j.Slf4j;
@@ -161,10 +161,10 @@ public class JobExecutionHelper {
      * @throws JobExecutionAlreadyRunningException se il job è già in esecuzione
      * @throws JobRestartException se il job non può essere riavviato
      * @throws JobInstanceAlreadyCompleteException se l'istanza del job è già completata
-     * @throws JobParametersInvalidException se i parametri non sono validi
+     * @throws InvalidJobParametersException se i parametri non sono validi
      */
     public JobExecution runJob(Job job, String jobName) throws JobExecutionAlreadyRunningException,
-            JobRestartException, JobInstanceAlreadyCompleteException, JobParametersInvalidException {
+            JobRestartException, JobInstanceAlreadyCompleteException, InvalidJobParametersException {
         JobParameters params = buildJobParameters(jobName);
         return jobLauncher.run(job, params);
     }
@@ -209,10 +209,10 @@ public class JobExecutionHelper {
      * @throws JobExecutionAlreadyRunningException se il job è già in esecuzione
      * @throws JobRestartException se il job non può essere riavviato
      * @throws JobInstanceAlreadyCompleteException se l'istanza del job è già completata
-     * @throws JobParametersInvalidException se i parametri non sono validi
+     * @throws InvalidJobParametersException se i parametri non sono validi
      */
     public JobExecution executeIfPossible(Job job, String jobName) throws JobExecutionAlreadyRunningException,
-            JobRestartException, JobInstanceAlreadyCompleteException, JobParametersInvalidException {
+            JobRestartException, JobInstanceAlreadyCompleteException, InvalidJobParametersException {
 
         PreExecutionResult checkResult = checkBeforeExecution(jobName);
 

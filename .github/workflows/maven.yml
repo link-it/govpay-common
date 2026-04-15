@@ -134,6 +134,23 @@ jobs:
           target/dependency-check-report.html
           target/dependency-check-report.xml
 
+  # ── OSV Scan (parallelo al build, non blocca) ────────────────────────
+  osv-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.5"
+    with:
+      matrix-property: 'be-'
+      fail-on-vuln: ${{ github.ref_name == 'main' || github.ref_type == 'tag' }}
+      scan-args: |-
+        -r
+        .
+        --lockfile
+        ./pom.xml
+
   # ── Deploy SNAPSHOT su Maven Central (solo push su main) ─────────────
   snapshot-on-main:
     needs: build
@@ -151,7 +168,6 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
-          # Deve combaciare con <id> del distributionManagement snapshotRepository (es. central-snapshots)
           server-id: central-snapshots
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_TOKEN
@@ -190,7 +206,7 @@ jobs:
 
   # ── GitHub Release (solo tag) ────────────────────────────────────────
   github-release:
-    needs: build
+    needs: [ build, osv-scan ]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
 
@@ -198,49 +214,56 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Download artifact from build job
+    # JAR scaricato separatamente — va come asset diretto, non nello ZIP
+    - name: Download govpay-common artifact
       uses: actions/download-artifact@v4
       with:
         name: govpay-common
-        path: target/
+        path: jar/
 
-    - name: Download third-party-licenses artifact
+    # Tutti i report scaricati in reports/
+    - name: Download OSV report
+      uses: actions/download-artifact@v4
+      with:
+        name: osv-report
+        path: reports/osv/
+
+    - name: Download third-party-licenses
       uses: actions/download-artifact@v4
       with:
         name: third-party-licenses
-        path: third-party-licenses/
+        path: reports/third-party-licenses/
 
-    - name: Rename the artifact file to include the tag
+    - name: Rename JAR with tag version
       run: |
-        SRC=$(ls target/govpay-common-*.jar)
-        DEST="target/govpay-common-${{ github.ref_name }}.jar"
-        if [ "$SRC" != "$DEST" ]; then
+        SRC=$(ls jar/govpay-common-*.jar 2>/dev/null | head -1)
+        DEST="jar/govpay-common-${{ github.ref_name }}.jar"
+        if [ -n "$SRC" ] && [ "$SRC" != "$DEST" ]; then
           cp "$SRC" "$DEST"
         fi
-        cp target/site/jacoco/jacoco.xml target/jacoco.xml
 
-    - name: Zip third-party licenses
+    - name: Assemble reports ZIP
       run: |
-        if [ -d "third-party-licenses" ]; then
-          zip -r target/third-party-licenses.zip third-party-licenses
-        else
-          echo "third-party-licenses directory not found, skipping..."
-        fi
+        # OWASP e JaCoCo vengono dall'artifact govpay-common
+        mkdir -p reports/owasp reports/jacoco
+        cp jar/dependency-check-report.html reports/owasp/ 2>/dev/null || true
+        cp jar/dependency-check-report.xml  reports/owasp/ 2>/dev/null || true
+        cp jar/jacoco.xml                   reports/jacoco/ 2>/dev/null || true
+        cp jar/jacoco-html-report.zip       reports/jacoco/ 2>/dev/null || true
 
-    - name: List files in target directory
-      run: ls -l target/
+        # pipeline info
+        echo "Pipeline Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+          > reports/${{ github.ref_name }}_actions_run.txt
+
+        zip -r release-reports-${{ github.ref_name }}.zip reports/
+        ls -lh release-reports-${{ github.ref_name }}.zip
 
     - name: Create GitHub release
-      id: create_release
       uses: softprops/action-gh-release@v2.2.1
       with:
         files: |
-          target/govpay-common-${{ github.ref_name }}.jar
-          target/jacoco.xml
-          target/jacoco-html-report.zip
-          target/dependency-check-report.html
-          target/dependency-check-report.xml
-          target/third-party-licenses.zip
+          jar/govpay-common-${{ github.ref_name }}.jar
+          release-reports-${{ github.ref_name }}.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
@@ -270,7 +293,6 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
-          # Deve combaciare con publishingServerId del central-publishing-maven-plugin (es. central)
           server-id: central
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_TOKEN

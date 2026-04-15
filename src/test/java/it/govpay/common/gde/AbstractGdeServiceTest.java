@@ -22,7 +22,7 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import it.govpay.common.configurazione.model.GdeEvento;
 import it.govpay.common.configurazione.model.GdeEvento.DumpEnum;

@@ -18,7 +18,6 @@
  */
 package it.govpay.common.utils;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -28,10 +27,10 @@ import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
 import java.util.Locale;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.deser.std.StdScalarDeserializer;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.deser.std.StdScalarDeserializer;
 
 /**
  * Custom deserializer for OffsetDateTime with enhanced flexibility.
@@ -113,18 +112,12 @@ public class OffsetDateTimeDeserializer extends StdScalarDeserializer<OffsetDate
     }
 
     @Override
-    public OffsetDateTime deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
-            throws IOException {
-        try {
-            JsonToken currentToken = jsonParser.getCurrentToken();
-            if (currentToken == JsonToken.VALUE_STRING) {
-                return parseOffsetDateTime(jsonParser.getText(), this.formatter);
-            } else {
-                return null;
-            }
-        } catch (IOException | DateTimeParseException e) {
-            throw new IOException("Failed to parse OffsetDateTime: " + e.getMessage(), e);
+    public OffsetDateTime deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) {
+        JsonToken currentToken = jsonParser.currentToken();
+        if (currentToken == JsonToken.VALUE_STRING) {
+            return parseOffsetDateTime(jsonParser.getText(), this.formatter);
         }
+        return null;
     }
 
     /**
