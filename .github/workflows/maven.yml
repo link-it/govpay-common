@@ -13,6 +13,9 @@ permissions:
   id-token: write
   actions: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
 
   # ── Build, Test, Quality ─────────────────────────────────────────────
@@ -20,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
@@ -28,56 +31,43 @@ jobs:
       run: sudo timedatectl set-timezone Europe/Rome
 
     - name: Set up JDK 21
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
 
-    - name: Check NVD_API_KEY
-      run: |
-        if [ -z "$NVD_API_KEY" ]; then
-          echo "NVD_API_KEY is NOT set!"
-        else
-          echo "NVD_API_KEY is set."
-        fi
-      env:
-        NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-
-    - name: Check OSS_INDEX_USER
-      run: |
-        if [ -z "$OSS_INDEX_USER" ]; then
-          echo "OSS_INDEX_USER is NOT set!"
-        else
-          echo "OSS_INDEX_USER is set."
-        fi
-      env:
-        OSS_INDEX_USER: ${{ vars.OSS_INDEX_USER }}
-
-    - name: Check OSS_INDEX_PASSWORD
-      run: |
-        if [ -z "$OSS_INDEX_PASSWORD" ]; then
-          echo "OSS_INDEX_PASSWORD is NOT set!"
-        else
-          echo "OSS_INDEX_PASSWORD is set."
-        fi
-      env:
-        OSS_INDEX_PASSWORD: ${{ secrets.OSS_INDEX_PASSWORD }}
+    - name: Get date for cache key
+      id: date
+      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
     - name: Cache OWASP Dependency-Check DB
-      uses: actions/cache@v4
+      id: owasp-cache
+      uses: actions/cache@v5
       with:
         path: .dependency-check/data
-        key: ${{ runner.os }}-owasp-${{ github.sha }}
+        key: ${{ runner.os }}-owasp-${{ steps.date.outputs.date }}
         restore-keys: |
           ${{ runner.os }}-owasp-
 
     - name: Build with Maven
-      run: mvn clean install -Dspring.profiles.active=test -Duser.timezone=Europe/Rome -DnvdApiKey=$NVD_API_KEY -DossIndexUsername=$OSS_INDEX_USER -DossIndexPassword=$OSS_INDEX_PASSWORD -DdataDirectory=.dependency-check/data -Dowasp.format=ALL -Dowasp.output.dir=./dependency-check-report
       env:
         NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         OSS_INDEX_USER: ${{ vars.OSS_INDEX_USER }}
         OSS_INDEX_PASSWORD: ${{ secrets.OSS_INDEX_PASSWORD }}
+        # Se la cache e' esatta (stessa giornata) skippa l'update NVD
+        NOUPDATE_FLAG: ${{ steps.owasp-cache.outputs.cache-hit == 'true' && '-DautoUpdate=false' || '' }}
+      run: |
+        mvn clean install \
+          -Dspring.profiles.active=test \
+          -Duser.timezone=Europe/Rome \
+          -DnvdApiKey=$NVD_API_KEY \
+          -DossIndexUsername=$OSS_INDEX_USER \
+          -DossIndexPassword=$OSS_INDEX_PASSWORD \
+          -DdataDirectory=.dependency-check/data \
+          -Dowasp.format=ALL \
+          -Dowasp.output.dir=./dependency-check-report \
+          $NOUPDATE_FLAG
 
     - name: Show JaCoCo report location and Zip JaCoCo HTML report
       run: |
@@ -118,13 +108,13 @@ jobs:
         python3 .github/workflows/scripts/analyze_licenses.py --exceptions .github/workflows/scripts/license-exceptions.json
 
     - name: Archive licenses analysis results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: third-party-licenses
         path: third-party-licenses
 
     - name: Upload artifact to GitHub
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: govpay-common
         path: |
@@ -150,6 +140,7 @@ jobs:
         .
         --lockfile
         ./pom.xml
+        --allow-no-lockfiles
 
   # ── Deploy SNAPSHOT su Maven Central (solo push su main) ─────────────
   snapshot-on-main:
@@ -160,10 +151,10 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Java + Maven settings
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -213,16 +204,16 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Download artifact from build job
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: govpay-common
         path: target/
 
     - name: Download third-party-licenses artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: third-party-licenses
         path: third-party-licenses/
@@ -270,7 +261,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Validate tag format (must be X.Y.Z)
         run: |
@@ -282,7 +273,7 @@ jobs:
           fi
 
       - name: Set up Java + Maven settings + GPG
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"

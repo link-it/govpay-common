@@ -1,3 +1,34 @@
+2026-04-21  Giuliano Pintori <pintori@link.it>
+
+	* [GDE]
+	Policy log/dump da configurazione Giornale e refactoring utilities:
+	- AbstractGdeService: aggiunta valutazione policy log/dump dal Giornale in DB,
+	  resolveGdeEventoPolicy allineato al pattern dell'interceptor
+	  (lettura/scrittura/non riconosciuta)
+	- isRequestLettura/isRequestScrittura con implementazione di default che delega
+	  a GdeUtils (logica specifica per API_PAGOPA e tracciati notifica pagamenti)
+	- getConfigurazioneComponente reso astratto, implementazione di default in GdeUtils
+	- GdeCostanti: nuova classe con costanti nomi eventi (API pagoPA, GPD, MyPivot,
+	  Secim, GovPay, HyperSIC APKappa, sottotipi evento)
+	- GdeUtils: aggiunti getConfigurazioneComponente, logEvento/dumpEvento con overload
+	  Integer, isOperazioneScrittura, isOperazioneScritturaTracciatiNotificaPagamenti,
+	  isRequestLettura/Scrittura con logica componente-specifica
+	- Test di integrazione con H2 per verifica policy da DB
+
+	* [Build]
+	Aggiornata pipeline CI/CD:
+	- Actions aggiornate: checkout@v6, setup-java@v5, cache@v5, upload-artifact@v7,
+	  download-artifact@v7
+	- Cache OWASP con chiave giornaliera e skip NVD update se cache hit
+	- Aggiunto workflow refresh-owasp-db.yml per aggiornamento notturno DB NVD
+	- Aggiunto FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 env globale
+	- Aggiunto --allow-no-lockfiles in osv-scan
+
+	* [Doc]
+	Aggiornato README con documentazione GDE, Batch, Configurazione, Mail, Date/Time.
+	Rimosso application.yml di produzione (libreria).
+	Aggiunta documentazione API REST Batch con esempi di risposta.
+
 2026-03-24  Giuliano Pintori <pintori@link.it>
 
 	* [Connettore]
