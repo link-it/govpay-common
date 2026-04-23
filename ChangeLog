@@ -23,6 +23,9 @@
 	- Aggiunto workflow refresh-owasp-db.yml per aggiornamento notturno DB NVD
 	- Aggiunto FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 env globale
 	- Aggiunto --allow-no-lockfiles in osv-scan
+	- GitHub Release: report collezionati in unico ZIP (release-reports-<version>.zip)
+	  con struttura reports/{owasp,jacoco,osv,third-party-licenses} e link alla pipeline
+	- Aggiunto download report OSV Scanner SARIF nella release
 
 	* [Doc]
 	Aggiornato README con documentazione GDE, Batch, Configurazione, Mail, Date/Time.
