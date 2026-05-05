@@ -1,3 +1,19 @@
+2026-05-05  Giuliano Pintori <pintori@link.it>
+
+	* [Build]
+	Correzioni pipeline CI/CD per release su tag:
+	- osv-scan: aggiunta condizione github.ref_type == 'tag' cosi' il job
+	  parte anche su push di tag, sbloccando sbom/github-release/release-on-tag
+	- github-release: skip della copia del JAR se gia' nominato con la
+	  versione del tag (POM senza -SNAPSHOT)
+
+	* [Doc]
+	Aggiunta sezione SBOM CycloneDX nel README. Aggiornato copyright a 2026.
+
+	* [Release]
+	Avanzamento versione a 1.1.2 (la 1.1.1 e' stata bruciata da un deploy
+	parziale su Maven Central prima dei fix pipeline).
+
 2026-05-04  Giuliano Pintori <pintori@link.it>
 
 	* [Dipendenze]
