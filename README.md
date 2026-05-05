@@ -423,6 +423,20 @@ mvn clean verify
 mvn clean verify -Dowasp.phase=none
 ```
 
+### SBOM (CycloneDX)
+
+La pipeline CI/CD genera automaticamente un SBOM in formato CycloneDX (JSON + XML, schema 1.6) tramite `cyclonedx-maven-plugin` su push di `main` e su tag. Il report viene pubblicato come artefatto `sbom-report` e incluso nello ZIP dei report della GitHub Release. L'esecuzione e' controllabile con le variabili `DISABLE_SBOM_JOB` e `FORCE_SBOM_JOB`.
+
+Generazione locale:
+
+```bash
+mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom \
+  -DoutputDirectory=sbom/cyclonedx \
+  -DoutputName=bom.cdx \
+  -DoutputFormat=all \
+  -DschemaVersion=1.6
+```
+
 ## Test
 
 - **535 test automatici**
@@ -438,4 +452,4 @@ mvn clean verify -Dowasp.phase=none
 
 ## Licenza
 
-Copyright (c) 2014-2025 Link.it srl - Licenza GNU GPL v3
+Copyright (c) 2014-2026 Link.it srl - Licenza GNU GPL v3
