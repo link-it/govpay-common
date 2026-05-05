@@ -282,7 +282,12 @@ jobs:
     - name: Rename JAR with tag version
       run: |
         SRC=$(ls jar/govpay-common-*.jar)
-        cp "$SRC" jar/govpay-common-${{ github.ref_name }}.jar
+        DST="jar/govpay-common-${{ github.ref_name }}.jar"
+        if [ "$SRC" != "$DST" ]; then
+          cp "$SRC" "$DST"
+        else
+          echo "JAR already named with tag version: $SRC"
+        fi
 
     - name: Assemble reports ZIP
       run: |
