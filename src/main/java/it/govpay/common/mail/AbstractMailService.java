@@ -25,6 +25,7 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
 import javax.net.ssl.KeyManager;
@@ -87,8 +88,9 @@ public abstract class AbstractMailService {
     private final ConfigurazioneService configurazioneService;
     private final long cacheTtlMs;
 
-    private volatile MailBatch cachedMailBatch;
-    private volatile long cacheTimestamp;
+    private final AtomicReference<CacheEntry> cache = new AtomicReference<>();
+
+    private record CacheEntry(MailBatch value, long timestamp) {}
 
     /** Orologio usato per il TTL della cache; sostituibile nei test per evitare Thread.sleep. */
     LongSupplier clock = System::currentTimeMillis;
@@ -114,12 +116,14 @@ public abstract class AbstractMailService {
      */
     private java.util.Optional<MailBatch> getMailBatchCached() {
         long now = clock.getAsLong();
-        if (cachedMailBatch == null || (now - cacheTimestamp) > cacheTtlMs) {
-            cachedMailBatch = configurazioneService.getMailBatch().orElse(null);
-            cacheTimestamp = now;
+        CacheEntry entry = cache.get();
+        if (entry == null || (now - entry.timestamp()) > cacheTtlMs) {
+            MailBatch fresh = configurazioneService.getMailBatch().orElse(null);
+            cache.set(new CacheEntry(fresh, now));
             log.debug("Configurazione MailBatch caricata dal database");
+            return java.util.Optional.ofNullable(fresh);
         }
-        return java.util.Optional.ofNullable(cachedMailBatch);
+        return java.util.Optional.ofNullable(entry.value());
     }
 
     /**
@@ -129,7 +133,7 @@ public abstract class AbstractMailService {
      * rileggera' la configurazione dal database.
      */
     public void resetCache() {
-        cachedMailBatch = null;
+        cache.set(null);
         log.debug("Cache MailBatch invalidata");
     }
 

@@ -1,3 +1,15 @@
+2026-05-06  Giuliano Pintori <pintori@link.it>
+
+	* [Mail]
+	Fix S3077 (Sonar): rimossi i campi volatile non-primitivi in
+	AbstractMailService. La cache (MailBatch + timestamp) e' ora
+	incapsulata in un record CacheEntry gestito da AtomicReference,
+	risolvendo anche la race tra valore e timestamp che esisteva con
+	i due volatile separati.
+
+	* [Release]
+	Avanzamento versione a 1.1.3-SNAPSHOT.
+
 2026-05-05  Giuliano Pintori <pintori@link.it>
 
 	* [Build]
