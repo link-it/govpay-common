@@ -194,7 +194,7 @@ jobs:
 
   # ── Deploy SNAPSHOT su Maven Central (solo push su main) ─────────────
   snapshot-on-main:
-    needs: [ build, osv-scan ]
+    needs: [ build, osv-scan, sbom ]
     if: startsWith(github.ref, 'refs/heads/')
     runs-on: ubuntu-latest
     permissions:
@@ -325,7 +325,7 @@ jobs:
 
   # ── Deploy RELEASE su Maven Central (solo tag) ──────────────────────
   release-on-tag:
-    needs: [ build, osv-scan ]
+    needs: [ build, osv-scan, sbom ]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
