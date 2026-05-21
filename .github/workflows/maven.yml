@@ -155,11 +155,6 @@ jobs:
   sbom:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: >-
-      vars.DISABLE_SBOM_JOB != 'true' &&
-      (github.event_name == 'push' &&
-       (github.ref_name == 'main' || github.ref_type == 'tag' || vars.FORCE_SBOM_JOB == 'true'))
-    continue-on-error: ${{ vars.FORCE_SBOM_JOB == 'true' && github.ref_type != 'tag' && github.ref_name != 'main' }}
     env:
       SBOM_CYCLONEDX_PLUGIN_VERSION: '2.9.1'
       SBOM_CYCLONEDX_SCHEMA_VERSION: '1.6'
