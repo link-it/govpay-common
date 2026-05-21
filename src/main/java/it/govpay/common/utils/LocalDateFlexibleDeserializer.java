@@ -60,7 +60,7 @@ public class LocalDateFlexibleDeserializer extends StdScalarDeserializer<LocalDa
     public LocalDate deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) {
         JsonToken currentToken = jsonParser.currentToken();
         if (currentToken == JsonToken.VALUE_STRING) {
-            return parseLocalDate(jsonParser.getText());
+            return parseLocalDate(jsonParser.getString());
         }
         return null;
     }

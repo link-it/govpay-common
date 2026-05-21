@@ -115,7 +115,7 @@ public class OffsetDateTimeDeserializer extends StdScalarDeserializer<OffsetDate
     public OffsetDateTime deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) {
         JsonToken currentToken = jsonParser.currentToken();
         if (currentToken == JsonToken.VALUE_STRING) {
-            return parseOffsetDateTime(jsonParser.getText(), this.formatter);
+            return parseOffsetDateTime(jsonParser.getString(), this.formatter);
         }
         return null;
     }

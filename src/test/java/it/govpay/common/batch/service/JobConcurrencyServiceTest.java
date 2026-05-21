@@ -38,15 +38,11 @@ import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.JobInstance;
 import org.springframework.batch.core.job.parameters.JobParameters;
-import org.springframework.batch.core.repository.explore.JobExplorer;
 import org.springframework.batch.core.repository.JobRepository;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class JobConcurrencyServiceTest {
-
-    @Mock
-    private JobExplorer jobExplorer;
 
     @Mock
     private JobRepository jobRepository;
@@ -58,31 +54,31 @@ class JobConcurrencyServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new JobConcurrencyService(jobExplorer, jobRepository, STALE_THRESHOLD_MINUTES);
+        service = new JobConcurrencyService(jobRepository, STALE_THRESHOLD_MINUTES);
     }
 
     @Test
     @DisplayName("getCurrentRunningJobExecution - nessun job in esecuzione")
     void getCurrentRunningJobExecution_noRunningJobs() {
-        when(jobExplorer.findRunningJobExecutions(JOB_NAME)).thenReturn(Collections.emptySet());
+        when(jobRepository.findRunningJobExecutions(JOB_NAME)).thenReturn(Collections.emptySet());
 
         JobExecution result = service.getCurrentRunningJobExecution(JOB_NAME);
 
         assertNull(result);
-        verify(jobExplorer).findRunningJobExecutions(JOB_NAME);
+        verify(jobRepository).findRunningJobExecutions(JOB_NAME);
     }
 
     @Test
     @DisplayName("getCurrentRunningJobExecution - job in esecuzione")
     void getCurrentRunningJobExecution_withRunningJob() {
         JobExecution execution = createMockJobExecution(1L, BatchStatus.STARTED);
-        when(jobExplorer.findRunningJobExecutions(JOB_NAME)).thenReturn(Set.of(execution));
+        when(jobRepository.findRunningJobExecutions(JOB_NAME)).thenReturn(Set.of(execution));
 
         JobExecution result = service.getCurrentRunningJobExecution(JOB_NAME);
 
         assertNotNull(result);
         assertEquals(1L, result.getId());
-        verify(jobExplorer).findRunningJobExecutions(JOB_NAME);
+        verify(jobRepository).findRunningJobExecutions(JOB_NAME);
     }
 
     @Test

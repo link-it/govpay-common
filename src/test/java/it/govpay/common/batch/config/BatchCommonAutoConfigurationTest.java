@@ -1,15 +1,13 @@
 package it.govpay.common.batch.config;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.batch.core.repository.explore.JobExplorer;
-import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.batch.core.repository.JobRepository;
 
 import it.govpay.common.batch.runner.JobExecutionHelper;
@@ -19,19 +17,16 @@ import it.govpay.common.batch.service.JobConcurrencyService;
 class BatchCommonAutoConfigurationTest {
 
     @Mock
-    private JobExplorer jobExplorer;
-
-    @Mock
     private JobRepository jobRepository;
 
     @Mock
-    private JobLauncher jobLauncher;
+    private JobOperator jobOperator;
 
     @Test
     @DisplayName("createJobConcurrencyService con parametri diretti")
     void createJobConcurrencyService_directParams() {
         JobConcurrencyService service = BatchCommonAutoConfiguration
-                .createJobConcurrencyService(jobExplorer, jobRepository, 60);
+                .createJobConcurrencyService(jobRepository, 60);
 
         assertNotNull(service);
     }
@@ -43,7 +38,7 @@ class BatchCommonAutoConfigurationTest {
         properties.setStaleThresholdMinutes(90);
 
         JobConcurrencyService service = BatchCommonAutoConfiguration
-                .createJobConcurrencyService(jobExplorer, jobRepository, properties);
+                .createJobConcurrencyService(jobRepository, properties);
 
         assertNotNull(service);
     }
@@ -52,10 +47,10 @@ class BatchCommonAutoConfigurationTest {
     @DisplayName("createJobExecutionHelper con parametri diretti")
     void createJobExecutionHelper_directParams() {
         JobConcurrencyService concurrencyService = BatchCommonAutoConfiguration
-                .createJobConcurrencyService(jobExplorer, jobRepository, 120);
+                .createJobConcurrencyService(jobRepository, 120);
 
         JobExecutionHelper helper = BatchCommonAutoConfiguration
-                .createJobExecutionHelper(jobLauncher, concurrencyService, "my-cluster",
+                .createJobExecutionHelper(jobOperator, concurrencyService, "my-cluster",
                         java.time.ZoneId.of("Europe/Rome"));
 
         assertNotNull(helper);
@@ -70,10 +65,10 @@ class BatchCommonAutoConfigurationTest {
         properties.setTimeZone("Europe/Rome");
 
         JobConcurrencyService concurrencyService = BatchCommonAutoConfiguration
-                .createJobConcurrencyService(jobExplorer, jobRepository, properties);
+                .createJobConcurrencyService(jobRepository, properties);
 
         JobExecutionHelper helper = BatchCommonAutoConfiguration
-                .createJobExecutionHelper(jobLauncher, concurrencyService, properties);
+                .createJobExecutionHelper(jobOperator, concurrencyService, properties);
 
         assertNotNull(helper);
         assertEquals("test-cluster", helper.getClusterId());

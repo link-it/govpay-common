@@ -20,8 +20,7 @@ package it.govpay.common.batch.config;
 
 import java.time.ZoneId;
 
-import org.springframework.batch.core.repository.explore.JobExplorer;
-import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.batch.core.repository.JobRepository;
 
 import it.govpay.common.batch.runner.JobExecutionHelper;
@@ -40,16 +39,16 @@ import it.govpay.common.batch.service.JobConcurrencyService;
  * public class MyBatchConfig {
  *
  *     &#64;Bean
- *     public JobConcurrencyService jobConcurrencyService(JobExplorer explorer, JobRepository repo) {
- *         return BatchCommonAutoConfiguration.createJobConcurrencyService(explorer, repo, 120);
+ *     public JobConcurrencyService jobConcurrencyService(JobRepository repo) {
+ *         return BatchCommonAutoConfiguration.createJobConcurrencyService(repo, 120);
  *     }
  *
  *     &#64;Bean
  *     public JobExecutionHelper jobExecutionHelper(
- *             JobLauncher launcher,
+ *             JobOperator operator,
  *             JobConcurrencyService concurrencyService) {
  *         return BatchCommonAutoConfiguration.createJobExecutionHelper(
- *             launcher, concurrencyService, "my-cluster-id", ZoneId.of("Europe/Rome"));
+ *             operator, concurrencyService, "my-cluster-id", ZoneId.of("Europe/Rome"));
  *     }
  * }
  * </pre>
@@ -63,64 +62,60 @@ public final class BatchCommonAutoConfiguration {
     /**
      * Crea un JobConcurrencyService per la gestione della concorrenza dei job.
      *
-     * @param jobExplorer JobExplorer per interrogare lo stato dei job
-     * @param jobRepository JobRepository per aggiornare lo stato dei job
+     * @param jobRepository JobRepository per interrogare e aggiornare lo stato dei job
      * @param staleThresholdMinutes Soglia in minuti per considerare un job stale
      * @return JobConcurrencyService configurato
      */
     public static JobConcurrencyService createJobConcurrencyService(
-            JobExplorer jobExplorer,
             JobRepository jobRepository,
             int staleThresholdMinutes) {
-        return new JobConcurrencyService(jobExplorer, jobRepository, staleThresholdMinutes);
+        return new JobConcurrencyService(jobRepository, staleThresholdMinutes);
     }
 
     /**
      * Crea un JobConcurrencyService usando le properties di configurazione.
      *
-     * @param jobExplorer JobExplorer per interrogare lo stato dei job
-     * @param jobRepository JobRepository per aggiornare lo stato dei job
+     * @param jobRepository JobRepository per interrogare e aggiornare lo stato dei job
      * @param properties Properties di configurazione del batch
      * @return JobConcurrencyService configurato
      */
     public static JobConcurrencyService createJobConcurrencyService(
-            JobExplorer jobExplorer,
             JobRepository jobRepository,
             BatchJobProperties properties) {
-        return new JobConcurrencyService(jobExplorer, jobRepository, properties.getStaleThresholdMinutes());
+        return new JobConcurrencyService(jobRepository, properties.getStaleThresholdMinutes());
     }
 
     /**
      * Crea un JobExecutionHelper per l'esecuzione dei job.
      *
-     * @param jobLauncher JobLauncher di Spring Batch
+     * @param jobOperator JobOperator di Spring Batch
      * @param jobConcurrencyService Service per la gestione della concorrenza
      * @param clusterId Identificativo del cluster/nodo
      * @param zoneId Timezone per i timestamp
      * @return JobExecutionHelper configurato
      */
     public static JobExecutionHelper createJobExecutionHelper(
-            JobLauncher jobLauncher,
+            JobOperator jobOperator,
             JobConcurrencyService jobConcurrencyService,
             String clusterId,
             ZoneId zoneId) {
-        return new JobExecutionHelper(jobLauncher, jobConcurrencyService, clusterId, zoneId);
+        return new JobExecutionHelper(jobOperator, jobConcurrencyService, clusterId, zoneId);
     }
 
     /**
      * Crea un JobExecutionHelper usando le properties di configurazione.
      *
-     * @param jobLauncher JobLauncher di Spring Batch
+     * @param jobOperator JobOperator di Spring Batch
      * @param jobConcurrencyService Service per la gestione della concorrenza
      * @param properties Properties di configurazione del batch
      * @return JobExecutionHelper configurato
      */
     public static JobExecutionHelper createJobExecutionHelper(
-            JobLauncher jobLauncher,
+            JobOperator jobOperator,
             JobConcurrencyService jobConcurrencyService,
             BatchJobProperties properties) {
         return new JobExecutionHelper(
-                jobLauncher,
+                jobOperator,
                 jobConcurrencyService,
                 properties.getClusterId(),
                 properties.getZoneId());

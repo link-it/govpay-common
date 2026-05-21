@@ -150,6 +150,7 @@ public class RestTemplateFactory {
         }
     }
 
+    @SuppressWarnings("removal")
     private void configureObjectMapper(RestTemplate restTemplate) {
         restTemplate.getMessageConverters().removeIf(
                 c -> c instanceof org.springframework.http.converter.json.MappingJackson2HttpMessageConverter);

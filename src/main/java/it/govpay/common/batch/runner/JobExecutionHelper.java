@@ -26,7 +26,7 @@ import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.core.job.parameters.InvalidJobParametersException;
-import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
 import org.springframework.batch.core.launch.JobInstanceAlreadyCompleteException;
 import org.springframework.batch.core.launch.JobRestartException;
@@ -60,7 +60,7 @@ public class JobExecutionHelper {
     /** Nome del parametro job per il cluster ID */
     public static final String JOB_PARAM_CLUSTER_ID = "ClusterID";
 
-    private final JobLauncher jobLauncher;
+    private final JobOperator jobOperator;
     private final JobConcurrencyService jobConcurrencyService;
     private final String clusterId;
     private final ZoneId zoneId;
@@ -68,14 +68,14 @@ public class JobExecutionHelper {
     /**
      * Costruisce un nuovo helper per l'esecuzione di job.
      *
-     * @param jobLauncher JobLauncher di Spring Batch
+     * @param jobOperator JobOperator di Spring Batch
      * @param jobConcurrencyService Service per la gestione della concorrenza
      * @param clusterId Identificativo del cluster/nodo corrente
      * @param zoneId Timezone per i timestamp
      */
-    public JobExecutionHelper(JobLauncher jobLauncher, JobConcurrencyService jobConcurrencyService,
+    public JobExecutionHelper(JobOperator jobOperator, JobConcurrencyService jobConcurrencyService,
             String clusterId, ZoneId zoneId) {
-        this.jobLauncher = jobLauncher;
+        this.jobOperator = jobOperator;
         this.jobConcurrencyService = jobConcurrencyService;
         this.clusterId = clusterId;
         this.zoneId = zoneId;
@@ -166,7 +166,7 @@ public class JobExecutionHelper {
     public JobExecution runJob(Job job, String jobName) throws JobExecutionAlreadyRunningException,
             JobRestartException, JobInstanceAlreadyCompleteException, InvalidJobParametersException {
         JobParameters params = buildJobParameters(jobName);
-        return jobLauncher.run(job, params);
+        return jobOperator.start(job, params);
     }
 
     /**

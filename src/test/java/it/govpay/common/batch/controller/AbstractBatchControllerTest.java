@@ -23,7 +23,7 @@ import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.JobInstance;
 import org.springframework.batch.core.step.StepExecution;
-import org.springframework.batch.core.repository.explore.JobExplorer;
+import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
 
@@ -41,7 +41,7 @@ class AbstractBatchControllerTest {
     private JobExecutionHelper jobExecutionHelper;
 
     @Mock
-    private JobExplorer jobExplorer;
+    private JobRepository jobRepository;
 
     @Mock
     private Environment environment;
@@ -62,9 +62,9 @@ class AbstractBatchControllerTest {
         private final Job job;
         private final String jobName;
 
-        TestBatchController(JobExecutionHelper helper, JobExplorer explorer,
+        TestBatchController(JobExecutionHelper helper, JobRepository jobRepository,
                            Environment env, ZoneId zoneId, long interval, Job job, String jobName) {
-            super(helper, explorer, env, zoneId, interval);
+            super(helper, jobRepository, env, zoneId, interval);
             this.job = job;
             this.jobName = jobName;
         }
@@ -88,7 +88,7 @@ class AbstractBatchControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new TestBatchController(jobExecutionHelper, jobExplorer, environment,
+        controller = new TestBatchController(jobExecutionHelper, jobRepository, environment,
                 ZONE_ID, SCHEDULER_INTERVAL, job, JOB_NAME);
         lenient().when(jobExecutionHelper.getJobConcurrencyService()).thenReturn(concurrencyService);
     }
@@ -263,7 +263,7 @@ class AbstractBatchControllerTest {
         @Test
         @DisplayName("Nessuna esecuzione completata")
         void noCompletedExecution() {
-            when(jobExplorer.getJobInstances(JOB_NAME, 0, 10)).thenReturn(Collections.emptyList());
+            when(jobRepository.getJobInstances(JOB_NAME, 0, 10)).thenReturn(Collections.emptyList());
 
             ResponseEntity<LastExecutionInfo> response = controller.testGetLastExecution();
 
@@ -285,8 +285,8 @@ class AbstractBatchControllerTest {
             when(exec.getEndTime()).thenReturn(end);
             when(exec.getExitStatus()).thenReturn(new ExitStatus("COMPLETED", "OK"));
 
-            when(jobExplorer.getJobInstances(JOB_NAME, 0, 10)).thenReturn(List.of(instance));
-            when(jobExplorer.getJobExecutions(instance)).thenReturn(List.of(exec));
+            when(jobRepository.getJobInstances(JOB_NAME, 0, 10)).thenReturn(List.of(instance));
+            when(jobRepository.getJobExecutions(instance)).thenReturn(List.of(exec));
             when(concurrencyService.getClusterIdFromExecution(exec)).thenReturn("cluster-1");
 
             ResponseEntity<LastExecutionInfo> response = controller.testGetLastExecution();
@@ -315,8 +315,8 @@ class AbstractBatchControllerTest {
             when(exec.getEndTime()).thenReturn(LocalDateTime.now());
             when(exec.getExitStatus()).thenReturn(new ExitStatus("FAILED", longDescription));
 
-            when(jobExplorer.getJobInstances(JOB_NAME, 0, 10)).thenReturn(List.of(instance));
-            when(jobExplorer.getJobExecutions(instance)).thenReturn(List.of(exec));
+            when(jobRepository.getJobInstances(JOB_NAME, 0, 10)).thenReturn(List.of(instance));
+            when(jobRepository.getJobExecutions(instance)).thenReturn(List.of(exec));
             when(concurrencyService.getClusterIdFromExecution(exec)).thenReturn("cluster-1");
 
             ResponseEntity<LastExecutionInfo> response = controller.testGetLastExecution();
@@ -338,8 +338,8 @@ class AbstractBatchControllerTest {
             when(exec.getEndTime()).thenReturn(null);
             when(exec.getExitStatus()).thenReturn(new ExitStatus("COMPLETED", ""));
 
-            when(jobExplorer.getJobInstances(JOB_NAME, 0, 10)).thenReturn(List.of(instance));
-            when(jobExplorer.getJobExecutions(instance)).thenReturn(List.of(exec));
+            when(jobRepository.getJobInstances(JOB_NAME, 0, 10)).thenReturn(List.of(instance));
+            when(jobRepository.getJobExecutions(instance)).thenReturn(List.of(exec));
             when(concurrencyService.getClusterIdFromExecution(exec)).thenReturn("cluster-1");
 
             ResponseEntity<LastExecutionInfo> response = controller.testGetLastExecution();
@@ -368,7 +368,7 @@ class AbstractBatchControllerTest {
         @DisplayName("Modalita' scheduler senza esecuzioni precedenti")
         void schedulerNoPreviousExecutions() {
             when(environment.matchesProfiles("cron")).thenReturn(false);
-            when(jobExplorer.getJobInstances(JOB_NAME, 0, 5)).thenReturn(Collections.emptyList());
+            when(jobRepository.getJobInstances(JOB_NAME, 0, 5)).thenReturn(Collections.emptyList());
             // nextExecutionTime = now, which is NOT before now, so getCurrentRunningJobExecution not called
 
             ResponseEntity<NextExecutionInfo> response = controller.testGetNextExecution();
@@ -390,8 +390,8 @@ class AbstractBatchControllerTest {
             LocalDateTime endTime = LocalDateTime.now(ZONE_ID).minusMinutes(1);
             when(exec.getEndTime()).thenReturn(endTime);
 
-            when(jobExplorer.getJobInstances(JOB_NAME, 0, 5)).thenReturn(List.of(instance));
-            when(jobExplorer.getJobExecutions(instance)).thenReturn(List.of(exec));
+            when(jobRepository.getJobInstances(JOB_NAME, 0, 5)).thenReturn(List.of(instance));
+            when(jobRepository.getJobExecutions(instance)).thenReturn(List.of(exec));
             // nextExecutionTime = endTime + 10min = 9 min in future, NOT before now
 
             ResponseEntity<NextExecutionInfo> response = controller.testGetNextExecution();
@@ -412,8 +412,8 @@ class AbstractBatchControllerTest {
             LocalDateTime endTime = LocalDateTime.now(ZONE_ID).minusHours(2);
             when(exec.getEndTime()).thenReturn(endTime);
 
-            when(jobExplorer.getJobInstances(JOB_NAME, 0, 5)).thenReturn(List.of(instance));
-            when(jobExplorer.getJobExecutions(instance)).thenReturn(List.of(exec));
+            when(jobRepository.getJobInstances(JOB_NAME, 0, 5)).thenReturn(List.of(instance));
+            when(jobRepository.getJobExecutions(instance)).thenReturn(List.of(exec));
 
             JobExecution runningExec = mock(JobExecution.class);
             when(concurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(runningExec);

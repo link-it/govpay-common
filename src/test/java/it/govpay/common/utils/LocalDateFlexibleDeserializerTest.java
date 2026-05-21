@@ -94,7 +94,7 @@ class LocalDateFlexibleDeserializerTest {
         @DisplayName("VALUE_STRING token valido")
         void valueStringToken() throws IOException {
             when(jsonParser.currentToken()).thenReturn(JsonToken.VALUE_STRING);
-            when(jsonParser.getText()).thenReturn("2025-03-12");
+            when(jsonParser.getString()).thenReturn("2025-03-12");
 
             LocalDate result = deserializer.deserialize(jsonParser, deserializationContext);
 
@@ -115,7 +115,7 @@ class LocalDateFlexibleDeserializerTest {
         @DisplayName("Formato invalido lancia DateTimeParseException")
         void invalidFormatThrowsException() {
             when(jsonParser.currentToken()).thenReturn(JsonToken.VALUE_STRING);
-            when(jsonParser.getText()).thenReturn("invalid-date");
+            when(jsonParser.getString()).thenReturn("invalid-date");
 
             assertThrows(java.time.format.DateTimeParseException.class, () ->
                     deserializer.deserialize(jsonParser, deserializationContext));

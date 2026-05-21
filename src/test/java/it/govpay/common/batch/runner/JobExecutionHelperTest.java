@@ -32,7 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.parameters.JobParameters;
-import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.launch.JobOperator;
 
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionCheckResult;
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionResult;
@@ -42,7 +42,7 @@ import it.govpay.common.batch.service.JobConcurrencyService;
 class JobExecutionHelperTest {
 
     @Mock
-    private JobLauncher jobLauncher;
+    private JobOperator jobOperator;
 
     @Mock
     private JobConcurrencyService jobConcurrencyService;
@@ -58,7 +58,7 @@ class JobExecutionHelperTest {
 
     @BeforeEach
     void setUp() {
-        helper = new JobExecutionHelper(jobLauncher, jobConcurrencyService, CLUSTER_ID, ZONE_ID);
+        helper = new JobExecutionHelper(jobOperator, jobConcurrencyService, CLUSTER_ID, ZONE_ID);
     }
 
     @Test
@@ -149,12 +149,12 @@ class JobExecutionHelperTest {
     @DisplayName("runJob - esegue il job con successo")
     void runJob() throws Exception {
         JobExecution execution = mock(JobExecution.class);
-        when(jobLauncher.run(eq(job), any(JobParameters.class))).thenReturn(execution);
+        when(jobOperator.start(eq(job), any(JobParameters.class))).thenReturn(execution);
 
         JobExecution result = helper.runJob(job, JOB_NAME);
 
         assertNotNull(result);
-        verify(jobLauncher).run(eq(job), any(JobParameters.class));
+        verify(jobOperator).start(eq(job), any(JobParameters.class));
     }
 
     @Test
@@ -162,12 +162,12 @@ class JobExecutionHelperTest {
     void executeIfPossible_executes() throws Exception {
         when(jobConcurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(null);
         JobExecution execution = mock(JobExecution.class);
-        when(jobLauncher.run(eq(job), any(JobParameters.class))).thenReturn(execution);
+        when(jobOperator.start(eq(job), any(JobParameters.class))).thenReturn(execution);
 
         JobExecution result = helper.executeIfPossible(job, JOB_NAME);
 
         assertNotNull(result);
-        verify(jobLauncher).run(eq(job), any(JobParameters.class));
+        verify(jobOperator).start(eq(job), any(JobParameters.class));
     }
 
     @Test
@@ -181,7 +181,7 @@ class JobExecutionHelperTest {
         JobExecution result = helper.executeIfPossible(job, JOB_NAME);
 
         assertNull(result);
-        verify(jobLauncher, never()).run(any(), any());
+        verify(jobOperator, never()).start(any(Job.class), any(JobParameters.class));
     }
 
     @Test

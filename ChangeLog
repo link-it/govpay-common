@@ -1,3 +1,54 @@
+2026-05-21  Giuliano Pintori <pintori@link.it>
+
+	* [Build]
+	Allineata la cache OWASP della pipeline al pattern di govpay-bom:
+	- actions/cache@v4 -> @v5
+	- chiave ora basata su versione plugin OWASP + data (era github.sha,
+	  che causava cache MISS ad ogni commit)
+	- versione plugin letta dal pom via mvn help:evaluate
+	- restore-keys namespaced sulla versione plugin per evitare di pescare
+	  schema vecchio dopo un bump
+	- NOUPDATE_FLAG (-DautoUpdate=false) quando cache exact-hit, per
+	  skippare il download del DB NVD nelle build successive della giornata
+
+2026-05-20  Giuliano Pintori <pintori@link.it>
+
+	* [Dipendenze]
+	Migrazione allo stack Spring 7 tramite govpay-bom 2.0.0-SNAPSHOT:
+	- Spring Boot 4.0.6, Spring Framework 7.0.7, Spring Batch 6.0.3
+	- Hibernate ORM 7.2.7.Final, Jakarta Persistence 3.2.0
+	- HttpClient5 5.5.2, Jakarta Annotation 3.0.0 (transitiva)
+	Rimosse 3 dipendenze morte dal pom (Unused declared):
+	- org.openapitools:jackson-databind-nullable:0.2.6 (nessun JsonNullable nel codice)
+	- javax.annotation:javax.annotation-api:1.3.2 (legacy javax, gia' fornita
+	  jakarta.annotation-api via Spring Boot 4)
+	- com.google.code.findbugs:jsr305:3.0.2 (nessun @Nullable/@Nonnull importato)
+
+	* [Batch]
+	Migrazione API Spring Batch 6 (JobExplorer/JobLauncher deprecati for removal):
+	- JobConcurrencyService: rimosso campo JobExplorer, usa solo JobRepository
+	  (estende JobExplorer e ne eredita le query di default). Costruttore ridotto
+	  a 2 parametri.
+	- JobExecutionHelper: JobLauncher -> JobOperator; chiamata .run() -> .start().
+	- BatchCommonAutoConfiguration: factory aggiornati di conseguenza.
+	- AbstractBatchController: JobExplorer -> JobRepository in campo, costruttore
+	  e accessor (getJobExplorer() -> getJobRepository()). Query getJobInstances /
+	  getJobExecutions ora su jobRepository.
+	BREAKING CHANGE per i consumer: cambia la firma del costruttore di
+	JobConcurrencyService, di AbstractBatchController e dei factory di
+	BatchCommonAutoConfiguration; rinominato l'accessor getJobExplorer().
+
+	* [Jackson]
+	Migrazione Jackson 2 -> Jackson 3:
+	- JsonParser.getText() (deprecated in Jackson 3) -> getString() in
+	  LocalDateFlexibleDeserializer e OffsetDateTimeDeserializer.
+	- RestTemplateFactory.configureObjectMapper: @SuppressWarnings("removal")
+	  sull'instanceof di MappingJackson2HttpMessageConverter, riferimento
+	  intenzionale necessario per rimuoverlo dal RestTemplate e sostituirlo
+	  con JacksonJsonHttpMessageConverter (Jackson 3).
+	Albero Jackson finale: solo tools.jackson.core 3.1.2 (core+databind) +
+	jackson-annotations 2.21 (modulo shared cross-version).
+
 2026-03-24  Giuliano Pintori <pintori@link.it>
 
 	* [Connettore]
