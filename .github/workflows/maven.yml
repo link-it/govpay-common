@@ -48,10 +48,6 @@ jobs:
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
         echo "OWASP Dependency-Check version: $VERSION"
 
-    - name: Get date for cache key
-      id: date
-      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-
     - name: Cache OWASP Dependency-Check DB
       id: owasp-cache
       uses: actions/cache@v5
