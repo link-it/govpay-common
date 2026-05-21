@@ -31,8 +31,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import it.govpay.common.client.gde.HttpDataHolder;
 import it.govpay.common.configurazione.model.GdeEvento;
@@ -91,7 +91,7 @@ public final class GdeUtils {
         }
         try {
             return objectMapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.warn("Errore serializzazione JSON: {}", e.getMessage());
             return MSG_PAYLOAD_NON_SERIALIZZABILE;
         }

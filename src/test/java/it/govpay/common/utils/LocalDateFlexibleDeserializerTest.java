@@ -15,9 +15,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.DeserializationContext;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.databind.DeserializationContext;
 
 @ExtendWith(MockitoExtension.class)
 class LocalDateFlexibleDeserializerTest {
@@ -93,8 +93,8 @@ class LocalDateFlexibleDeserializerTest {
         @Test
         @DisplayName("VALUE_STRING token valido")
         void valueStringToken() throws IOException {
-            when(jsonParser.getCurrentToken()).thenReturn(JsonToken.VALUE_STRING);
-            when(jsonParser.getText()).thenReturn("2025-03-12");
+            when(jsonParser.currentToken()).thenReturn(JsonToken.VALUE_STRING);
+            when(jsonParser.getString()).thenReturn("2025-03-12");
 
             LocalDate result = deserializer.deserialize(jsonParser, deserializationContext);
 
@@ -104,7 +104,7 @@ class LocalDateFlexibleDeserializerTest {
         @Test
         @DisplayName("Token non VALUE_STRING restituisce null")
         void nonStringToken() throws IOException {
-            when(jsonParser.getCurrentToken()).thenReturn(JsonToken.VALUE_NULL);
+            when(jsonParser.currentToken()).thenReturn(JsonToken.VALUE_NULL);
 
             LocalDate result = deserializer.deserialize(jsonParser, deserializationContext);
 
@@ -112,12 +112,12 @@ class LocalDateFlexibleDeserializerTest {
         }
 
         @Test
-        @DisplayName("Formato invalido lancia IOException")
-        void invalidFormatThrowsIOException() throws IOException {
-            when(jsonParser.getCurrentToken()).thenReturn(JsonToken.VALUE_STRING);
-            when(jsonParser.getText()).thenReturn("invalid-date");
+        @DisplayName("Formato invalido lancia DateTimeParseException")
+        void invalidFormatThrowsException() {
+            when(jsonParser.currentToken()).thenReturn(JsonToken.VALUE_STRING);
+            when(jsonParser.getString()).thenReturn("invalid-date");
 
-            assertThrows(IOException.class, () ->
+            assertThrows(java.time.format.DateTimeParseException.class, () ->
                     deserializer.deserialize(jsonParser, deserializationContext));
         }
     }

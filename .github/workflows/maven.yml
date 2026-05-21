@@ -41,14 +41,23 @@ jobs:
       id: date
       run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
+    - name: Read OWASP plugin version from pom.xml
+      id: owasp
+      run: |
+        VERSION="$(mvn -q -DforceStdout help:evaluate -Dexpression=owasp.plugin.version)"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "OWASP Dependency-Check version: $VERSION"
+
     - name: Cache OWASP Dependency-Check DB
       id: owasp-cache
       uses: actions/cache@v5
       with:
         path: .dependency-check/data
-        key: ${{ runner.os }}-owasp-${{ steps.date.outputs.date }}
+        # Chiave: versione plugin (bump -> cache invalidata per schema diverso)
+        # + data (allineamento con il refresh giornaliero del DB NVD).
+        key: ${{ runner.os }}-owasp-v${{ steps.owasp.outputs.version }}-${{ steps.date.outputs.date }}
         restore-keys: |
-          ${{ runner.os }}-owasp-
+          ${{ runner.os }}-owasp-v${{ steps.owasp.outputs.version }}-
 
     - name: Build with Maven
       env:
@@ -124,9 +133,8 @@ jobs:
           target/dependency-check-report.html
           target/dependency-check-report.xml
 
-  # ── OSV Scan (reusable workflow) ──────────────────────────────────────
+  # ── OSV Scan (parallelo al build, non blocca) ────────────────────────
   osv-scan:
-    if: ${{ github.event_name == 'push' && (github.ref_name == 'main' || github.ref_type == 'tag' || vars.FORCE_OSV_JOB == 'true') }}
     permissions:
       actions: read
       contents: read
@@ -147,11 +155,6 @@ jobs:
   sbom:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: >-
-      vars.DISABLE_SBOM_JOB != 'true' &&
-      (github.event_name == 'push' &&
-       (github.ref_name == 'main' || github.ref_type == 'tag' || vars.FORCE_SBOM_JOB == 'true'))
-    continue-on-error: ${{ vars.FORCE_SBOM_JOB == 'true' && github.ref_type != 'tag' && github.ref_name != 'main' }}
     env:
       SBOM_CYCLONEDX_PLUGIN_VERSION: '2.9.1'
       SBOM_CYCLONEDX_SCHEMA_VERSION: '1.6'
@@ -191,7 +194,7 @@ jobs:
 
   # ── Deploy SNAPSHOT su Maven Central (solo push su main) ─────────────
   snapshot-on-main:
-    needs: [ build, osv-scan ]
+    needs: [ build, osv-scan, sbom ]
     if: startsWith(github.ref, 'refs/heads/')
     runs-on: ubuntu-latest
     permissions:
@@ -206,7 +209,6 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
-          # Deve combaciare con <id> del distributionManagement snapshotRepository (es. central-snapshots)
           server-id: central-snapshots
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_TOKEN
@@ -260,7 +262,13 @@ jobs:
         name: govpay-common
         path: jar/
 
-    # Report — finiranno nello ZIP
+    # Tutti i report scaricati in reports/
+    - name: Download OSV report
+      uses: actions/download-artifact@v4
+      with:
+        name: osv-report
+        path: reports/osv/
+
     - name: Download third-party-licenses
       uses: actions/download-artifact@v7
       with:
@@ -307,7 +315,6 @@ jobs:
         ls -lh release-reports-${{ github.ref_name }}.zip
 
     - name: Create GitHub release
-      id: create_release
       uses: softprops/action-gh-release@v2.2.1
       with:
         files: |
@@ -318,7 +325,7 @@ jobs:
 
   # ── Deploy RELEASE su Maven Central (solo tag) ──────────────────────
   release-on-tag:
-    needs: [ build, osv-scan ]
+    needs: [ build, osv-scan, sbom ]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
@@ -342,7 +349,6 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
-          # Deve combaciare con publishingServerId del central-publishing-maven-plugin (es. central)
           server-id: central
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_TOKEN

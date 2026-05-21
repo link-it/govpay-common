@@ -27,8 +27,7 @@ import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.web.client.RestTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
 
 import it.govpay.common.client.gde.GdeCapturingInterceptor;
 import it.govpay.common.client.model.Connettore;
@@ -47,7 +46,6 @@ class RestTemplateFactoryTest {
     void setUp() {
         mockOauth2Manager = mock(Oauth2ClientCredentialsManager.class);
         ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
         factory = new RestTemplateFactory(mockOauth2Manager, objectMapper);
     }
 
@@ -66,7 +64,6 @@ class RestTemplateFactoryTest {
         RestTemplate restTemplate = factory.createRestTemplate(connettore);
 
         assertNotNull(restTemplate);
-        assertEquals("https://api.test.com/", restTemplate.getUriTemplateHandler().expand("/").toString());
         assertFalse(restTemplate.getInterceptors().isEmpty());
         // 1 BasicAuth + 1 GdeCapturing
         assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());

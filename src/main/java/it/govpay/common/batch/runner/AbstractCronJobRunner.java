@@ -18,12 +18,12 @@
  */
 package it.govpay.common.batch.runner;
 
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.JobParametersInvalidException;
-import org.springframework.batch.core.repository.JobExecutionAlreadyRunningException;
-import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
-import org.springframework.batch.core.repository.JobRestartException;
+import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.JobExecution;
+import org.springframework.batch.core.job.parameters.InvalidJobParametersException;
+import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
+import org.springframework.batch.core.launch.JobInstanceAlreadyCompleteException;
+import org.springframework.batch.core.launch.JobRestartException;
 import org.springframework.beans.BeansException;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -117,7 +117,7 @@ public abstract class AbstractCronJobRunner implements CommandLineRunner, Applic
      * Esegue il job e termina l'applicazione.
      */
     private void executeAndExit() throws JobExecutionAlreadyRunningException, JobRestartException,
-            JobInstanceAlreadyCompleteException, JobParametersInvalidException {
+            JobInstanceAlreadyCompleteException, InvalidJobParametersException {
         JobExecution execution = jobExecutionHelper.runJob(job, jobName);
 
         if (execution != null) {

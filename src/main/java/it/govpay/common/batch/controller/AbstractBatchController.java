@@ -25,11 +25,11 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.springframework.batch.core.BatchStatus;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.JobInstance;
-import org.springframework.batch.core.StepExecution;
-import org.springframework.batch.core.explore.JobExplorer;
+import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.JobExecution;
+import org.springframework.batch.core.job.JobInstance;
+import org.springframework.batch.core.step.StepExecution;
+import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -68,7 +68,7 @@ import lombok.extern.slf4j.Slf4j;
  * public class MyBatchController extends AbstractBatchController {
  *
  *     public MyBatchController(...) {
- *         super(jobExecutionHelper, jobExplorer, environment, zoneId, schedulerIntervalMillis);
+ *         super(jobExecutionHelper, jobRepository, environment, zoneId, schedulerIntervalMillis);
  *     }
  *
  *     &#64;Override
@@ -95,7 +95,7 @@ import lombok.extern.slf4j.Slf4j;
 public abstract class AbstractBatchController {
 
     private final JobExecutionHelper jobExecutionHelper;
-    private final JobExplorer jobExplorer;
+    private final JobRepository jobRepository;
     private final Environment environment;
     private final ZoneId applicationZoneId;
     private final long schedulerIntervalMillis;
@@ -104,19 +104,19 @@ public abstract class AbstractBatchController {
      * Costruisce il controller base.
      *
      * @param jobExecutionHelper Helper per l'esecuzione del job
-     * @param jobExplorer JobExplorer per interrogare lo stato dei job
+     * @param jobRepository JobRepository per interrogare lo stato dei job
      * @param environment Environment per verificare i profili attivi
      * @param applicationZoneId Timezone dell'applicazione
      * @param schedulerIntervalMillis Intervallo di scheduling in millisecondi
      */
     protected AbstractBatchController(
             JobExecutionHelper jobExecutionHelper,
-            JobExplorer jobExplorer,
+            JobRepository jobRepository,
             Environment environment,
             ZoneId applicationZoneId,
             long schedulerIntervalMillis) {
         this.jobExecutionHelper = jobExecutionHelper;
-        this.jobExplorer = jobExplorer;
+        this.jobRepository = jobRepository;
         this.environment = environment;
         this.applicationZoneId = applicationZoneId;
         this.schedulerIntervalMillis = schedulerIntervalMillis;
@@ -296,10 +296,10 @@ public abstract class AbstractBatchController {
     }
 
     private JobExecution findLastCompletedExecution() {
-        List<JobInstance> jobInstances = jobExplorer.getJobInstances(getJobName(), 0, 10);
+        List<JobInstance> jobInstances = jobRepository.getJobInstances(getJobName(), 0, 10);
 
         for (JobInstance jobInstance : jobInstances) {
-            List<JobExecution> executions = jobExplorer.getJobExecutions(jobInstance);
+            List<JobExecution> executions = jobRepository.getJobExecutions(jobInstance);
             for (JobExecution execution : executions) {
                 if (isCompletedExecution(execution)) {
                     return execution;
@@ -366,9 +366,9 @@ public abstract class AbstractBatchController {
         LocalDateTime lastCompletedTime = null;
         LocalDateTime nextExecutionTime = null;
 
-        List<JobInstance> jobInstances = jobExplorer.getJobInstances(getJobName(), 0, 5);
+        List<JobInstance> jobInstances = jobRepository.getJobInstances(getJobName(), 0, 5);
         for (JobInstance jobInstance : jobInstances) {
-            List<JobExecution> executions = jobExplorer.getJobExecutions(jobInstance);
+            List<JobExecution> executions = jobRepository.getJobExecutions(jobInstance);
             for (JobExecution execution : executions) {
                 if (execution.getEndTime() != null) {
                     lastCompletedTime = execution.getEndTime();
@@ -458,8 +458,8 @@ public abstract class AbstractBatchController {
         return jobExecutionHelper;
     }
 
-    protected JobExplorer getJobExplorer() {
-        return jobExplorer;
+    protected JobRepository getJobRepository() {
+        return jobRepository;
     }
 
     protected Environment getEnvironment() {

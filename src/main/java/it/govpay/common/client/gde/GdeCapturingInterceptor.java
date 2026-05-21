@@ -95,7 +95,7 @@ public class GdeCapturingInterceptor implements ClientHttpRequestInterceptor {
             }
 
             log.trace("Captured request data for {} {}: headers={}",
-                    request.getMethod(), request.getURI(), request.getHeaders().keySet());
+                    request.getMethod(), request.getURI(), request.getHeaders().headerNames());
 
         } catch (Exception e) {
             log.warn("Failed to capture request data for {}: {}",
@@ -127,7 +127,7 @@ public class GdeCapturingInterceptor implements ClientHttpRequestInterceptor {
                     request.getMethod(), request.getURI(),
                     response.getStatusCode().value(),
                     responseBody.length,
-                    response.getHeaders().keySet());
+                    response.getHeaders().headerNames());
 
         } catch (IOException e) {
             log.warn("Failed to capture response body for {} {}: {}",

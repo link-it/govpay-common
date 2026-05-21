@@ -12,8 +12,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.SerializerProvider;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.SerializationContext;
 
 @ExtendWith(MockitoExtension.class)
 class OffsetDateTimeSerializerTest {
@@ -22,7 +22,7 @@ class OffsetDateTimeSerializerTest {
     private JsonGenerator jsonGenerator;
 
     @Mock
-    private SerializerProvider serializerProvider;
+    private SerializationContext serializerProvider;
 
     @Test
     @DisplayName("Serializzazione con pattern di default")

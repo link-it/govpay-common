@@ -35,19 +35,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.batch.core.BatchStatus;
-import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.JobInstance;
-import org.springframework.batch.core.JobParameter;
-import org.springframework.batch.core.JobParameters;
-import org.springframework.batch.core.explore.JobExplorer;
+import org.springframework.batch.core.job.JobExecution;
+import org.springframework.batch.core.job.JobInstance;
+import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.repository.JobRepository;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class JobConcurrencyServiceTest {
-
-    @Mock
-    private JobExplorer jobExplorer;
 
     @Mock
     private JobRepository jobRepository;
@@ -59,31 +54,31 @@ class JobConcurrencyServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new JobConcurrencyService(jobExplorer, jobRepository, STALE_THRESHOLD_MINUTES);
+        service = new JobConcurrencyService(jobRepository, STALE_THRESHOLD_MINUTES);
     }
 
     @Test
     @DisplayName("getCurrentRunningJobExecution - nessun job in esecuzione")
     void getCurrentRunningJobExecution_noRunningJobs() {
-        when(jobExplorer.findRunningJobExecutions(JOB_NAME)).thenReturn(Collections.emptySet());
+        when(jobRepository.findRunningJobExecutions(JOB_NAME)).thenReturn(Collections.emptySet());
 
         JobExecution result = service.getCurrentRunningJobExecution(JOB_NAME);
 
         assertNull(result);
-        verify(jobExplorer).findRunningJobExecutions(JOB_NAME);
+        verify(jobRepository).findRunningJobExecutions(JOB_NAME);
     }
 
     @Test
     @DisplayName("getCurrentRunningJobExecution - job in esecuzione")
     void getCurrentRunningJobExecution_withRunningJob() {
         JobExecution execution = createMockJobExecution(1L, BatchStatus.STARTED);
-        when(jobExplorer.findRunningJobExecutions(JOB_NAME)).thenReturn(Set.of(execution));
+        when(jobRepository.findRunningJobExecutions(JOB_NAME)).thenReturn(Set.of(execution));
 
         JobExecution result = service.getCurrentRunningJobExecution(JOB_NAME);
 
         assertNotNull(result);
         assertEquals(1L, result.getId());
-        verify(jobExplorer).findRunningJobExecutions(JOB_NAME);
+        verify(jobRepository).findRunningJobExecutions(JOB_NAME);
     }
 
     @Test
@@ -177,11 +172,9 @@ class JobConcurrencyServiceTest {
     void getClusterIdFromExecution_withClusterId() {
         JobExecution execution = mock(JobExecution.class);
         JobParameters params = mock(JobParameters.class);
-        JobParameter<?> clusterParam = mock(JobParameter.class);
 
         when(execution.getJobParameters()).thenReturn(params);
-        when(params.getParameters()).thenReturn(Map.of(JobConcurrencyService.JOB_PARAM_CLUSTER_ID, clusterParam));
-        when(clusterParam.getValue()).thenReturn("test-cluster");
+        when(params.getString(JobConcurrencyService.JOB_PARAM_CLUSTER_ID)).thenReturn("test-cluster");
 
         String result = service.getClusterIdFromExecution(execution);
 
@@ -195,7 +188,7 @@ class JobConcurrencyServiceTest {
         JobParameters params = mock(JobParameters.class);
 
         when(execution.getJobParameters()).thenReturn(params);
-        when(params.getParameters()).thenReturn(Collections.emptyMap());
+        when(params.getString(JobConcurrencyService.JOB_PARAM_CLUSTER_ID)).thenReturn(null);
 
         String result = service.getClusterIdFromExecution(execution);
 

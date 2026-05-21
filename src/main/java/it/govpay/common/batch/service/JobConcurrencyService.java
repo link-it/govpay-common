@@ -25,8 +25,7 @@ import java.util.Set;
 
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.ExitStatus;
-import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.explore.JobExplorer;
+import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.repository.JobRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -35,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Service per prevenire l'esecuzione concorrente di job Spring Batch in ambiente multi-nodo.
  * <p>
- * Verifica se un job è già in esecuzione utilizzando il JobExplorer di Spring Batch.
+ * Verifica se un job è già in esecuzione utilizzando il JobRepository di Spring Batch.
  * Questo consente il coordinamento tra nodi diversi che condividono lo stesso database
  * per i metadati di Spring Batch.
  * <p>
@@ -49,8 +48,7 @@ import lombok.extern.slf4j.Slf4j;
  * </ul>
  * <p>
  * Questa classe è pensata per essere istanziata come bean Spring nei progetti batch.
- * Richiede un {@link JobExplorer} e un {@link JobRepository} che devono essere
- * configurati nel contesto Spring.
+ * Richiede un {@link JobRepository} configurato nel contesto Spring.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -59,21 +57,20 @@ public class JobConcurrencyService {
     /** Nome del parametro job per il cluster ID */
     public static final String JOB_PARAM_CLUSTER_ID = "ClusterID";
 
-    private final JobExplorer jobExplorer;
     private final JobRepository jobRepository;
     private final int staleThresholdMinutes;
 
     /**
      * Controlla e restituisce l'esecuzione corrente del job, se esiste.
      * <p>
-     * Utilizza il JobExplorer per interrogare le tabelle BATCH_* nel database
+     * Utilizza il JobRepository per interrogare le tabelle BATCH_* nel database
      * e verificare se esistono esecuzioni in corso per il job specificato.
      *
      * @param jobName Nome del job da verificare
      * @return l'esecuzione corrente del job oppure null se non ce ne sono
      */
     public JobExecution getCurrentRunningJobExecution(String jobName) {
-        Set<JobExecution> runningJobs = jobExplorer.findRunningJobExecutions(jobName);
+        Set<JobExecution> runningJobs = jobRepository.findRunningJobExecutions(jobName);
 
         if (!runningJobs.isEmpty()) {
             List<JobExecution> list = runningJobs.stream().toList();
@@ -265,20 +262,21 @@ public class JobConcurrencyService {
             return null;
         }
 
-        var params = jobExecution.getJobParameters().getParameters();
-        if (params.containsKey(clusterIdParamName)) {
-            return params.get(clusterIdParamName).getValue().toString();
+        var params = jobExecution.getJobParameters();
+        String value = params.getString(clusterIdParamName);
+        if (value != null) {
+            return value;
         }
 
         return null;
     }
 
     /**
-     * Restituisce il JobExplorer utilizzato.
+     * Restituisce il JobRepository utilizzato.
      *
-     * @return il JobExplorer
+     * @return il JobRepository
      */
-    public JobExplorer getJobExplorer() {
-        return jobExplorer;
+    public JobRepository getJobRepository() {
+        return jobRepository;
     }
 }

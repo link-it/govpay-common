@@ -26,9 +26,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.JobExecutionListener;
-import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.job.JobExecution;
+import org.springframework.batch.core.listener.JobExecutionListener;
+import org.springframework.batch.core.step.StepExecution;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -68,7 +68,7 @@ public abstract class AbstractBatchExecutionListener implements JobExecutionList
     public void beforeJob(JobExecution jobExecution) {
         log.info(SEPARATOR);
         log.info("INIZIO BATCH {}", getBatchName());
-        log.info("Job ID: {}", jobExecution.getJobId());
+        log.info("Job ID: {}", jobExecution.getId());
         log.info("Avvio: {}", LocalDateTime.now().format(TIME_FORMATTER));
         log.info(SEPARATOR);
     }

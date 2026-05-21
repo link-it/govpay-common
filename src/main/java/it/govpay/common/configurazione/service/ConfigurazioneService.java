@@ -8,8 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import it.govpay.common.client.model.Connettore;
 import it.govpay.common.client.service.ConnettoreService;
@@ -76,7 +76,7 @@ public class ConfigurazioneService {
                 .map(entity -> {
                     try {
                         return objectMapper.readValue(entity.getValore(), type);
-                    } catch (JsonProcessingException e) {
+                    } catch (JacksonException e) {
                         throw new IllegalArgumentException(
                                 "Errore nella deserializzazione della configurazione '" + nome + "': " + e.getMessage(), e);
                     }

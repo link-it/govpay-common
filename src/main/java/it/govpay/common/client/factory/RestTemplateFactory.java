@@ -4,7 +4,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -21,10 +20,9 @@ import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.util.Timeout;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
@@ -33,7 +31,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import it.govpay.common.client.gde.GdeCapturingInterceptor;
 import it.govpay.common.client.model.Connettore;
@@ -56,17 +54,16 @@ public class RestTemplateFactory {
     public RestTemplate createRestTemplate(Connettore connettore) {
         log.info("Creazione RestTemplate per connettore: {}", connettore.getIdConnettore());
 
-        RestTemplateBuilder builder = configureTimeouts(new RestTemplateBuilder().rootUri(connettore.getUrl()), connettore);
         List<ClientHttpRequestInterceptor> interceptors = new ArrayList<>();
 
         if (connettore.getTipoAutenticazione().equals(TipoAutenticazione.SSL)) {
-            return createSslRestTemplate(builder, connettore, interceptors);
+            return createSslRestTemplate(connettore, interceptors);
         }
 
         addAuthInterceptor(connettore, interceptors);
         addCommonInterceptors(connettore, interceptors);
 
-        RestTemplate restTemplate = builder.build();
+        RestTemplate restTemplate = new RestTemplate(createRequestFactory(connettore));
         restTemplate.setInterceptors(interceptors);
         configureObjectMapper(restTemplate);
 
@@ -74,14 +71,25 @@ public class RestTemplateFactory {
         return restTemplate;
     }
 
-    private RestTemplateBuilder configureTimeouts(RestTemplateBuilder builder, Connettore connettore) {
+    private HttpComponentsClientHttpRequestFactory createRequestFactory(Connettore connettore) {
+        ConnectionConfig.Builder connConfigBuilder = ConnectionConfig.custom();
         if (connettore.getConnectionTimeout() != null) {
-            builder = builder.connectTimeout(Duration.ofMillis(connettore.getConnectionTimeout()));
+            connConfigBuilder.setConnectTimeout(Timeout.ofMilliseconds(connettore.getConnectionTimeout()));
         }
+
+        HttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
+                .setDefaultConnectionConfig(connConfigBuilder.build())
+                .build();
+
+        CloseableHttpClient httpClient = HttpClients.custom()
+                .setConnectionManager(connectionManager)
+                .build();
+
+        HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(httpClient);
         if (connettore.getReadTimeout() != null) {
-            builder = builder.readTimeout(Duration.ofMillis(connettore.getReadTimeout()));
+            factory.setConnectionRequestTimeout(connettore.getReadTimeout());
         }
-        return builder;
+        return factory;
     }
 
     private void addAuthInterceptor(Connettore connettore, List<ClientHttpRequestInterceptor> interceptors) {
@@ -123,12 +131,12 @@ public class RestTemplateFactory {
         log.debug("Aggiunto GdeCapturingInterceptor per connettore: {}", connettore.getIdConnettore());
     }
 
-    private RestTemplate createSslRestTemplate(RestTemplateBuilder builder, Connettore connettore,
+    private RestTemplate createSslRestTemplate(Connettore connettore,
             List<ClientHttpRequestInterceptor> interceptors) {
         log.debug("Configurazione SSL/TLS per connettore: {}", connettore.getIdConnettore());
         try {
             HttpComponentsClientHttpRequestFactory factory = createSslRequestFactory(connettore);
-            RestTemplate restTemplate = builder.requestFactory(() -> factory).build();
+            RestTemplate restTemplate = new RestTemplate(factory);
 
             addCommonInterceptors(connettore, interceptors);
             restTemplate.setInterceptors(interceptors);
@@ -142,11 +150,13 @@ public class RestTemplateFactory {
         }
     }
 
+    @SuppressWarnings("removal")
     private void configureObjectMapper(RestTemplate restTemplate) {
-        restTemplate.getMessageConverters().stream()
-                .filter(MappingJackson2HttpMessageConverter.class::isInstance)
-                .map(MappingJackson2HttpMessageConverter.class::cast)
-                .forEach(converter -> converter.setObjectMapper(objectMapper));
+        restTemplate.getMessageConverters().removeIf(
+                c -> c instanceof org.springframework.http.converter.json.MappingJackson2HttpMessageConverter);
+        if (objectMapper instanceof tools.jackson.databind.json.JsonMapper jsonMapper) {
+            restTemplate.getMessageConverters().add(new JacksonJsonHttpMessageConverter(jsonMapper));
+        }
     }
 
     private HttpComponentsClientHttpRequestFactory createSslRequestFactory(Connettore connettore) throws Exception {
