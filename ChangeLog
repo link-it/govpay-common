@@ -48,6 +48,83 @@
 	  con JacksonJsonHttpMessageConverter (Jackson 3).
 	Albero Jackson finale: solo tools.jackson.core 3.1.2 (core+databind) +
 	jackson-annotations 2.21 (modulo shared cross-version).
+2026-05-06  Giuliano Pintori <pintori@link.it>
+
+	* [Mail]
+	Fix S3077 (Sonar): rimossi i campi volatile non-primitivi in
+	AbstractMailService. La cache (MailBatch + timestamp) e' ora
+	incapsulata in un record CacheEntry gestito da AtomicReference,
+	risolvendo anche la race tra valore e timestamp che esisteva con
+	i due volatile separati.
+
+	* [Release]
+	Avanzamento versione a 1.1.3-SNAPSHOT.
+
+2026-05-05  Giuliano Pintori <pintori@link.it>
+
+	* [Build]
+	Correzioni pipeline CI/CD per release su tag:
+	- osv-scan: aggiunta condizione github.ref_type == 'tag' cosi' il job
+	  parte anche su push di tag, sbloccando sbom/github-release/release-on-tag
+	- github-release: skip della copia del JAR se gia' nominato con la
+	  versione del tag (POM senza -SNAPSHOT)
+
+	* [Doc]
+	Aggiunta sezione SBOM CycloneDX nel README. Aggiornato copyright a 2026.
+
+	* [Release]
+	Avanzamento versione a 1.1.2 (la 1.1.1 e' stata bruciata da un deploy
+	parziale su Maven Central prima dei fix pipeline).
+
+2026-05-04  Giuliano Pintori <pintori@link.it>
+
+	* [Dipendenze]
+	Aggiornamento govpay-bom alla versione 1.1.3.
+
+	* [Build]
+	Aggiunto job sbom alla pipeline CI/CD:
+	- Generazione SBOM CycloneDX (json + xml) tramite cyclonedx-maven-plugin 2.9.1
+	  (schema 1.6) su push di main e tag
+	- Upload artifact sbom-report con retention 30 giorni
+	- Inclusione SBOM nello ZIP dei report di GitHub Release
+	- Variabili DISABLE_SBOM_JOB / FORCE_SBOM_JOB per controllo esecuzione
+
+	* [Release]
+	Avanzamento versione a 1.1.1.
+
+2026-04-21  Giuliano Pintori <pintori@link.it>
+
+	* [GDE]
+	Policy log/dump da configurazione Giornale e refactoring utilities:
+	- AbstractGdeService: aggiunta valutazione policy log/dump dal Giornale in DB,
+	  resolveGdeEventoPolicy allineato al pattern dell'interceptor
+	  (lettura/scrittura/non riconosciuta)
+	- isRequestLettura/isRequestScrittura con implementazione di default che delega
+	  a GdeUtils (logica specifica per API_PAGOPA e tracciati notifica pagamenti)
+	- getConfigurazioneComponente reso astratto, implementazione di default in GdeUtils
+	- GdeCostanti: nuova classe con costanti nomi eventi (API pagoPA, GPD, MyPivot,
+	  Secim, GovPay, HyperSIC APKappa, sottotipi evento)
+	- GdeUtils: aggiunti getConfigurazioneComponente, logEvento/dumpEvento con overload
+	  Integer, isOperazioneScrittura, isOperazioneScritturaTracciatiNotificaPagamenti,
+	  isRequestLettura/Scrittura con logica componente-specifica
+	- Test di integrazione con H2 per verifica policy da DB
+
+	* [Build]
+	Aggiornata pipeline CI/CD:
+	- Actions aggiornate: checkout@v6, setup-java@v5, cache@v5, upload-artifact@v7,
+	  download-artifact@v7
+	- Cache OWASP con chiave giornaliera e skip NVD update se cache hit
+	- Aggiunto workflow refresh-owasp-db.yml per aggiornamento notturno DB NVD
+	- Aggiunto FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 env globale
+	- Aggiunto --allow-no-lockfiles in osv-scan
+	- GitHub Release: report collezionati in unico ZIP (release-reports-<version>.zip)
+	  con struttura reports/{owasp,jacoco,osv,third-party-licenses} e link alla pipeline
+	- Aggiunto download report OSV Scanner SARIF nella release
+
+	* [Doc]
+	Aggiornato README con documentazione GDE, Batch, Configurazione, Mail, Date/Time.
+	Rimosso application.yml di produzione (libreria).
+	Aggiunta documentazione API REST Batch con esempi di risposta.
 
 2026-03-24  Giuliano Pintori <pintori@link.it>
 

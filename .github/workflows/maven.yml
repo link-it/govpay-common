@@ -13,6 +13,9 @@ permissions:
   id-token: write
   actions: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
 
   # ── Build, Test, Quality ─────────────────────────────────────────────
@@ -20,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
@@ -28,41 +31,15 @@ jobs:
       run: sudo timedatectl set-timezone Europe/Rome
 
     - name: Set up JDK 21
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
 
-    - name: Check NVD_API_KEY
-      run: |
-        if [ -z "$NVD_API_KEY" ]; then
-          echo "NVD_API_KEY is NOT set!"
-        else
-          echo "NVD_API_KEY is set."
-        fi
-      env:
-        NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-
-    - name: Check OSS_INDEX_USER
-      run: |
-        if [ -z "$OSS_INDEX_USER" ]; then
-          echo "OSS_INDEX_USER is NOT set!"
-        else
-          echo "OSS_INDEX_USER is set."
-        fi
-      env:
-        OSS_INDEX_USER: ${{ vars.OSS_INDEX_USER }}
-
-    - name: Check OSS_INDEX_PASSWORD
-      run: |
-        if [ -z "$OSS_INDEX_PASSWORD" ]; then
-          echo "OSS_INDEX_PASSWORD is NOT set!"
-        else
-          echo "OSS_INDEX_PASSWORD is set."
-        fi
-      env:
-        OSS_INDEX_PASSWORD: ${{ secrets.OSS_INDEX_PASSWORD }}
+    - name: Get date for cache key
+      id: date
+      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
     - name: Read OWASP plugin version from pom.xml
       id: owasp
@@ -144,13 +121,13 @@ jobs:
         python3 .github/workflows/scripts/analyze_licenses.py --exceptions .github/workflows/scripts/license-exceptions.json
 
     - name: Archive licenses analysis results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: third-party-licenses
         path: third-party-licenses
 
     - name: Upload artifact to GitHub
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: govpay-common
         path: |
@@ -168,27 +145,75 @@ jobs:
       security-events: write
     uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.5"
     with:
-      matrix-property: 'be-'
+      matrix-property: ''
       fail-on-vuln: ${{ github.ref_name == 'main' || github.ref_type == 'tag' }}
+      results-file-name: osv-report.sarif
       scan-args: |-
         -r
         .
         --lockfile
         ./pom.xml
+        --allow-no-lockfiles
+
+  # ── SBOM CycloneDX ───────────────────────────────────────────────────
+  sbom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: >-
+      vars.DISABLE_SBOM_JOB != 'true' &&
+      (github.event_name == 'push' &&
+       (github.ref_name == 'main' || github.ref_type == 'tag' || vars.FORCE_SBOM_JOB == 'true'))
+    continue-on-error: ${{ vars.FORCE_SBOM_JOB == 'true' && github.ref_type != 'tag' && github.ref_name != 'main' }}
+    env:
+      SBOM_CYCLONEDX_PLUGIN_VERSION: '2.9.1'
+      SBOM_CYCLONEDX_SCHEMA_VERSION: '1.6'
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Generate SBOM (CycloneDX json + xml)
+        run: |
+          mkdir -p sbom/cyclonedx
+          echo "Generazione SBOM CycloneDX (json + xml) ..."
+          mvn org.cyclonedx:cyclonedx-maven-plugin:${SBOM_CYCLONEDX_PLUGIN_VERSION}:makeAggregateBom \
+            -DoutputDirectory=sbom/cyclonedx \
+            -DoutputName=bom.cdx \
+            -DoutputFormat=all \
+            -DschemaVersion=${SBOM_CYCLONEDX_SCHEMA_VERSION} \
+            -DskipNotDeployed=false \
+            -DincludeTestScope=false
+          ls -la sbom/cyclonedx/
+
+      - name: Upload SBOM artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom-report
+          path: sbom/
+          retention-days: 30
 
   # ── Deploy SNAPSHOT su Maven Central (solo push su main) ─────────────
   snapshot-on-main:
-    needs: build
+    needs: [ build, osv-scan ]
     if: startsWith(github.ref, 'refs/heads/')
     runs-on: ubuntu-latest
     permissions:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Java + Maven settings
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -231,17 +256,17 @@ jobs:
 
   # ── GitHub Release (solo tag) ────────────────────────────────────────
   github-release:
-    needs: [ build, osv-scan ]
+    needs: [ build, osv-scan, sbom ]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
-    # JAR scaricato separatamente — va come asset diretto, non nello ZIP
+    # JAR — asset diretto nella release
     - name: Download govpay-common artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: govpay-common
         path: jar/
@@ -254,26 +279,41 @@ jobs:
         path: reports/osv/
 
     - name: Download third-party-licenses
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: third-party-licenses
         path: reports/third-party-licenses/
 
+    - name: Download OSV Scanner SARIF
+      uses: actions/download-artifact@v7
+      with:
+        name: OSV Scanner SARIF file
+        path: reports/osv/
+
+    - name: Download SBOM
+      uses: actions/download-artifact@v7
+      with:
+        name: sbom-report
+        path: reports/sbom/
+
     - name: Rename JAR with tag version
       run: |
-        SRC=$(ls jar/govpay-common-*.jar 2>/dev/null | head -1)
-        DEST="jar/govpay-common-${{ github.ref_name }}.jar"
-        if [ -n "$SRC" ] && [ "$SRC" != "$DEST" ]; then
-          cp "$SRC" "$DEST"
+        SRC=$(ls jar/govpay-common-*.jar)
+        DST="jar/govpay-common-${{ github.ref_name }}.jar"
+        if [ "$SRC" != "$DST" ]; then
+          cp "$SRC" "$DST"
+        else
+          echo "JAR already named with tag version: $SRC"
         fi
 
     - name: Assemble reports ZIP
       run: |
-        # OWASP e JaCoCo vengono dall'artifact govpay-common
-        mkdir -p reports/owasp reports/jacoco
+        mkdir -p reports/owasp reports/jacoco reports/osv reports/sbom
+
+        # OWASP e JaCoCo dall'artifact build
         cp jar/dependency-check-report.html reports/owasp/ 2>/dev/null || true
         cp jar/dependency-check-report.xml  reports/owasp/ 2>/dev/null || true
-        cp jar/jacoco.xml                   reports/jacoco/ 2>/dev/null || true
+        cp jar/site/jacoco/jacoco.xml       reports/jacoco/ 2>/dev/null || true
         cp jar/jacoco-html-report.zip       reports/jacoco/ 2>/dev/null || true
 
         # pipeline info
@@ -294,14 +334,14 @@ jobs:
 
   # ── Deploy RELEASE su Maven Central (solo tag) ──────────────────────
   release-on-tag:
-    needs: build
+    needs: [ build, osv-scan ]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Validate tag format (must be X.Y.Z)
         run: |
@@ -313,7 +353,7 @@ jobs:
           fi
 
       - name: Set up Java + Maven settings + GPG
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
