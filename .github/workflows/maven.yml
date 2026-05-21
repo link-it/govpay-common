@@ -162,7 +162,6 @@ jobs:
 
   # ── OSV Scan (parallelo al build, non blocca) ────────────────────────
   osv-scan:
-    runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
