@@ -11,6 +11,18 @@
 	- NOUPDATE_FLAG (-DautoUpdate=false) quando cache exact-hit, per
 	  skippare il download del DB NVD nelle build successive della giornata
 
+	* [Build]
+	Fix struttura workflow GitHub Actions:
+	- osv-scan: rimosso runs-on incompatibile con il reusable workflow
+	  (GitHub rifiutava uses/with al livello-job).
+	- Rimosso step duplicato 'Get date for cache key' (id 'date' definito
+	  due volte nello stesso scope).
+
+	* [Build]
+	SBOM eseguito sempre: rimossi if/continue-on-error e le variabili
+	DISABLE_SBOM_JOB / FORCE_SBOM_JOB. Il job sbom viene ora generato su
+	ogni run (push, PR, tag).
+
 2026-05-20  Giuliano Pintori <pintori@link.it>
 
 	* [Dipendenze]
