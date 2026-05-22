@@ -21,7 +21,7 @@ Libreria Spring Boot condivisa tra tutti i moduli GovPay. Fornisce:
 <dependency>
     <groupId>org.gov4j.govpay</groupId>
     <artifactId>govpay-common</artifactId>
-    <version>1.1.3-SNAPSHOT</version>
+    <version>2.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
