@@ -1,3 +1,16 @@
+2026-05-22  Giuliano Pintori <pintori@link.it>
+
+	* [Sicurezza]
+	Risoluzione segnalazioni OWASP tramite aggiornamento govpay-bom:
+	- log4j-api 2.25.3 -> 2.25.4 (CVE-2026-34479, CVE-2026-34477)
+	- tomcat-embed-core 11.0.21 -> 11.0.22 (CVE-2026-41293,
+	  CVE-2026-43512, CVE-2026-43513, CVE-2026-43514, CVE-2026-43515,
+	  CVE-2026-41284, CVE-2026-42498)
+	L'override Tomcat e' stato dichiarato esplicitamente in
+	dependencyManagement del BOM prima dell'import di
+	spring-boot-dependencies (le property non si propagano nei BOM
+	importati con scope=import).
+
 2026-05-21  Giuliano Pintori <pintori@link.it>
 
 	* [Build]
