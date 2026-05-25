@@ -1,3 +1,10 @@
+2026-05-25  Giuliano Pintori <pintori@link.it>
+
+	* [Copyright]
+	Aggiunto header di copyright Link.it / licenza GPL v3 su tutti
+	i file Java (114 file: src/main e src/test) e aggiornato il
+	range anni 2014-2025 -> 2014-2026 sui 34 file gia' presenti.
+
 2026-05-22  Giuliano Pintori <pintori@link.it>
 
 	* [Release]
