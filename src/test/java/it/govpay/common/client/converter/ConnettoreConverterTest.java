@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import it.govpay.common.client.model.Connettore;
 import it.govpay.common.entity.ConnettoreEntity;
 import it.govpay.common.entity.TipoAutenticazione;
+import it.govpay.common.entity.VersioneApi;
 
 class ConnettoreConverterTest {
 
@@ -351,6 +353,53 @@ class ConnettoreConverterTest {
         assertNotNull(result);
         // No custom headers should be set since none are complete
         assertNull(result.getCustomHeaders());
+    }
+
+    @Test
+    void testToModel_VersioneRest1() {
+        List<ConnettoreEntity> entities = new ArrayList<>();
+        entities.add(createEntity("TEST_VER", "URL", "https://api.test.com"));
+        entities.add(createEntity("TEST_VER", "VERSIONE", "REST_1"));
+
+        Connettore result = ConnettoreConverter.toModel(entities);
+
+        assertNotNull(result);
+        assertEquals(VersioneApi.REST_1, result.getVersione());
+    }
+
+    @Test
+    void testToModel_VersioneRest2() {
+        List<ConnettoreEntity> entities = new ArrayList<>();
+        entities.add(createEntity("TEST_VER", "URL", "https://api.test.com"));
+        entities.add(createEntity("TEST_VER", "VERSIONE", "REST_2"));
+
+        Connettore result = ConnettoreConverter.toModel(entities);
+
+        assertNotNull(result);
+        assertEquals(VersioneApi.REST_2, result.getVersione());
+    }
+
+    @Test
+    void testToModel_VersioneAssente() {
+        List<ConnettoreEntity> entities = new ArrayList<>();
+        entities.add(createEntity("TEST_VER", "URL", "https://api.test.com"));
+
+        Connettore result = ConnettoreConverter.toModel(entities);
+
+        assertNotNull(result);
+        assertNull(result.getVersione());
+    }
+
+    @Test
+    void testToModel_VersioneNonRiconosciuta() {
+        List<ConnettoreEntity> entities = new ArrayList<>();
+        entities.add(createEntity("TEST_VER", "URL", "https://api.test.com"));
+        entities.add(createEntity("TEST_VER", "VERSIONE", "REST_99"));
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> ConnettoreConverter.toModel(entities));
+        assertTrue(ex.getMessage().contains("REST_99"));
     }
 
     @Test

@@ -1,3 +1,21 @@
+2026-06-09  Giuliano Pintori <pintori@link.it>
+
+	* [Connettore]
+	Esposta la versione dell'API EC sul modello runtime Connettore,
+	allineandosi al pattern Versionabile del monolite GovPay.
+	- Nuovo enum it.govpay.common.entity.VersioneApi (REST_1, REST_2)
+	  con fromValue(String) / getValue().
+	- Connettore: nuovo campo 'versione' (VersioneApi) + costante
+	  P_VERSIONE = "VERSIONE" + propagazione nel copy constructor.
+	- ConnettoreConverter: gestione della proprieta' VERSIONE durante
+	  il toModel. Su valore non riconosciuto viene sollevata
+	  IllegalArgumentException, per evitare invii silenziosi sulla
+	  versione sbagliata. Se la proprieta' e' assente, versione resta
+	  null (default applicativo a carico del consumer).
+	- getConnettoreAsMap continua a restituire la chiave VERSIONE
+	  come stringa: nessuna rottura per i consumer che la leggono
+	  dalla mappa.
+
 2026-05-25  Giuliano Pintori <pintori@link.it>
 
 	* [Copyright]

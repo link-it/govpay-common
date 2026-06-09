@@ -19,6 +19,7 @@
 package it.govpay.common.client.model;
 
 import it.govpay.common.entity.TipoAutenticazione;
+import it.govpay.common.entity.VersioneApi;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -58,6 +59,7 @@ public class Connettore {
     public static final String P_ABILITATO = "ABILITATO";
     public static final String P_CONNECTION_TIMEOUT = "CONNECTION_TIMEOUT";
     public static final String P_READ_TIMEOUT = "READ_TIMEOUT";
+    public static final String P_VERSIONE = "VERSIONE";
 
     // Custom Headers - pattern: X-CUSTOM-HEADER-NAME-N / X-CUSTOM-HEADER-VALUE-N
     public static final String P_CUSTOM_HEADER_NAME_PREFIX = "X-CUSTOM-HEADER-NAME-";
@@ -70,6 +72,7 @@ public class Connettore {
     private String idConnettore;
     private String url;
     private TipoAutenticazione tipoAutenticazione;
+    private VersioneApi versione;
 
     private String httpUser;
     private String httpPassw;
@@ -112,6 +115,7 @@ public class Connettore {
         this.idConnettore = src.idConnettore;
         this.url = src.url;
         this.tipoAutenticazione = src.tipoAutenticazione;
+        this.versione = src.versione;
         this.httpUser = src.httpUser;
         this.httpPassw = src.httpPassw;
         this.tipoSsl = src.tipoSsl;

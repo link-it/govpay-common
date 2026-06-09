@@ -19,6 +19,7 @@
 package it.govpay.common.client.model;
 
 import it.govpay.common.entity.TipoAutenticazione;
+import it.govpay.common.entity.VersioneApi;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -292,6 +293,7 @@ class ConnettoreTest {
                 "ALL_ARGS",
                 "https://allargs.com",
                 TipoAutenticazione.NONE,
+                VersioneApi.REST_2,
                 "user",
                 "pass",
                 Connettore.EnumSslType.CLIENT,
@@ -321,6 +323,7 @@ class ConnettoreTest {
         assertEquals("ALL_ARGS", connettore.getIdConnettore());
         assertEquals("https://allargs.com", connettore.getUrl());
         assertEquals(TipoAutenticazione.NONE, connettore.getTipoAutenticazione());
+        assertEquals(VersioneApi.REST_2, connettore.getVersione());
         assertEquals("user", connettore.getHttpUser());
         assertEquals("pass", connettore.getHttpPassw());
         assertEquals(Connettore.EnumSslType.CLIENT, connettore.getTipoSsl());

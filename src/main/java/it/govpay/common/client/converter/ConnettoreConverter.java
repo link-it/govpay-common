@@ -20,6 +20,7 @@ package it.govpay.common.client.converter;
 
 import it.govpay.common.entity.ConnettoreEntity;
 import it.govpay.common.entity.TipoAutenticazione;
+import it.govpay.common.entity.VersioneApi;
 import it.govpay.common.client.model.Connettore;
 import lombok.extern.slf4j.Slf4j;
 
@@ -117,6 +118,7 @@ public class ConnettoreConverter {
             case Connettore.P_ABILITATO -> connettore.setAbilitato(Boolean.parseBoolean(valore));
             case Connettore.P_CONNECTION_TIMEOUT -> parseIntProperty(valore, "CONNECTION_TIMEOUT", connettore::setConnectionTimeout);
             case Connettore.P_READ_TIMEOUT -> parseIntProperty(valore, "READ_TIMEOUT", connettore::setReadTimeout);
+            case Connettore.P_VERSIONE -> connettore.setVersione(VersioneApi.fromValue(valore));
             case String p when p.equals(Connettore.P_TIPOSSL_NAME) && valore != null ->
                     connettore.setTipoSsl(Connettore.EnumSslType.valueOf(valore));
             default -> log.debug("Proprietà non gestita: {}", proprieta);
