@@ -1,3 +1,12 @@
+2026-07-01  Giuliano Pintori <pintori@link.it>
+
+	* [Release]
+	Rilasciata versione 2.0.0.
+
+	* [Build]
+	Avanzata la versione del parent govpay-bom: 2.0.0-SNAPSHOT -> 2.0.0.
+	Nessuna modifica alle versioni transitive risolte.
+
 2026-06-09  Giuliano Pintori <pintori@link.it>
 
 	* [Connettore]
