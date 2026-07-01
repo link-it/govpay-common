@@ -263,12 +263,6 @@ jobs:
         path: jar/
 
     # Tutti i report scaricati in reports/
-    - name: Download OSV report
-      uses: actions/download-artifact@v4
-      with:
-        name: osv-report
-        path: reports/osv/
-
     - name: Download third-party-licenses
       uses: actions/download-artifact@v7
       with:

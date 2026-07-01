@@ -1,5 +1,13 @@
 2026-07-01  Giuliano Pintori <pintori@link.it>
 
+	* [Build]
+	Fix workflow github-release: rimosso step 'Download OSV report'
+	orfano (usava actions/download-artifact@v4 anziche' @v7 e cercava
+	un artefatto 'osv-report' inesistente, causando il fallimento del
+	job sul push del tag 2.0.0). L'artefatto OSV e' gia' scaricato
+	dallo step 'Download OSV Scanner SARIF' (nome effettivo caricato
+	dal reusable google/osv-scanner-action: "OSV Scanner SARIF file").
+
 	* [Release]
 	Rilasciata versione 2.0.0.
 
