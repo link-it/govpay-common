@@ -1,5 +1,10 @@
 2026-07-14  Giuliano Pintori <pintori@link.it>
 
+	* [Dipendenze]
+	Aggiornamento parent govpay-bom: 2.0.0 -> 2.0.1.
+	Include il fix di sicurezza OSV Logback 1.5.34 -> 1.5.35
+	(GHSA-jhq6-gfmj-v8fx).
+
 	* [Release]
 	Avanzamento versione a 2.0.1-SNAPSHOT (post-release 2.0.0).
 
