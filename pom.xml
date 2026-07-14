@@ -69,6 +69,12 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Micrometer per le metriche custom e l'observation dei client -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
+
         <!-- Apache HttpClient per configurazioni avanzate -->
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>

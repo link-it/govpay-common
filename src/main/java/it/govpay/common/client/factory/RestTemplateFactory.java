@@ -38,6 +38,8 @@ import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.util.Timeout;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
@@ -49,6 +51,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
+import io.micrometer.observation.ObservationRegistry;
 import tools.jackson.databind.ObjectMapper;
 
 import it.govpay.common.client.gde.GdeCapturingInterceptor;
@@ -64,9 +67,22 @@ public class RestTemplateFactory {
     private final Oauth2ClientCredentialsManager oauth2TokenManager;
     private final ObjectMapper objectMapper;
 
+    private ObservationRegistry observationRegistry;
+
     public RestTemplateFactory(Oauth2ClientCredentialsManager oauth2TokenManager, ObjectMapper objectMapper) {
         this.oauth2TokenManager = oauth2TokenManager;
         this.objectMapper = objectMapper;
+    }
+
+    /**
+     * Se nel contesto e' presente un {@link ObservationRegistry} (tipicamente
+     * via actuator/Micrometer), i RestTemplate creati vengono osservati e
+     * pubblicano {@code http.client.requests} con il tag {@code connettore};
+     * in sua assenza la factory produce template non strumentati.
+     */
+    @Autowired
+    public void setObservationRegistry(ObjectProvider<ObservationRegistry> observationRegistryProvider) {
+        this.observationRegistry = observationRegistryProvider.getIfAvailable();
     }
 
     public RestTemplate createRestTemplate(Connettore connettore) {
@@ -84,9 +100,18 @@ public class RestTemplateFactory {
         RestTemplate restTemplate = new RestTemplate(createRequestFactory(connettore));
         restTemplate.setInterceptors(interceptors);
         configureObjectMapper(restTemplate);
+        configureObservation(restTemplate, connettore);
 
         log.info("RestTemplate creato con successo per connettore: {}", connettore.getIdConnettore());
         return restTemplate;
+    }
+
+    private void configureObservation(RestTemplate restTemplate, Connettore connettore) {
+        if (observationRegistry != null) {
+            restTemplate.setObservationRegistry(observationRegistry);
+            restTemplate.setObservationConvention(
+                    new ConnettoreClientObservationConvention(connettore.getIdConnettore()));
+        }
     }
 
     private HttpComponentsClientHttpRequestFactory createRequestFactory(Connettore connettore) {
@@ -159,6 +184,7 @@ public class RestTemplateFactory {
             addCommonInterceptors(connettore, interceptors);
             restTemplate.setInterceptors(interceptors);
             configureObjectMapper(restTemplate);
+            configureObservation(restTemplate, connettore);
             return restTemplate;
         } catch (Exception e) {
             log.error("Errore durante la configurazione SSL per connettore: {}",
