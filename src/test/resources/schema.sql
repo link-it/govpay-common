@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS intermediari (
     cod_connettore_gpd VARCHAR(255),
     cod_connettore_fr VARCHAR(255),
     cod_connettore_backoffice_ec VARCHAR(255),
-    cod_connettore_ftp VARCHAR(255),
     denominazione VARCHAR(255),
     principal VARCHAR(255),
     principal_originale VARCHAR(255),

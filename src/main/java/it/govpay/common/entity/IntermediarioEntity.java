@@ -57,9 +57,6 @@ public class IntermediarioEntity {
     @Column(name = "cod_connettore_backoffice_ec", length = 255)
     private String codConnettoreBackofficeEc;
 
-    @Column(name = "cod_connettore_ftp", length = 255)
-    private String codConnettoreFtp;
-
     @Column(name = "denominazione", length = 255)
     private String denominazione;
 

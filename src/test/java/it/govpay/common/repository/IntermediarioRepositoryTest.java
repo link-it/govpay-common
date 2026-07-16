@@ -54,7 +54,6 @@ class IntermediarioRepositoryTest {
         assertEquals("TEST_OAUTH2", intermediario.getCodConnettoreGpd());
         assertEquals("TEST_AZURE", intermediario.getCodConnettoreFr());
         assertEquals("TEST_HTTP_HEADER", intermediario.getCodConnettoreBackofficeEc());
-        assertEquals("TEST_CUSTOM_HEADERS", intermediario.getCodConnettoreFtp());
     }
 
     @Test
