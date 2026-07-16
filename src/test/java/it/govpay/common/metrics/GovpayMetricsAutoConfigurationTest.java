@@ -34,8 +34,19 @@ class GovpayMetricsAutoConfigurationTest {
             .withConfiguration(AutoConfigurations.of(GovpayMetricsAutoConfiguration.class));
 
     @Test
-    void activatesWithMeterRegistryInServletWebApplication() {
+    void backsOffByDefaultEvenWithMeterRegistry() {
+        // Opt-in: senza govpay.metrics.enabled=true non si attiva nulla,
+        // anche se tutte le altre condizioni (webapp servlet + MeterRegistry)
+        // sono soddisfatte.
         webRunner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+                .run(context ->
+                        assertThat(context).doesNotHaveBean(ExternalCallMetricsRecorder.class));
+    }
+
+    @Test
+    void activatesWithMeterRegistryInServletWebApplicationWhenEnabled() {
+        webRunner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+                .withPropertyValues("govpay.metrics.enabled=true")
                 .run(context -> {
                     assertThat(context).hasSingleBean(ExternalCallMetricsRecorder.class);
                     assertThat(context).hasBean("apiTimingMetricsFilterRegistration");
@@ -45,13 +56,14 @@ class GovpayMetricsAutoConfigurationTest {
     }
 
     @Test
-    void backsOffWithoutMeterRegistry() {
-        webRunner.run(context ->
-                assertThat(context).doesNotHaveBean(ExternalCallMetricsRecorder.class));
+    void backsOffWithoutMeterRegistryEvenWhenEnabled() {
+        webRunner.withPropertyValues("govpay.metrics.enabled=true")
+                .run(context ->
+                        assertThat(context).doesNotHaveBean(ExternalCallMetricsRecorder.class));
     }
 
     @Test
-    void backsOffWhenDisabledByProperty() {
+    void backsOffWhenExplicitlyDisabledByProperty() {
         webRunner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
                 .withPropertyValues("govpay.metrics.enabled=false")
                 .run(context ->

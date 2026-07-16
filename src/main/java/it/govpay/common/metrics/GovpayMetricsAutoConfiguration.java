@@ -48,9 +48,9 @@ import io.micrometer.core.instrument.MeterRegistry;
  *       che collega i due.</li>
  * </ul>
  *
- * <p>Disattivabile con {@code govpay.metrics.enabled=false}. Nelle
- * applicazioni non web (batch senza server, tool) o senza MeterRegistry non
- * si attiva nulla.
+ * <p>Disattiva di default: il consumer deve attivarla esplicitamente con
+ * {@code govpay.metrics.enabled=true}. Nelle applicazioni non web (batch
+ * senza server, tool) o senza MeterRegistry non si attiva comunque nulla.
  */
 @AutoConfiguration(
         afterName = "org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration",
@@ -58,7 +58,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(MeterRegistry.class)
 @ConditionalOnBean(MeterRegistry.class)
-@ConditionalOnProperty(name = "govpay.metrics.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "govpay.metrics.enabled", havingValue = "true", matchIfMissing = false)
 public class GovpayMetricsAutoConfiguration {
 
     @Bean
