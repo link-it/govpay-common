@@ -26,6 +26,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingFilt
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.boot.webmvc.autoconfigure.WebMvcAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.web.context.annotation.RequestScope;
@@ -52,7 +53,8 @@ import io.micrometer.core.instrument.MeterRegistry;
  * si attiva nulla.
  */
 @AutoConfiguration(
-        afterName = "org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration")
+        afterName = "org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration",
+        before = WebMvcAutoConfiguration.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(MeterRegistry.class)
 @ConditionalOnBean(MeterRegistry.class)
@@ -83,8 +85,16 @@ public class GovpayMetricsAutoConfiguration {
     /**
      * Lega la request al thread corrente cosi' che il bean
      * {@code @RequestScope} sia risolvibile dai filtri e dal recorder.
-     * Registrato subito prima di {@link ApiTimingMetricsFilter}; dichiararlo
-     * sopprime la registrazione automatica di Spring Boot.
+     * Registrato subito prima di {@link ApiTimingMetricsFilter}.
+     * <p>
+     * {@code before = WebMvcAutoConfiguration.class} sulla classe e'
+     * load-bearing: il {@code RequestContextFilter} di default di Spring Boot
+     * (dentro {@code WebMvcAutoConfiguration}, {@code @ConditionalOnMissingBean})
+     * va registrato con ordine molto anticipato (circa -105) se questa
+     * autoconfigurazione viene valutata dopo — a quell'ordine il filtro non
+     * risulta risolvibile dai filtri applicativi che girano su ordini piu'
+     * alti. Se questa autoconfigurazione gira prima, il proprio bean vince
+     * la corsa e quello di default di Boot si ritira correttamente.
      */
     @Bean
     @ConditionalOnMissingFilterBean(RequestContextFilter.class)

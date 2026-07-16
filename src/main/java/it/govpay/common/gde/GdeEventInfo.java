@@ -71,6 +71,23 @@ public class GdeEventInfo {
     /** Identificativo univoco della richiesta (X-Request-Id) */
     private String idTransazione;
 
+    // ==================== Dati Richiedente ====================
+
+    /** Principal autenticato che ha generato l'evento (assente per automatismi non presidiati, es. batch schedulati) */
+    private String principal;
+
+    /** Nome descrittivo dell'utente/operatore (assente per automatismi non presidiati, es. batch schedulati) */
+    private String utente;
+
+    /** Durata dell'operazione in millisecondi */
+    private Long durataEvento;
+
+    /** Identificativo del cluster/nodo che ha generato l'evento */
+    private String clusterId;
+
+    /** Identificativo di correlazione dell'evento GDE (distinto da {@link #idTransazione}) */
+    private String transactionId;
+
     // ==================== Dati Dominio ====================
 
     /** Codice del dominio/EC */
