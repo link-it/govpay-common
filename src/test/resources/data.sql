@@ -109,8 +109,8 @@ VALUES ('APP_SENZA_CONNETTORE', false, 'N', false);
 
 -- Dati di test per intermediari
 
-INSERT INTO intermediari (cod_intermediario, cod_connettore_pdd, cod_connettore_recupero_rt, cod_connettore_aca, cod_connettore_gpd, cod_connettore_fr, cod_connettore_backoffice_ec, cod_connettore_ftp, denominazione, principal, principal_originale, abilitato)
-VALUES ('12345678901', 'TEST_BASIC', 'TEST_APIKEY', 'TEST_NONE', 'TEST_OAUTH2', 'TEST_AZURE', 'TEST_HTTP_HEADER', 'TEST_CUSTOM_HEADERS', 'Intermediario di Test', 'PRINCIPAL_TEST', 'PRINCIPAL_TEST_ORIG', true);
+INSERT INTO intermediari (cod_intermediario, cod_connettore_pdd, cod_connettore_recupero_rt, cod_connettore_aca, cod_connettore_gpd, cod_connettore_fr, cod_connettore_backoffice_ec, denominazione, principal, principal_originale, abilitato)
+VALUES ('12345678901', 'TEST_BASIC', 'TEST_APIKEY', 'TEST_NONE', 'TEST_OAUTH2', 'TEST_AZURE', 'TEST_HTTP_HEADER', 'Intermediario di Test', 'PRINCIPAL_TEST', 'PRINCIPAL_TEST_ORIG', true);
 
 INSERT INTO intermediari (cod_intermediario, denominazione, abilitato)
 VALUES ('99999999999', 'Intermediario Disabilitato', false);

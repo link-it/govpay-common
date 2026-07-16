@@ -24,6 +24,8 @@ import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.core5.util.Timeout;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
@@ -39,6 +41,9 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.micrometer.observation.ObservationRegistry;
+
+import it.govpay.common.client.factory.ConnettoreClientObservationConvention;
 import it.govpay.common.client.model.Connettore;
 import lombok.extern.slf4j.Slf4j;
 
@@ -52,6 +57,18 @@ public class Oauth2ClientCredentialsManager {
 
     private final ConcurrentHashMap<String, CachedToken> tokenCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Object> locks = new ConcurrentHashMap<>();
+
+    private ObservationRegistry observationRegistry;
+
+    /**
+     * Se nel contesto e' presente un {@link ObservationRegistry}, anche la
+     * negoziazione del token OAuth2 pubblica {@code http.client.requests}
+     * con il tag {@code connettore}.
+     */
+    @Autowired
+    public void setObservationRegistry(ObjectProvider<ObservationRegistry> observationRegistryProvider) {
+        this.observationRegistry = observationRegistryProvider.getIfAvailable();
+    }
 
     public String getAccessToken(String key, Connettore connettore) {
         CachedToken cached = tokenCache.get(key);
@@ -85,6 +102,11 @@ public class Oauth2ClientCredentialsManager {
         var factory = new HttpComponentsClientHttpRequestFactory(httpClient);
         factory.setConnectionRequestTimeout(TOKEN_ENDPOINT_READ_TIMEOUT_MS);
         RestTemplate tokenRestTemplate = new RestTemplate(factory);
+        if (observationRegistry != null) {
+            tokenRestTemplate.setObservationRegistry(observationRegistry);
+            tokenRestTemplate.setObservationConvention(
+                    new ConnettoreClientObservationConvention(connettore.getIdConnettore()));
+        }
 
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add("grant_type", "client_credentials");

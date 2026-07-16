@@ -140,6 +140,6 @@ public class ConfigurazioneService {
     }
 
     public boolean isServizioGDEAbilitato() {
-        return connettoreService.getConnettore(ConfigurazioneKeys.COD_CONNETTORE_GDE).isAbilitato();
+        return connettoreService.isAbilitato(ConfigurazioneKeys.COD_CONNETTORE_GDE);
     }
 }
