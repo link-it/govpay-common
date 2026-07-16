@@ -234,6 +234,12 @@ public abstract class AbstractGdeService {
      * @throws RestClientException se l'invio fallisce
      */
     public void inviaEvento(GdeEventInfo eventInfo) {
+        if (!isAbilitato()) {
+            log.debug("Servizio GDE non abilitato/configurato: evento non inviato (componente={}, tipoEvento={})",
+                    eventInfo.getComponente(), eventInfo.getTipoEvento());
+            return;
+        }
+
         // Valuta la policy di log/dump dalla configurazione Giornale
         GdeEvento gdeEventoPolicy = resolveGdeEventoPolicy(eventInfo);
         EsitoEvento esito = eventInfo.getEsito();

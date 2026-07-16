@@ -100,6 +100,9 @@ class AbstractGdeServiceIntegrationTest {
         protected RestTemplate getGdeRestTemplate() { return restTemplate; }
 
         @Override
+        public boolean isAbilitato() { return true; }
+
+        @Override
         protected GdeInterfaccia getConfigurazioneComponente(ComponenteEvento componente, Giornale giornale) {
             return GdeUtils.getConfigurazioneComponente(componente, giornale);
         }

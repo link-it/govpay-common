@@ -116,6 +116,7 @@ class AbstractGdeServiceTest {
     void setUp() {
         // Use a synchronous executor for testing
         Executor syncExecutor = Runnable::run;
+        lenient().when(configurazioneService.isServizioGDEAbilitato()).thenReturn(true);
         lenient().when(configurazioneService.getRestTemplateGDE()).thenReturn(restTemplate);
         // Default: Giornale con policy SEMPRE per log e dump su tutte le interfacce
         lenient().when(configurazioneService.getGiornale()).thenReturn(Optional.of(createGiornaleSempre()));
@@ -172,6 +173,23 @@ class AbstractGdeServiceTest {
                 .thenThrow(new RestClientException("connection refused"));
 
         assertThrows(RestClientException.class, () -> gdeService.inviaEvento(eventInfo));
+    }
+
+    @Test
+    @DisplayName("inviaEvento - servizio non abilitato: nessun tentativo di invio, nessuna eccezione")
+    void servizioNonAbilitato_eventoNonInviato() {
+        when(configurazioneService.isServizioGDEAbilitato()).thenReturn(false);
+
+        GdeEventInfo eventInfo = GdeEventInfo.builder()
+                .componente(ComponenteEvento.API_BACKOFFICE)
+                .metodoHttp("POST")
+                .esito(EsitoEvento.OK)
+                .build();
+
+        assertDoesNotThrow(() -> gdeService.inviaEvento(eventInfo));
+
+        verify(configurazioneService, never()).getGiornale();
+        verifyNoInteractions(restTemplate);
     }
 
     @Test

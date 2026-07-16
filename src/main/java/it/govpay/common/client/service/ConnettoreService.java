@@ -139,6 +139,26 @@ public class ConnettoreService {
         return connettore;
     }
 
+    /**
+     * Verifica se un connettore esiste ed e' abilitato, senza sollevare
+     * eccezioni ne' loggare a livello ERROR: a differenza di
+     * {@link #getConnettore(String)}, qui l'assenza del connettore e' un
+     * esito normale del controllo (es. servizio opzionale non configurato in
+     * questo ambiente), non una condizione d'errore.
+     *
+     * @param codiceConnettore codice del connettore
+     * @return true se il connettore esiste ed e' abilitato
+     */
+    public boolean isAbilitato(String codiceConnettore) {
+        if (cacheEnabled) {
+            Connettore cached = connettoreCache.get(codiceConnettore);
+            if (cached != null) {
+                return cached.isAbilitato();
+            }
+        }
+        return !connettoreEntityRepository.findByCodConnettoreAndAbilitato(codiceConnettore).isEmpty();
+    }
+
     public Optional<RestTemplate> getRestTemplateIfExists(String codiceConnettore) {
         try {
             return Optional.of(getRestTemplate(codiceConnettore));

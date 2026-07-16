@@ -130,7 +130,7 @@ public class RestTemplateFactory {
 
         HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(httpClient);
         if (connettore.getReadTimeout() != null) {
-            factory.setConnectionRequestTimeout(connettore.getReadTimeout());
+            factory.setReadTimeout(connettore.getReadTimeout());
         }
         return factory;
     }
@@ -243,7 +243,7 @@ public class RestTemplateFactory {
                 .build();
 
         HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(httpClient);
-        factory.setConnectionRequestTimeout(connettore.getReadTimeout());
+        factory.setReadTimeout(connettore.getReadTimeout());
 
         return factory;
     }
