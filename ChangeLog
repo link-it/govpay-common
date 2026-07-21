@@ -1,3 +1,11 @@
+2026-07-21  Giuliano Pintori <pintori@link.it>
+
+	* [Dipendenze]
+	Aggiornamento parent govpay-bom: 2.0.2-SNAPSHOT -> 2.0.2.
+	Include: Jackson 3.1.4 -> 3.2.1, Logback 1.5.35 -> 1.5.38,
+	PostgreSQL 42.7.11 -> 42.7.13, Swagger v3 2.2.51 -> 2.2.52,
+	swagger-ui 5.32.6 -> 5.32.8.
+
 2026-07-14  Giuliano Pintori <pintori@link.it>
 
 	* [Dipendenze]
