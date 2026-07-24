@@ -13,12 +13,12 @@
     </parent>
 
     <artifactId>govpay-common</artifactId>
-    <version>2.0.2-SNAPSHOT</version>
+    <version>2.0.2</version>
     <packaging>jar</packaging>
 
     <name>GovPay Common</name>
     <description>Libreria per la gestione delle funzionalita' comuni a tutti i moduli GovPay</description>
-    <url>https://gov4j.org/maven/govpay/govpay-common/2.0.2-SNAPSHOT</url>
+    <url>https://gov4j.org/maven/govpay/govpay-common/2.0.2</url>
 
     <scm>
         <connection>scm:git:https://github.com/link-it/govpay-common.git</connection>
