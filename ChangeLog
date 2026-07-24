@@ -1,3 +1,17 @@
+2026-07-23  Giuliano Pintori <pintori@link.it>
+
+	* [Sicurezza]
+	Aggiornato parent govpay-bom: 2.0.2 -> 2.0.3.
+	Risolve GHSA-5gvw-p9qm-jgwh (tools.jackson.core:jackson-databind
+	3.1.4 -> 3.2.1). Il fix nel BOM riordina gli import in
+	dependencyManagement mettendo jackson-bom prima di
+	spring-boot-dependencies, cosi' che la property jackson.version
+	del BOM abbia effetto (first-declared-wins per i BOM importati
+	con scope=import).
+
+	* [Release]
+	Avanzamento versione a 2.0.2-SNAPSHOT (post-release 2.0.1).
+
 2026-07-22  Giuliano Pintori <pintori@link.it>
 
 	* [Release]
