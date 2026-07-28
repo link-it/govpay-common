@@ -31,6 +31,7 @@ import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
 
+import it.govpay.common.batch.TriggerType;
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionCheckResult;
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionResult;
 
@@ -76,7 +77,7 @@ class AbstractScheduledJobRunnerTest {
 
         JobExecution execution = mock(JobExecution.class);
         when(execution.getStatus()).thenReturn(BatchStatus.COMPLETED);
-        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME))).thenReturn(execution);
+        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME), eq(TriggerType.SCHEDULED))).thenReturn(execution);
 
         JobExecution result = runner.executeScheduledJob();
 
@@ -95,7 +96,7 @@ class AbstractScheduledJobRunnerTest {
 
         JobExecution execution = mock(JobExecution.class);
         when(execution.getStatus()).thenReturn(BatchStatus.COMPLETED);
-        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME))).thenReturn(execution);
+        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME), eq(TriggerType.SCHEDULED))).thenReturn(execution);
 
         JobExecution result = runner.executeScheduledJob();
 
@@ -147,7 +148,7 @@ class AbstractScheduledJobRunnerTest {
     void runJobReturnsNull() throws Exception {
         when(jobExecutionHelper.checkBeforeExecution(JOB_NAME))
                 .thenReturn(new PreExecutionResult(PreExecutionCheckResult.CAN_PROCEED, null, null));
-        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME))).thenReturn(null);
+        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME), eq(TriggerType.SCHEDULED))).thenReturn(null);
 
         JobExecution result = runner.executeScheduledJob();
 

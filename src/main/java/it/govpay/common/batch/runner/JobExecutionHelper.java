@@ -28,9 +28,12 @@ import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.core.job.parameters.InvalidJobParametersException;
 import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
+import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.launch.JobInstanceAlreadyCompleteException;
 import org.springframework.batch.core.launch.JobRestartException;
+import org.springframework.batch.core.launch.NoSuchJobExecutionException;
 
+import it.govpay.common.batch.TriggerType;
 import it.govpay.common.batch.service.JobConcurrencyService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -59,6 +62,9 @@ public class JobExecutionHelper {
 
     /** Nome del parametro job per il cluster ID */
     public static final String JOB_PARAM_CLUSTER_ID = "ClusterID";
+
+    /** Nome del parametro job per la provenienza dell'avvio (manuale/schedulato) */
+    public static final String JOB_PARAM_TRIGGER_TYPE = "TriggerType";
 
     private final JobOperator jobOperator;
     private final JobConcurrencyService jobConcurrencyService;
@@ -165,8 +171,47 @@ public class JobExecutionHelper {
      */
     public JobExecution runJob(Job job, String jobName) throws JobExecutionAlreadyRunningException,
             JobRestartException, JobInstanceAlreadyCompleteException, InvalidJobParametersException {
-        JobParameters params = buildJobParameters(jobName);
+        return runJob(job, jobName, TriggerType.SCHEDULED);
+    }
+
+    /**
+     * Esegue un job con i parametri standard, registrando esplicitamente la
+     * provenienza dell'avvio (manuale via REST o schedulato).
+     *
+     * @param job Il job da eseguire
+     * @param jobName Nome identificativo del job
+     * @param triggerType Provenienza dell'avvio
+     * @return JobExecution dell'esecuzione avviata
+     * @throws JobExecutionAlreadyRunningException se il job è già in esecuzione
+     * @throws JobRestartException se il job non può essere riavviato
+     * @throws JobInstanceAlreadyCompleteException se l'istanza del job è già completata
+     * @throws InvalidJobParametersException se i parametri non sono validi
+     */
+    public JobExecution runJob(Job job, String jobName, TriggerType triggerType) throws JobExecutionAlreadyRunningException,
+            JobRestartException, JobInstanceAlreadyCompleteException, InvalidJobParametersException {
+        JobParameters params = buildJobParameters(jobName,
+                new JobParametersBuilder().addString(JOB_PARAM_TRIGGER_TYPE, triggerType.name()));
         return jobOperator.start(job, params);
+    }
+
+    /**
+     * Richiede lo stop cooperativo (reale) di una JobExecution in corso.
+     * <p>
+     * A differenza di {@link JobConcurrencyService#forceAbandonJobExecution},
+     * questo metodo delega a {@link JobOperator#stop(long)}: segna lo stato
+     * {@code STOPPING} e il job, ai successivi checkpoint (di norma il
+     * confine tra due chunk), si ferma da solo e transita a {@code STOPPED}.
+     * Il processo Java non viene interrotto forzatamente: lo stop resta
+     * cooperativo, non immediato.
+     *
+     * @param executionId Id della JobExecution da fermare
+     * @return true se la richiesta di stop e' stata accettata da Spring Batch
+     * @throws JobExecutionNotRunningException se l'esecuzione non e' in corso
+     * @throws NoSuchJobExecutionException se l'id non corrisponde a nessuna esecuzione
+     */
+    public boolean stopExecution(long executionId) throws JobExecutionNotRunningException, NoSuchJobExecutionException {
+        log.info("Richiesta di stop cooperativo per JobExecution {}", executionId);
+        return jobOperator.stop(executionId);
     }
 
     /**

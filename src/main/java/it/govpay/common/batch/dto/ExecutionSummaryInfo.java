@@ -30,64 +30,33 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * DTO per le informazioni sull'ultima esecuzione completata di un batch.
- * <p>
- * Fornisce dettagli su:
- * <ul>
- *   <li>Quando è stata eseguita</li>
- *   <li>Quanto è durata</li>
- *   <li>Come è terminata (stato, exit code)</li>
- *   <li>Su quale nodo è stata eseguita</li>
- * </ul>
+ * Riga sintetica dello storico esecuzioni di un batch (endpoint
+ * {@code GET /executions}).
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(Include.NON_NULL)
-public class LastExecutionInfo implements Serializable {
+public class ExecutionSummaryInfo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /**
-     * ID dell'ultima esecuzione.
-     */
     private Long executionId;
 
     /**
-     * Cluster ID del nodo che ha eseguito il batch.
-     */
-    private String clusterId;
-
-    /**
-     * Data/ora di inizio dell'ultima esecuzione.
-     */
-    private LocalDateTime startTime;
-
-    /**
-     * Data/ora di fine dell'ultima esecuzione.
-     */
-    private LocalDateTime endTime;
-
-    /**
-     * Durata in secondi dell'ultima esecuzione.
-     */
-    private Long durationSeconds;
-
-    /**
-     * Stato finale dell'esecuzione (COMPLETED, FAILED, STOPPED, etc.).
+     * Stato nativo Spring Batch (STARTING, STARTED, COMPLETED, FAILED,
+     * STOPPING, STOPPED, ABANDONED, UNKNOWN).
      */
     private String status;
 
     /**
-     * Exit code dell'esecuzione.
+     * Data/ora di inizio, o data/ora di creazione se l'esecuzione non e'
+     * ancora partita (STARTING).
      */
-    private String exitCode;
+    private LocalDateTime startTime;
 
-    /**
-     * Descrizione dell'exit status (può essere troncata per messaggi lunghi).
-     */
-    private String exitDescription;
+    private LocalDateTime endTime;
 
     /**
      * Provenienza dell'avvio ({@code MANUAL}/{@code SCHEDULED}). Null per le

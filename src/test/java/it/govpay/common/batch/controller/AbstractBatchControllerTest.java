@@ -40,11 +40,18 @@ import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.JobInstance;
+import org.springframework.batch.core.job.parameters.JobParameters;
+import org.springframework.batch.core.job.parameters.JobParametersBuilder;
+import org.springframework.batch.core.launch.JobExecutionNotRunningException;
+import org.springframework.batch.core.launch.NoSuchJobExecutionException;
 import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
 
+import jakarta.persistence.EntityManager;
+
+import it.govpay.common.batch.dto.BatchInfo;
 import it.govpay.common.batch.dto.BatchStatusInfo;
 import it.govpay.common.batch.dto.LastExecutionInfo;
 import it.govpay.common.batch.dto.NextExecutionInfo;
@@ -70,6 +77,9 @@ class AbstractBatchControllerTest {
     @Mock
     private Job job;
 
+    @Mock
+    private EntityManager entityManager;
+
     private static final String JOB_NAME = "testJob";
     private static final ZoneId ZONE_ID = ZoneId.of("Europe/Rome");
     private static final long SCHEDULER_INTERVAL = 600000L;
@@ -81,8 +91,8 @@ class AbstractBatchControllerTest {
         private final String jobName;
 
         TestBatchController(JobExecutionHelper helper, JobRepository jobRepository,
-                           Environment env, ZoneId zoneId, long interval, Job job, String jobName) {
-            super(helper, jobRepository, env, zoneId, interval);
+                           Environment env, ZoneId zoneId, long interval, EntityManager entityManager, Job job, String jobName) {
+            super(helper, jobRepository, env, zoneId, interval, entityManager);
             this.job = job;
             this.jobName = jobName;
         }
@@ -92,6 +102,12 @@ class AbstractBatchControllerTest {
 
         @Override
         protected String getJobName() { return jobName; }
+
+        @Override
+        protected String getDisplayName() { return "Test Batch"; }
+
+        @Override
+        protected String getDescription() { return "Batch di test"; }
 
         @Override
         protected ResponseEntity<String> clearCache() { return ResponseEntity.ok("Cache svuotata"); }
@@ -107,8 +123,25 @@ class AbstractBatchControllerTest {
     @BeforeEach
     void setUp() {
         controller = new TestBatchController(jobExecutionHelper, jobRepository, environment,
-                ZONE_ID, SCHEDULER_INTERVAL, job, JOB_NAME);
+                ZONE_ID, SCHEDULER_INTERVAL, entityManager, job, JOB_NAME);
         lenient().when(jobExecutionHelper.getJobConcurrencyService()).thenReturn(concurrencyService);
+    }
+
+    @Nested
+    @DisplayName("info")
+    class Info {
+
+        @Test
+        @DisplayName("Restituisce jobName/displayName/description definiti dalla sottoclasse")
+        void returnsBatchInfo() {
+            ResponseEntity<BatchInfo> response = controller.info();
+
+            assertEquals(200, response.getStatusCode().value());
+            BatchInfo info = response.getBody();
+            assertEquals(JOB_NAME, info.getJobName());
+            assertEquals("Test Batch", info.getDisplayName());
+            assertEquals("Batch di test", info.getDescription());
+        }
     }
 
     @Nested
@@ -208,6 +241,43 @@ class AbstractBatchControllerTest {
     }
 
     @Nested
+    @DisplayName("stopExecution")
+    class StopExecution {
+
+        @Test
+        @DisplayName("Stop accettato - 202")
+        void accepted() throws Exception {
+            when(jobExecutionHelper.stopExecution(42L)).thenReturn(true);
+
+            ResponseEntity<Object> response = controller.stopExecution(42L);
+
+            assertEquals(202, response.getStatusCode().value());
+        }
+
+        @Test
+        @DisplayName("Esecuzione non in corso - 409")
+        void notRunning() throws Exception {
+            when(jobExecutionHelper.stopExecution(42L)).thenThrow(new JobExecutionNotRunningException("non in corso"));
+
+            ResponseEntity<Object> response = controller.stopExecution(42L);
+
+            assertEquals(409, response.getStatusCode().value());
+            assertInstanceOf(Problem.class, response.getBody());
+        }
+
+        @Test
+        @DisplayName("Esecuzione inesistente - 404")
+        void notFound() throws Exception {
+            when(jobExecutionHelper.stopExecution(99L)).thenThrow(new NoSuchJobExecutionException("non trovata"));
+
+            ResponseEntity<Object> response = controller.stopExecution(99L);
+
+            assertEquals(404, response.getStatusCode().value());
+            assertInstanceOf(Problem.class, response.getBody());
+        }
+    }
+
+    @Nested
     @DisplayName("getStatus")
     class GetStatus {
 
@@ -302,6 +372,8 @@ class AbstractBatchControllerTest {
             when(exec.getStartTime()).thenReturn(start);
             when(exec.getEndTime()).thenReturn(end);
             when(exec.getExitStatus()).thenReturn(new ExitStatus("COMPLETED", "OK"));
+            when(exec.getJobParameters()).thenReturn(
+                    new JobParametersBuilder().addString(JobExecutionHelper.JOB_PARAM_TRIGGER_TYPE, "MANUAL").toJobParameters());
 
             when(jobRepository.getJobInstances(JOB_NAME, 0, 10)).thenReturn(List.of(instance));
             when(jobRepository.getJobExecutions(instance)).thenReturn(List.of(exec));
@@ -318,6 +390,7 @@ class AbstractBatchControllerTest {
             assertEquals("COMPLETED", info.getStatus());
             assertEquals("COMPLETED", info.getExitCode());
             assertEquals("OK", info.getExitDescription());
+            assertEquals("MANUAL", info.getTriggerType());
         }
 
         @Test
@@ -332,6 +405,7 @@ class AbstractBatchControllerTest {
             when(exec.getStartTime()).thenReturn(LocalDateTime.now());
             when(exec.getEndTime()).thenReturn(LocalDateTime.now());
             when(exec.getExitStatus()).thenReturn(new ExitStatus("FAILED", longDescription));
+            when(exec.getJobParameters()).thenReturn(new JobParametersBuilder().toJobParameters());
 
             when(jobRepository.getJobInstances(JOB_NAME, 0, 10)).thenReturn(List.of(instance));
             when(jobRepository.getJobExecutions(instance)).thenReturn(List.of(exec));
@@ -355,6 +429,7 @@ class AbstractBatchControllerTest {
             when(exec.getStartTime()).thenReturn(null);
             when(exec.getEndTime()).thenReturn(null);
             when(exec.getExitStatus()).thenReturn(new ExitStatus("COMPLETED", ""));
+            when(exec.getJobParameters()).thenReturn(new JobParametersBuilder().toJobParameters());
 
             when(jobRepository.getJobInstances(JOB_NAME, 0, 10)).thenReturn(List.of(instance));
             when(jobRepository.getJobExecutions(instance)).thenReturn(List.of(exec));
