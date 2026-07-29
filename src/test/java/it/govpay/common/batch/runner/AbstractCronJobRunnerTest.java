@@ -32,6 +32,7 @@ import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.parameters.JobParameters;
 
+import it.govpay.common.batch.TriggerType;
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionCheckResult;
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionResult;
 
@@ -85,7 +86,7 @@ class AbstractCronJobRunnerTest {
 
         JobExecution execution = mock(JobExecution.class);
         when(execution.getStatus()).thenReturn(BatchStatus.COMPLETED);
-        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME))).thenReturn(execution);
+        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME), eq(TriggerType.SCHEDULED))).thenReturn(execution);
 
         runner.run();
 
@@ -103,7 +104,7 @@ class AbstractCronJobRunnerTest {
 
         JobExecution execution = mock(JobExecution.class);
         when(execution.getStatus()).thenReturn(BatchStatus.COMPLETED);
-        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME))).thenReturn(execution);
+        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME), eq(TriggerType.SCHEDULED))).thenReturn(execution);
 
         runner.run();
 
@@ -155,7 +156,7 @@ class AbstractCronJobRunnerTest {
     void runJobReturnsNull() throws Exception {
         when(jobExecutionHelper.checkBeforeExecution(JOB_NAME))
                 .thenReturn(new PreExecutionResult(PreExecutionCheckResult.CAN_PROCEED, null, null));
-        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME))).thenReturn(null);
+        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME), eq(TriggerType.SCHEDULED))).thenReturn(null);
 
         runner.run();
 

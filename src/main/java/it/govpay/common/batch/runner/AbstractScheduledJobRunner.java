@@ -25,6 +25,7 @@ import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException
 import org.springframework.batch.core.launch.JobInstanceAlreadyCompleteException;
 import org.springframework.batch.core.launch.JobRestartException;
 
+import it.govpay.common.batch.TriggerType;
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionResult;
 import lombok.extern.slf4j.Slf4j;
 
@@ -139,7 +140,7 @@ public abstract class AbstractScheduledJobRunner {
     private JobExecution executeJob() throws JobExecutionAlreadyRunningException, JobRestartException,
             JobInstanceAlreadyCompleteException, InvalidJobParametersException {
 
-        JobExecution execution = jobExecutionHelper.runJob(job, jobName);
+        JobExecution execution = jobExecutionHelper.runJob(job, jobName, TriggerType.SCHEDULED);
 
         if (execution != null) {
             log.info("{} completato con stato: {}", jobName, execution.getStatus());
