@@ -277,7 +277,7 @@ public abstract class AbstractMailService {
     protected JavaMailSender buildMailSender(MailServer mailServer) {
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
         mailSender.setHost(mailServer.getHost());
-        mailSender.setPort(mailServer.getPort());
+        mailSender.setPort(mailServer.getPort() != null ? mailServer.getPort() : JavaMailSenderImpl.DEFAULT_PORT);
 
         if (mailServer.getUsername() != null) {
             mailSender.setUsername(mailServer.getUsername());
