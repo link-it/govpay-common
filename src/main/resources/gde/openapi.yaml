@@ -3,13 +3,13 @@ info:
   title: OpenAPI definition
   version: v0
 servers:
-  - url: http://localhost:8080/govpay/backend/api/gde
-    description: Generated server url
+- url: http://localhost:8080/govpay/backend/api/gde
+  description: Generated server url
 paths:
   /eventi:
     get:
       tags:
-        - eventi
+      - eventi
       summary: Ricerca eventi
       description: Ricerca eventi
       operationId: findEventi
@@ -31,13 +31,18 @@ paths:
         - $ref: '#/components/parameters/ComponenteEvento'
         - $ref: '#/components/parameters/SeveritaDa'
         - $ref: '#/components/parameters/SeveritaA'
+        - $ref: '#/components/parameters/Messaggi'
+        - $ref: '#/components/parameters/Total'
+        - $ref: '#/components/parameters/PagingMode'
+        - $ref: '#/components/parameters/CursorData'
+        - $ref: '#/components/parameters/CursorId'
       responses:
         '200':
           description: Successful operation.
           content:
             application/hal+json:
               schema:
-                $ref: "#/components/schemas/ListaEventi"
+                 $ref: "#/components/schemas/ListaEventi"
         '400':
           $ref: "#/components/responses/400BadRequest"
         '401':
@@ -50,7 +55,7 @@ paths:
           $ref: "#/components/responses/503ServiceUnavailable"
     post:
       tags:
-        - eventi
+      - eventi
       summary: Salvataggio di un nuovo evento
       description: Salvataggio di un nuovo evento
       operationId: addEvento
@@ -76,18 +81,18 @@ paths:
   /eventi/{id}:
     get:
       tags:
-        - eventi
+      - eventi
       summary: Dettaglio di un evento
       description: Dettaglio di un evento
       operationId: getEventoById
       parameters:
-        - name: id
-          in: path
-          description: Id dell'evento da leggere.
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: id
+        in: path
+        description: Id dell'evento da leggere.
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
         '200':
           description: Successful operation.
@@ -163,11 +168,69 @@ components:
     IdDominio:
       name: idDominio
       in: query
-      description: Identificativo del dominio beneficiario
+      description: >
+        Identificativo del dominio beneficiario. Ripetibile (?idDominio=A&idDominio=B) per
+        filtrare su più domini in un'unica chiamata, es. per applicare l'ACL multi-dominio
+        del chiamante senza dover eseguire una ricerca per dominio.
+      required: false
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          type: string
+          pattern: '(^([0-9]){11}$)'
+    Messaggi:
+      name: messaggi
+      in: query
+      description: Ricerca full-text (case-insensitive) su sottotipoEsito e dettaglioEsito.
       required: false
       schema:
         type: string
-        pattern: '(^([0-9]){11}$)'
+    Total:
+      name: total
+      in: query
+      description: >
+        Se true, calcola il conteggio totale dei risultati corrispondenti ai filtri
+        (page.total). Operazione costosa su tabelle di grandi dimensioni: default false,
+        va richiesta esplicitamente.
+      required: false
+      schema:
+        type: boolean
+        default: false
+    PagingMode:
+      name: pagingMode
+      in: query
+      description: >
+        Strategia di paginazione. OFFSET (default) usa offset/limit classici, costo
+        crescente con la profondità. CURSOR usa keyset pagination (cursorData/cursorId),
+        costo indipendente dalla profondità: consigliata per liste molto grandi. In
+        modalità CURSOR il parametro offset viene ignorato.
+      required: false
+      schema:
+        $ref: '#/components/schemas/PagingMode'
+    CursorData:
+      name: cursorData
+      in: query
+      description: >
+        Timestamp dell'ultimo evento della pagina precedente (chiave di ordinamento
+        primaria del keyset). Da fornire insieme a cursorId quando pagingMode=CURSOR
+        e non si sta richiedendo la prima pagina.
+      required: false
+      schema:
+        type: string
+        format: date-time
+    CursorId:
+      name: cursorId
+      in: query
+      description: >
+        Id dell'ultimo evento della pagina precedente (tie-breaker del keyset a parità
+        di cursorData). Da fornire insieme a cursorData quando pagingMode=CURSOR e non
+        si sta richiedendo la prima pagina.
+      required: false
+      schema:
+        type: integer
+        format: int64
     IdPendenza:
       name: idPendenza
       in: query
@@ -346,8 +409,8 @@ components:
   headers:
     Location:
       description: >
-        Header Location inserted in a response for a succesful POST request (201)
-        The value is a link that points to the created object.
+          Header Location inserted in a response for a succesful POST request (201)
+          The value is a link that points to the created object.
       schema:
         type: string
         format: url
@@ -390,9 +453,9 @@ components:
     CategoriaEvento:
       type: string
       enum:
-        - INTERNO
-        - INTERFACCIA
-        - UTENTE
+      - INTERNO
+      - INTERFACCIA
+      - UTENTE
     ComponenteEvento:
       type: string
       enum:
@@ -410,6 +473,7 @@ components:
         - API_HYPERSIC_APK
         - API_USER
         - GOVPAY
+        - API_LEGACY
     DatiPagoPA:
       type: object
       properties:
@@ -491,9 +555,9 @@ components:
     EsitoEvento:
       type: string
       enum:
-        - OK
-        - KO
-        - FAIL
+      - OK
+      - KO
+      - FAIL
     Header:
       type: object
       required:
@@ -503,6 +567,12 @@ components:
           type: string
         valore:
           type: string
+    PagingMode:
+      type: string
+      enum:
+        - OFFSET
+        - CURSOR
+      default: OFFSET
     NuovoEvento:
       type: object
       properties:
@@ -636,25 +706,28 @@ components:
           maximum: 2147483647
           example: 25
         total:
-          minimum: 0
-          maximum: 9223372036854775807
-          type: integer
-          description: Number of found elements.
-          format: int64
-          example: 32
+            minimum: 0
+            maximum: 9223372036854775807
+            type: integer
+            description: Number of found elements. Presente solo se richiesto esplicitamente con ?total=true.
+            format: int64
+            example: 32
+        hasNext:
+          type: boolean
+          description: true se esistono altri risultati oltre quelli restituiti in questa pagina.
     ListaEventi:
       allOf:
         - $ref: "#/components/schemas/ListaBase"
         - type: object
           properties:
-            items:
-              type: array
               items:
-                $ref: "#/components/schemas/Evento"
-              minItems: 0
-              maxItems: 2147483647
+                type: array
+                items:
+                    $ref: "#/components/schemas/Evento"
+                minItems: 0
+                maxItems: 2147483647
           required:
-            - items
+              - items
     Problem:
       type: object
       properties:
@@ -674,5 +747,5 @@ components:
     RuoloEvento:
       type: string
       enum:
-        - CLIENT
-        - SERVER
+      - CLIENT
+      - SERVER
