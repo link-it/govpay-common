@@ -1,3 +1,18 @@
+2026-08-19  Giuliano Pintori <pintori@link.it>
+
+	* [Sicurezza]
+	Riorganizzate le soppressioni delle vulnerabilita' secondo la convenzione
+	degli altri progetti GovPay (govpay-aca-batch, govpay-console-api,
+	govpay-gde-api, govpay-portal-api, govpay-stampe-api):
+	- il file dependency-check-suppressions.xml in root e' stato sostituito da
+	  un file per CVE sotto src/main/resources/owasp/falsePositives/
+	  (CVE-2026-14683.xml, CVE-2026-14686.xml, HdrHistogram 2.2.2);
+	- aggiunta la proprieta' owasp.falsePositives.dir nel pom e aggiornata la
+	  configurazione suppressionFiles del plugin dependency-check-maven;
+	- aggiunto src/main/resources/osv/falsePositives/osv-scanner.toml con le
+	  stesse decisioni per OSV-Scanner, passato al job osv-scan della pipeline
+	  tramite --config.
+
 2026-07-24  Giuliano Pintori <pintori@link.it>
 
 	* [Release]

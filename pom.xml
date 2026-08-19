@@ -41,6 +41,8 @@
 
     <properties>
         <sonar.coverage.jacoco.xmlReportPaths>${project.basedir}/target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <!-- OWASP: directory dei falsi positivi / vulnerabilita' non applicabili (un file per CVE) -->
+        <owasp.falsePositives.dir>src/main/resources/owasp/falsePositives</owasp.falsePositives.dir>
     </properties>
 
     <dependencies>
@@ -242,6 +244,13 @@
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
+                <configuration>
+                    <!-- Soppressioni locali: vedi le note nei singoli file per il dettaglio e le condizioni di revisione -->
+                    <suppressionFiles>
+                        <suppressionFile>${owasp.falsePositives.dir}/CVE-2026-14683.xml</suppressionFile>
+                        <suppressionFile>${owasp.falsePositives.dir}/CVE-2026-14686.xml</suppressionFile>
+                    </suppressionFiles>
+                </configuration>
             </plugin>
         </plugins>
     </build>
