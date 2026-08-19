@@ -1,0 +1,17 @@
+# OSV-Scanner: falsi positivi / vulnerabilita' non applicabili.
+# Passato al job osv-scan della pipeline via --config (.github/workflows/maven.yml).
+# Le stesse decisioni sono documentate, per OWASP Dependency-Check, in
+# src/main/resources/owasp/falsePositives/<CVE>.xml
+#
+# Nota: alla data del 2026-08-19 il database OSV non associa queste due CVE al package
+# Maven org.hdrhistogram:HdrHistogram (record CVE senza affected package), quindi
+# osv-scanner non le segnala. Le regole sono preventive, per il caso in cui venga
+# pubblicato un advisory GHSA con mapping sull'ecosistema Maven.
+
+[[IgnoredVulns]]
+id = "CVE-2026-14683"
+reason = "Non applicabile e non risolvibile: HdrHistogram 2.2.2 e' l'ultima versione pubblicata (nessuna release con il fix) e arriva transitivamente da micrometer-core in scope runtime. CVE disputed/Deferred su NVD, CVSS 3.3 LOW con vettore AV:L (accesso locale). La libreria e' usata solo dalle metriche interne di Micrometer, non decodifica istogrammi serializzati provenienti dall'esterno."
+
+[[IgnoredVulns]]
+id = "CVE-2026-14686"
+reason = "Non applicabile e non risolvibile: stessa libreria e stesso contesto di CVE-2026-14683. HdrHistogram 2.2.2 e' l'ultima versione pubblicata, dipendenza transitiva runtime di micrometer-core. CVE disputed/Deferred su NVD, CVSS 3.3 LOW con vettore AV:L. Impatto limitato all'accuratezza delle metriche interne."
