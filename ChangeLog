@@ -1,5 +1,8 @@
 2026-08-19  Giuliano Pintori <pintori@link.it>
 
+	* [Release]
+	Rilasciata versione 2.0.3.
+
 	* [Build]
 	Aggiornato parent govpay-bom: 2.0.4-SNAPSHOT -> 2.0.4.
 	Il rilascio del BOM include i fix delle CVE segnalate su GovPay Common:
