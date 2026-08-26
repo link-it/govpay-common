@@ -34,7 +34,6 @@ import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.launch.JobOperator;
-import org.springframework.batch.core.launch.NoSuchJobExecutionException;
 
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionCheckResult;
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionResult;
@@ -187,30 +186,26 @@ class JobExecutionHelperTest {
     }
 
     @Test
-    @DisplayName("stopExecution - delega a JobOperator.stop e ritorna true")
+    @DisplayName("stopExecution - delega a JobOperator.stop(JobExecution) e ritorna true")
     void stopExecution_success() throws Exception {
-        when(jobOperator.stop(42L)).thenReturn(true);
+        JobExecution execution = mock(JobExecution.class);
+        when(execution.getId()).thenReturn(42L);
+        when(jobOperator.stop(execution)).thenReturn(true);
 
-        boolean result = helper.stopExecution(42L);
+        boolean result = helper.stopExecution(execution);
 
         assertTrue(result);
-        verify(jobOperator).stop(42L);
+        verify(jobOperator).stop(execution);
     }
 
     @Test
     @DisplayName("stopExecution - propaga JobExecutionNotRunningException")
     void stopExecution_notRunning() throws Exception {
-        when(jobOperator.stop(42L)).thenThrow(new JobExecutionNotRunningException("non in corso"));
+        JobExecution execution = mock(JobExecution.class);
+        when(execution.getId()).thenReturn(42L);
+        when(jobOperator.stop(execution)).thenThrow(new JobExecutionNotRunningException("non in corso"));
 
-        assertThrows(JobExecutionNotRunningException.class, () -> helper.stopExecution(42L));
-    }
-
-    @Test
-    @DisplayName("stopExecution - propaga NoSuchJobExecutionException")
-    void stopExecution_notFound() throws Exception {
-        when(jobOperator.stop(99L)).thenThrow(new NoSuchJobExecutionException("non trovata"));
-
-        assertThrows(NoSuchJobExecutionException.class, () -> helper.stopExecution(99L));
+        assertThrows(JobExecutionNotRunningException.class, () -> helper.stopExecution(execution));
     }
 
     @Test

@@ -43,7 +43,6 @@ import org.springframework.batch.core.job.JobInstance;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobExecutionNotRunningException;
-import org.springframework.batch.core.launch.NoSuchJobExecutionException;
 import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.core.env.Environment;
@@ -247,7 +246,9 @@ class AbstractBatchControllerTest {
         @Test
         @DisplayName("Stop accettato - 202")
         void accepted() throws Exception {
-            when(jobExecutionHelper.stopExecution(42L)).thenReturn(true);
+            JobExecution execution = mock(JobExecution.class);
+            when(jobRepository.getJobExecution(42L)).thenReturn(execution);
+            when(jobExecutionHelper.stopExecution(execution)).thenReturn(true);
 
             ResponseEntity<Object> response = controller.stopExecution(42L);
 
@@ -257,7 +258,10 @@ class AbstractBatchControllerTest {
         @Test
         @DisplayName("Esecuzione non in corso - 409")
         void notRunning() throws Exception {
-            when(jobExecutionHelper.stopExecution(42L)).thenThrow(new JobExecutionNotRunningException("non in corso"));
+            JobExecution execution = mock(JobExecution.class);
+            when(jobRepository.getJobExecution(42L)).thenReturn(execution);
+            when(jobExecutionHelper.stopExecution(execution))
+                    .thenThrow(new JobExecutionNotRunningException("non in corso"));
 
             ResponseEntity<Object> response = controller.stopExecution(42L);
 
@@ -268,12 +272,14 @@ class AbstractBatchControllerTest {
         @Test
         @DisplayName("Esecuzione inesistente - 404")
         void notFound() throws Exception {
-            when(jobExecutionHelper.stopExecution(99L)).thenThrow(new NoSuchJobExecutionException("non trovata"));
+            // Il JobRepository non conosce l'id: 404 gestito senza l'eccezione deprecata
+            when(jobRepository.getJobExecution(99L)).thenReturn(null);
 
             ResponseEntity<Object> response = controller.stopExecution(99L);
 
             assertEquals(404, response.getStatusCode().value());
             assertInstanceOf(Problem.class, response.getBody());
+            verify(jobExecutionHelper, never()).stopExecution(any(JobExecution.class));
         }
     }
 

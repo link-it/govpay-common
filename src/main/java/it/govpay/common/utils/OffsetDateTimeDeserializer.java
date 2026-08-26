@@ -60,7 +60,7 @@ public class OffsetDateTimeDeserializer extends StdScalarDeserializer<OffsetDate
     /** Default offset for dates without timezone (CET = Central European Time) */
     private static final ZoneOffset DEFAULT_OFFSET = ZoneOffset.ofHoursMinutes(1, 0);
 
-    private transient DateTimeFormatter formatter;
+    private DateTimeFormatter formatter;
 
     /**
      * Flexible formatter that handles:

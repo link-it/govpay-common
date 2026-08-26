@@ -142,12 +142,19 @@ public class GdeCapturingInterceptor implements ClientHttpRequestInterceptor {
             // e non deve mai propagarsi come null al resto del metodo o al chiamante.
             byte[] capturedBody = StreamUtils.copyToByteArray(response.getBody());
             responseBody = capturedBody != null ? capturedBody : new byte[0];
+
+            // La dimensione viene letta prima di consegnare l'array all'HttpDataHolder: quel
+            // metodo ammette null e l'analisi simbolica, esplorando il ramo null del callee,
+            // considererebbe nullo anche il nostro array in ogni accesso successivo alla
+            // chiamata (SonarCloud javabugs:S2259).
+            int responseBodyLength = responseBody.length;
+
             HttpDataHolder.setResponseBody(responseBody);
 
             log.trace("Captured response data for {} {}: status={}, body={} bytes, headers={}",
                     request.getMethod(), request.getURI(),
                     response.getStatusCode().value(),
-                    responseBody.length,
+                    responseBodyLength,
                     response.getHeaders().headerNames());
 
         } catch (IOException e) {

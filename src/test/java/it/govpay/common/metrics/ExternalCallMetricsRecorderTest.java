@@ -68,7 +68,7 @@ class ExternalCallMetricsRecorderTest {
         ScopeNotActiveException scopeError = new ScopeNotActiveException(
                 "request", "externalCallMetricsContext", new IllegalStateException("no request"));
         when(context.externalNanos()).thenThrow(scopeError);
-        org.mockito.Mockito.doThrow(scopeError).when(context).record(org.mockito.ArgumentMatchers.anyLong());
+        org.mockito.Mockito.doThrow(scopeError).when(context).addExternalNanos(org.mockito.ArgumentMatchers.anyLong());
 
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         ExternalCallMetricsRecorder recorder = new ExternalCallMetricsRecorder(provider(context), registry);

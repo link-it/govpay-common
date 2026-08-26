@@ -1,6 +1,54 @@
 2026-08-26  Giuliano Pintori <pintori@link.it>
 
 	* [Bug fix]
+	Risolte 14 delle 15 segnalazioni SonarCloud rimaste dopo l'analisi delle
+	18:47 (2 Bug Blocker, 2 Bug Major, 10 Code Smell).
+
+	javabugs:S2259 (2 Blocker) su GdeCapturingInterceptor e
+	AbstractBatchController: in entrambi i casi l'analisi simbolica esplora il
+	ramo null di un metodo che ammette null (HttpDataHolder.setResponseBody,
+	JobConcurrencyService.getClusterIdFromExecution) e considera nullo anche
+	l'argomento in ogni accesso successivo alla chiamata. I valori necessari
+	vengono ora letti prima di passare l'oggetto a quei metodi. La correzione
+	precedente sull'interceptor, che normalizzava il null, non era sufficiente:
+	la segnalazione era rimasta aperta.
+
+	java:S2187 e java:S8700 su DurationUtilsTest: la classe usava @Nested, che
+	lasciava l'esterna priva di test eseguibili, e calcolava i valori attesi con
+	Duration.between sugli stessi LocalDateTime, cioe' con un'altra istanza
+	dell'errore che l'utility deve correggere. Struttura resa piatta e valori
+	attesi scritti come costanti esplicite; aggiunto un test DST anche sul
+	passaggio a ora legale.
+
+	java:S1192 su DurationUtils: messaggi di precondition estratti in costanti,
+	uno per parametro, con testo accentato (UTF-8).
+
+	java:S5738 (3 occorrenze): migrate le API Spring Batch marcate
+	@Deprecated(forRemoval = true) dalla 6.0, con rimozione prevista in 6.2.
+	JobExecutionHelper.stopExecution accetta ora una JobExecution e usa
+	JobOperator.stop(JobExecution); AbstractBatchController risolve l'id dal
+	JobRepository e gestisce il 404 esplicitamente, senza la deprecata
+	NoSuchJobExecutionException. Modifica di firma su un metodo pubblico della
+	libreria: nessun consumer noto lo invoca (govpay-console-api chiama
+	l'endpoint REST, non il metodo Java).
+
+	java:S1181 (2 occorrenze) nel sottosistema metriche: ApiTimingMetricsFilter
+	e ExternalCallMetricsRecorder non catturano piu' Error. L'uscita anomala
+	viene rilevata con un flag nel finally, quindi la classificazione dell'esito
+	resta corretta - un Error non viene piu' contato come successo - e la
+	propagazione resta inalterata.
+
+	java:S6213 su ExternalCallMetricsContext: record() rinominato
+	addExternalNanos(), record e' un identificatore riservato. Non applicata la
+	stessa rinomina a ExternalCallMetricsRecorder.record(): il metodo e'
+	sovrascritto da NoopExternalCallMetricsRecorder in govpay-console-api,
+	quindi e' una modifica di contratto da coordinare (BP-API-2).
+
+	java:S2065 (2 occorrenze): rimosso il modificatore transient dai formatter
+	di OffsetDateTimeSerializer e OffsetDateTimeDeserializer, classi che non
+	implementano Serializable.
+
+	* [Bug fix]
 	Risolte le 7 segnalazioni Bug aperte su SonarCloud (Reliability).
 
 	javabugs:S2259 (Blocker) su GdeCapturingInterceptor: il null del body di

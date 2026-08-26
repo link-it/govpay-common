@@ -31,7 +31,6 @@ import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException
 import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.launch.JobInstanceAlreadyCompleteException;
 import org.springframework.batch.core.launch.JobRestartException;
-import org.springframework.batch.core.launch.NoSuchJobExecutionException;
 
 import it.govpay.common.batch.TriggerType;
 import it.govpay.common.batch.service.JobConcurrencyService;
@@ -204,14 +203,14 @@ public class JobExecutionHelper {
      * Il processo Java non viene interrotto forzatamente: lo stop resta
      * cooperativo, non immediato.
      *
-     * @param executionId Id della JobExecution da fermare
+     * @param jobExecution la JobExecution da fermare
      * @return true se la richiesta di stop e' stata accettata da Spring Batch
      * @throws JobExecutionNotRunningException se l'esecuzione non e' in corso
-     * @throws NoSuchJobExecutionException se l'id non corrisponde a nessuna esecuzione
      */
-    public boolean stopExecution(long executionId) throws JobExecutionNotRunningException, NoSuchJobExecutionException {
+    public boolean stopExecution(JobExecution jobExecution) throws JobExecutionNotRunningException {
+        Long executionId = jobExecution.getId();
         log.info("Richiesta di stop cooperativo per JobExecution {}", executionId);
-        return jobOperator.stop(executionId);
+        return jobOperator.stop(jobExecution);
     }
 
     /**

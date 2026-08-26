@@ -76,18 +76,20 @@ public class ApiTimingMetricsFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         long start = System.nanoTime();
-        Throwable error = null;
+        // Uscita anomala rilevata senza catturare l'eccezione: catturare Error terrebbe in vita
+        // una JVM in stato irrecuperabile (SonarCloud java:S1181). Il flag copre qualunque
+        // Throwable, quindi anche gli Error vengono contati come fallimento invece che come
+        // successo, e la propagazione resta inalterata.
+        boolean failed = true;
         try {
             filterChain.doFilter(request, response);
-        } catch (IOException | ServletException | RuntimeException | Error e) {
-            error = e;
-            throw e;
+            failed = false;
         } finally {
             long total = System.nanoTime() - start;
             ExternalCallMetricsContext context = contextProvider.getIfAvailable();
             long external = context != null ? context.externalNanos() : 0L;
             long internal = Math.max(0L, total - external);
-            int status = status(response, error);
+            int status = status(response, failed);
 
             Tags tags = Tags.of(
                     "method", method(request),
@@ -118,9 +120,9 @@ public class ApiTimingMetricsFilter extends OncePerRequestFilter {
         return OTHER;
     }
 
-    private static int status(HttpServletResponse response, Throwable error) {
+    private static int status(HttpServletResponse response, boolean failed) {
         int status = response.getStatus();
-        if (error != null && status < 400) {
+        if (failed && status < 400) {
             return 500;
         }
         return status;
