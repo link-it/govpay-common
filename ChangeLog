@@ -1,3 +1,37 @@
+2026-08-26  Giuliano Pintori <pintori@link.it>
+
+	* [Bug fix]
+	Risolte le 7 segnalazioni Bug aperte su SonarCloud (Reliability).
+
+	javabugs:S2259 (Blocker) su GdeCapturingInterceptor: il null del body di
+	risposta viene normalizzato alla sorgente, cosi' che non possa raggiungere
+	ne' l'HttpDataHolder ne' il log di trace. Il body assente e' una condizione
+	attesa (204/304, errori remoti senza payload) e l'interceptor non deve mai
+	poter far fallire la chiamata di business che osserva.
+
+	java:S8700 (6 occorrenze) sul sottosistema batch: le durate venivano
+	calcolate tra valori LocalDateTime, che non identificano un istante
+	assoluto. A cavallo delle transizioni di ora legale il risultato era
+	sbagliato di un'ora e, nella notte del ritorno all'ora solare, anche
+	negativo. Introdotta it.govpay.common.utils.DurationUtils, che ancora
+	gli istanti a una ZoneId esplicita prima del calcolo, e applicata a:
+	- JobConcurrencyService.isJobExecutionStale: ora usa un Clock iniettabile
+	  (nuovo costruttore e nuovo factory method in BatchCommonAutoConfiguration,
+	  quelli esistenti restano validi). Il difetto qui incideva sulla logica di
+	  lock: soglia valutata su una durata sbagliata significa doppia esecuzione
+	  del job o job bloccato;
+	- AbstractBatchController: durata dell'esecuzione in corso e dell'ultima
+	  esecuzione, calcolate con la ZoneId applicativa gia' iniettata;
+	- AbstractBatchExecutionListener: durate di job e step, con nuovo metodo
+	  sovrascrivibile getApplicationZoneId(). Le durate con endTime assente
+	  ora valgono zero invece di sollevare NullPointerException.
+
+	* [Test]
+	Aggiunti 17 test: transizioni DST di Europe/Rome (29 marzo e 25 ottobre
+	2026) su DurationUtils, regressione sulla durata dell'ultima esecuzione nel
+	controller, rilevamento stale con Clock fisso a cavallo del cambio d'ora,
+	percorsi senza body sull'interceptor e durate con endTime assente.
+
 2026-08-20  Giuliano Pintori <pintori@link.it>
 
 	* [Release]

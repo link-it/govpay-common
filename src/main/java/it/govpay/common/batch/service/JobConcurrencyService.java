@@ -18,9 +18,11 @@
  */
 package it.govpay.common.batch.service;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import org.springframework.batch.core.BatchStatus;
@@ -28,7 +30,7 @@ import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.repository.JobRepository;
 
-import lombok.RequiredArgsConstructor;
+import it.govpay.common.utils.DurationUtils;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -51,7 +53,6 @@ import lombok.extern.slf4j.Slf4j;
  * Richiede un {@link JobRepository} configurato nel contesto Spring.
  */
 @Slf4j
-@RequiredArgsConstructor
 public class JobConcurrencyService {
 
     /** Nome del parametro job per il cluster ID */
@@ -59,6 +60,37 @@ public class JobConcurrencyService {
 
     private final JobRepository jobRepository;
     private final int staleThresholdMinutes;
+    private final Clock clock;
+
+    /**
+     * Costruisce il service usando l'orologio di sistema con la zona di default della JVM.
+     * <p>
+     * La zona di default e' quella impostata all'avvio da
+     * {@link it.govpay.common.config.TimezoneConfig} a partire dalla property
+     * {@code spring.jackson.time-zone}: coincide quindi con la zona applicativa configurata.
+     * Per rendere la dipendenza dal tempo esplicita e verificabile usare
+     * {@link #JobConcurrencyService(JobRepository, int, Clock)}.
+     *
+     * @param jobRepository         JobRepository per interrogare e aggiornare lo stato dei job
+     * @param staleThresholdMinutes minuti di inattivita' oltre i quali un'esecuzione e' stale
+     */
+    public JobConcurrencyService(JobRepository jobRepository, int staleThresholdMinutes) {
+        this(jobRepository, staleThresholdMinutes, Clock.systemDefaultZone());
+    }
+
+    /**
+     * Costruisce il service con un orologio esplicito.
+     *
+     * @param jobRepository         JobRepository per interrogare e aggiornare lo stato dei job
+     * @param staleThresholdMinutes minuti di inattivita' oltre i quali un'esecuzione e' stale
+     * @param clock                 sorgente dell'ora corrente e della zona con cui interpretare
+     *                              i timestamp di Spring Batch, non null
+     */
+    public JobConcurrencyService(JobRepository jobRepository, int staleThresholdMinutes, Clock clock) {
+        this.jobRepository = jobRepository;
+        this.staleThresholdMinutes = staleThresholdMinutes;
+        this.clock = Objects.requireNonNull(clock, "clock non puo' essere null");
+    }
 
     /**
      * Controlla e restituisce l'esecuzione corrente del job, se esiste.
@@ -116,8 +148,12 @@ public class JobConcurrencyService {
         if (status == BatchStatus.STARTED) {
             LocalDateTime lastUpdated = jobExecution.getLastUpdated();
             if (lastUpdated != null) {
-                LocalDateTime now = LocalDateTime.now();
-                Duration duration = Duration.between(lastUpdated, now);
+                // lastUpdated e' un LocalDateTime scritto da Spring Batch: va ancorato alla zona
+                // del clock prima di misurare l'inattivita', altrimenti a cavallo di una
+                // transizione di ora legale la soglia viene valutata su una durata sbagliata di
+                // un'ora, con il rischio di considerare scaduto un lock ancora valido (doppia
+                // esecuzione del job) o valido un lock scaduto (job bloccato).
+                Duration duration = DurationUtils.since(lastUpdated, clock);
                 long minutesSinceLastUpdate = duration.toMinutes();
 
                 if (minutesSinceLastUpdate > staleThresholdMinutes) {
@@ -155,7 +191,7 @@ public class JobConcurrencyService {
 
             // Aggiorna lo stato a FAILED e imposta end time
             jobExecution.setStatus(BatchStatus.FAILED);
-            jobExecution.setEndTime(LocalDateTime.now());
+            jobExecution.setEndTime(LocalDateTime.now(clock));
             jobExecution.setExitStatus(ExitStatus.FAILED
                 .addExitDescription("Job abbandonato automaticamente: non aggiornato da oltre "
                     + staleThresholdMinutes + " minuti o stato anomalo"));
@@ -166,7 +202,7 @@ public class JobConcurrencyService {
                     log.info("Abbandono StepExecution: {} (stato: {})",
                         stepExecution.getStepName(), stepExecution.getStatus());
                     stepExecution.setStatus(BatchStatus.FAILED);
-                    stepExecution.setEndTime(LocalDateTime.now());
+                    stepExecution.setEndTime(LocalDateTime.now(clock));
                     stepExecution.setExitStatus(ExitStatus.FAILED
                         .addExitDescription("Step abbandonato: job stale"));
                     jobRepository.update(stepExecution);
@@ -209,7 +245,7 @@ public class JobConcurrencyService {
 
             // Aggiorna lo stato a ABANDONED e imposta end time
             jobExecution.setStatus(BatchStatus.ABANDONED);
-            jobExecution.setEndTime(LocalDateTime.now());
+            jobExecution.setEndTime(LocalDateTime.now(clock));
             jobExecution.setExitStatus(ExitStatus.STOPPED
                 .addExitDescription("Job terminato forzatamente: " + reason));
 
@@ -219,7 +255,7 @@ public class JobConcurrencyService {
                     log.info("Terminazione forzata StepExecution: {} (stato: {})",
                         stepExecution.getStepName(), stepExecution.getStatus());
                     stepExecution.setStatus(BatchStatus.ABANDONED);
-                    stepExecution.setEndTime(LocalDateTime.now());
+                    stepExecution.setEndTime(LocalDateTime.now(clock));
                     stepExecution.setExitStatus(ExitStatus.STOPPED
                         .addExitDescription("Step terminato forzatamente"));
                     jobRepository.update(stepExecution);

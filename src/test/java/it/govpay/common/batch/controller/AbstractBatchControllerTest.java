@@ -394,6 +394,31 @@ class AbstractBatchControllerTest {
         }
 
         @Test
+        @DisplayName("Esecuzione a cavallo del ritorno all'ora solare - durata reale")
+        void executionAcrossDstTransition() {
+            JobInstance instance = mock(JobInstance.class);
+            JobExecution exec = mock(JobExecution.class);
+            // 25/10/2026: alle 03:00 CEST le lancette tornano alle 02:00 CET.
+            // Tra i due istanti locali sono passate quattro ore reali, non tre.
+            LocalDateTime start = LocalDateTime.of(2026, 10, 25, 1, 30);
+            LocalDateTime end = LocalDateTime.of(2026, 10, 25, 4, 30);
+
+            when(exec.getId()).thenReturn(2L);
+            when(exec.getStatus()).thenReturn(BatchStatus.COMPLETED);
+            when(exec.getStartTime()).thenReturn(start);
+            when(exec.getEndTime()).thenReturn(end);
+            when(exec.getExitStatus()).thenReturn(new ExitStatus("COMPLETED", "OK"));
+            when(exec.getJobParameters()).thenReturn(new JobParametersBuilder().toJobParameters());
+
+            when(jobRepository.getJobInstances(JOB_NAME, 0, 10)).thenReturn(List.of(instance));
+            when(jobRepository.getJobExecutions(instance)).thenReturn(List.of(exec));
+
+            ResponseEntity<LastExecutionInfo> response = controller.testGetLastExecution();
+
+            assertEquals(4 * 3600L, response.getBody().getDurationSeconds());
+        }
+
+        @Test
         @DisplayName("Exit description troncata a 500 caratteri")
         void truncatedExitDescription() {
             JobInstance instance = mock(JobInstance.class);

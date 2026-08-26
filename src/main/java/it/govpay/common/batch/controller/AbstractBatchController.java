@@ -61,6 +61,7 @@ import it.govpay.common.batch.runner.JobExecutionHelper;
 import it.govpay.common.batch.service.JobConcurrencyService;
 import it.govpay.common.entity.batch.BatchJobExecutionEntity;
 import it.govpay.common.entity.batch.BatchJobExecutionParamEntity;
+import it.govpay.common.utils.DurationUtils;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -335,7 +336,7 @@ public abstract class AbstractBatchController {
 
         Long runningSeconds = null;
         if (currentExecution.getStartTime() != null) {
-            Duration duration = Duration.between(currentExecution.getStartTime(), LocalDateTime.now(applicationZoneId));
+            Duration duration = DurationUtils.since(currentExecution.getStartTime(), applicationZoneId);
             runningSeconds = duration.getSeconds();
         }
 
@@ -415,10 +416,7 @@ public abstract class AbstractBatchController {
     }
 
     private Long calculateDurationSeconds(LocalDateTime startTime, LocalDateTime endTime) {
-        if (startTime == null || endTime == null) {
-            return null;
-        }
-        return Duration.between(startTime, endTime).getSeconds();
+        return DurationUtils.secondsBetween(startTime, endTime, applicationZoneId);
     }
 
     private String getTruncatedExitDescription(JobExecution execution) {
