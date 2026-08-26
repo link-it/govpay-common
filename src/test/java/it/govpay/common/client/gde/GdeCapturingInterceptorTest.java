@@ -25,6 +25,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -277,6 +278,44 @@ class GdeCapturingInterceptorTest {
         // And the captured body should still be available
         assertEquals(responseBody, HttpDataHolder.getResponseBodyAsString());
         assertEquals(responseBody, result);
+
+        mockServer.verify();
+    }
+
+    @Test
+    void testCapturesResponseWithoutBody() {
+        // 204 No Content: il body e' assente. La cattura non deve sollevare eccezioni
+        // (l'interceptor non deve mai far fallire la chiamata di business) e il body
+        // catturato deve essere un array vuoto, non null.
+        mockServer.expect(requestTo("/api/items/1"))
+                .andExpect(method(HttpMethod.DELETE))
+                .andRespond(withStatus(HttpStatus.NO_CONTENT));
+
+        assertDoesNotThrow(() -> restTemplate.delete("/api/items/1"));
+
+        assertEquals(HttpStatus.NO_CONTENT, HttpDataHolder.getResponseStatusCode());
+        assertNotNull(HttpDataHolder.getResponseBody());
+        assertEquals(0, HttpDataHolder.getResponseBody().length);
+        assertEquals("", HttpDataHolder.getResponseBodyAsString());
+
+        mockServer.verify();
+    }
+
+    @Test
+    void testCapturesErrorResponseWithoutBody() {
+        // Servizio remoto in errore senza payload: e' lo scenario "di bordo" in cui
+        // l'interceptor si attiva mentre il sistema e' gia' in difficolta'. Deve
+        // limitarsi a non registrare nulla di piu', senza aggiungere un secondo guasto.
+        mockServer.expect(requestTo("/api/error"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+
+        assertThrows(HttpServerErrorException.class,
+                () -> restTemplate.getForEntity("/api/error", String.class));
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, HttpDataHolder.getResponseStatusCode());
+        assertNotNull(HttpDataHolder.getResponseBody());
+        assertEquals(0, HttpDataHolder.getResponseBody().length);
 
         mockServer.verify();
     }

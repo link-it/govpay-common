@@ -21,7 +21,10 @@ package it.govpay.common.batch.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -119,6 +122,24 @@ class JobConcurrencyServiceTest {
         when(execution.getLastUpdated()).thenReturn(LocalDateTime.now().minusMinutes(STALE_THRESHOLD_MINUTES + 10));
 
         assertTrue(service.isJobExecutionStale(execution));
+    }
+
+    @Test
+    @DisplayName("isJobExecutionStale - soglia valutata sulla durata reale attraverso la transizione DST")
+    void isJobExecutionStale_dstTransition() {
+        // Clock fermo alle 03:00 ora locale del 25/10/2026, subito dopo il ritorno all'ora
+        // solare (le lancette sono tornate da 03:00 CEST a 02:00 CET): 02:00 UTC.
+        Clock clock = Clock.fixed(Instant.parse("2026-10-25T02:00:00Z"), ZoneId.of("Europe/Rome"));
+        JobConcurrencyService serviceConClock =
+                new JobConcurrencyService(jobRepository, STALE_THRESHOLD_MINUTES, clock);
+
+        // Ultimo aggiornamento alle 01:30 ora locale, ancora in ora legale: 23:30 UTC del 24.
+        // Sono passati 150 minuti reali, oltre la soglia di 120, mentre la differenza fra le
+        // due ore locali ne conterebbe soltanto 90 e l'esecuzione non risulterebbe stale.
+        JobExecution execution = createMockJobExecution(1L, BatchStatus.STARTED);
+        when(execution.getLastUpdated()).thenReturn(LocalDateTime.of(2026, 10, 25, 1, 30));
+
+        assertTrue(serviceConClock.isJobExecutionStale(execution));
     }
 
     @Test

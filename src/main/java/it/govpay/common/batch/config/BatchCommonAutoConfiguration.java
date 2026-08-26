@@ -18,6 +18,7 @@
  */
 package it.govpay.common.batch.config;
 
+import java.time.Clock;
 import java.time.ZoneId;
 
 import org.springframework.batch.core.launch.JobOperator;
@@ -83,6 +84,25 @@ public final class BatchCommonAutoConfiguration {
             JobRepository jobRepository,
             BatchJobProperties properties) {
         return new JobConcurrencyService(jobRepository, properties.getStaleThresholdMinutes());
+    }
+
+    /**
+     * Crea un JobConcurrencyService con un orologio esplicito.
+     * <p>
+     * Da preferire quando si vuole legare il rilevamento dei job stale alla zona applicativa
+     * configurata invece che alla zona di default della JVM, o poter iniettare un
+     * {@link Clock} fisso nei test.
+     *
+     * @param jobRepository JobRepository per interrogare e aggiornare lo stato dei job
+     * @param properties Properties di configurazione del batch
+     * @param clock Sorgente dell'ora corrente e della zona applicativa
+     * @return JobConcurrencyService configurato
+     */
+    public static JobConcurrencyService createJobConcurrencyService(
+            JobRepository jobRepository,
+            BatchJobProperties properties,
+            Clock clock) {
+        return new JobConcurrencyService(jobRepository, properties.getStaleThresholdMinutes(), clock);
     }
 
     /**

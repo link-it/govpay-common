@@ -71,6 +71,42 @@ class AbstractBatchExecutionListenerTest {
     }
 
     @Test
+    @DisplayName("afterJob a cavallo della transizione DST non solleva eccezioni")
+    void afterJobAcrossDstTransition() {
+        JobExecution jobExecution = mock(JobExecution.class);
+        // 25/10/2026: alle 03:00 CEST le lancette tornano alle 02:00 CET
+        when(jobExecution.getStartTime()).thenReturn(LocalDateTime.of(2026, 10, 25, 1, 30));
+        when(jobExecution.getEndTime()).thenReturn(LocalDateTime.of(2026, 10, 25, 4, 30));
+        when(jobExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);
+
+        assertDoesNotThrow(() -> listener.afterJob(jobExecution));
+    }
+
+    @Test
+    @DisplayName("afterJob con endTime assente non solleva eccezioni")
+    void afterJobSenzaEndTime() {
+        JobExecution jobExecution = mock(JobExecution.class);
+        // Prima della correzione Duration.between(start, null) sollevava NullPointerException
+        // dentro il listener, propagandolo al ciclo di vita del job
+        when(jobExecution.getStartTime()).thenReturn(LocalDateTime.of(2026, 6, 15, 10, 0));
+        when(jobExecution.getEndTime()).thenReturn(null);
+        when(jobExecution.getStatus()).thenReturn(BatchStatus.STARTED);
+
+        assertDoesNotThrow(() -> listener.afterJob(jobExecution));
+    }
+
+    @Test
+    @DisplayName("printSimpleStepStats con endTime assente non solleva eccezioni")
+    void printSimpleStepStatsSenzaEndTime() {
+        StepExecution stepExecution = mock(StepExecution.class);
+        when(stepExecution.getStatus()).thenReturn(BatchStatus.STARTED);
+        when(stepExecution.getStartTime()).thenReturn(LocalDateTime.of(2026, 6, 15, 10, 0));
+        when(stepExecution.getEndTime()).thenReturn(null);
+
+        assertDoesNotThrow(() -> listener.printSimpleStepStats(stepExecution, 1, "step di prova"));
+    }
+
+    @Test
     @DisplayName("afterJob con duration calcolata")
     void afterJob() {
         JobExecution jobExecution = mock(JobExecution.class);

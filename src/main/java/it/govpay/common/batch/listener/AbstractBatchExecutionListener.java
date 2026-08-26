@@ -18,8 +18,8 @@
  */
 package it.govpay.common.batch.listener;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -30,6 +30,7 @@ import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.listener.JobExecutionListener;
 import org.springframework.batch.core.step.StepExecution;
 
+import it.govpay.common.utils.DurationUtils;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -64,12 +65,31 @@ public abstract class AbstractBatchExecutionListener implements JobExecutionList
      */
     protected abstract String getBatchName();
 
+    /**
+     * Zona con cui interpretare i timestamp delle esecuzioni Spring Batch.
+     * <p>
+     * I metadati di Spring Batch espongono {@link LocalDateTime}, che non identifica un istante
+     * assoluto: la zona serve ad ancorarli prima di calcolare le durate, altrimenti a cavallo
+     * delle transizioni di ora legale i tempi di esecuzione riportati risultano sbagliati di
+     * un'ora.
+     * <p>
+     * L'implementazione di default usa la zona di default della JVM, impostata all'avvio da
+     * {@link it.govpay.common.config.TimezoneConfig} a partire dalla property
+     * {@code spring.jackson.time-zone}. Le sottoclassi che non vogliono dipendere da quel
+     * default possono sovrascrivere il metodo restituendo il bean {@code ZoneId} iniettato.
+     *
+     * @return la zona applicativa da usare per il calcolo delle durate
+     */
+    protected ZoneId getApplicationZoneId() {
+        return ZoneId.systemDefault();
+    }
+
     @Override
     public void beforeJob(JobExecution jobExecution) {
         log.info(SEPARATOR);
         log.info("INIZIO BATCH {}", getBatchName());
         log.info("Job ID: {}", jobExecution.getId());
-        log.info("Avvio: {}", LocalDateTime.now().format(TIME_FORMATTER));
+        log.info("Avvio: {}", LocalDateTime.now(getApplicationZoneId()).format(TIME_FORMATTER));
         log.info(SEPARATOR);
     }
 
@@ -80,12 +100,13 @@ public abstract class AbstractBatchExecutionListener implements JobExecutionList
         log.info(SEPARATOR);
 
         // Statistiche generali
-        Duration duration = Duration.between(
+        Long durataSecondi = DurationUtils.secondsBetween(
                 jobExecution.getStartTime(),
-                jobExecution.getEndTime());
+                jobExecution.getEndTime(),
+                getApplicationZoneId());
 
         log.info("Status finale: {}", jobExecution.getStatus());
-        log.info("Durata totale: {} secondi", duration.getSeconds());
+        log.info("Durata totale: {} secondi", durataSecondi != null ? durataSecondi : "n/d");
         log.info("");
 
         // Statistiche per step (delegato alle sottoclassi)
@@ -120,7 +141,8 @@ public abstract class AbstractBatchExecutionListener implements JobExecutionList
         log.info("Elementi scritti: {}", stepExecution.getWriteCount());
         log.info("Elementi saltati: {}", stepExecution.getSkipCount());
 
-        long durationMs = Duration.between(stepExecution.getStartTime(), stepExecution.getEndTime()).toMillis();
+        long durationMs = DurationUtils.millisBetweenOrZero(
+                stepExecution.getStartTime(), stepExecution.getEndTime(), getApplicationZoneId());
         log.info("Durata: {} ms", durationMs);
         log.info("");
     }
@@ -227,7 +249,8 @@ public abstract class AbstractBatchExecutionListener implements JobExecutionList
             result.totalSkipped += partitionExec.getWriteSkipCount();
             result.totalErrors += partitionExec.getReadSkipCount() + partitionExec.getProcessSkipCount();
 
-            long duration = Duration.between(partitionExec.getStartTime(), partitionExec.getEndTime()).toMillis();
+            long duration = DurationUtils.millisBetweenOrZero(
+                    partitionExec.getStartTime(), partitionExec.getEndTime(), getApplicationZoneId());
             result.totalDuration += duration;
 
             String partitionId = extractPartitionId(partitionExec);

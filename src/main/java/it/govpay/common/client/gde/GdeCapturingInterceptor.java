@@ -137,8 +137,11 @@ public class GdeCapturingInterceptor implements ClientHttpRequestInterceptor {
             HttpDataHolder.setResponseStatusCode(response.getStatusCode());
             HttpDataHolder.setResponseStatusText(response.getStatusText());
 
-            // Read and capture the response body
-            responseBody = StreamUtils.copyToByteArray(response.getBody());
+            // Read and capture the response body. Il risultato viene normalizzato a un array
+            // vuoto: il body assente e' una condizione attesa (risposte 204/304, errori remoti)
+            // e non deve mai propagarsi come null al resto del metodo o al chiamante.
+            byte[] capturedBody = StreamUtils.copyToByteArray(response.getBody());
+            responseBody = capturedBody != null ? capturedBody : new byte[0];
             HttpDataHolder.setResponseBody(responseBody);
 
             log.trace("Captured response data for {} {}: status={}, body={} bytes, headers={}",
