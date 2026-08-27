@@ -39,7 +39,7 @@ class ApiTimingMetricsFilterTest {
     void recordsApiTimingOnRequestDispatch() throws Exception {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         ExternalCallMetricsContext context = new ExternalCallMetricsContext();
-        context.record(1_000L);
+        context.addExternalNanos(1_000L);
         ApiTimingMetricsFilter filter = new ApiTimingMetricsFilter(provider(context), registry);
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/test");
@@ -57,7 +57,7 @@ class ApiTimingMetricsFilterTest {
     void skipsErrorDispatchToAvoidDoubleCountingSameRequest() throws Exception {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         ExternalCallMetricsContext context = new ExternalCallMetricsContext();
-        context.record(1_000L);
+        context.addExternalNanos(1_000L);
         ApiTimingMetricsFilter filter = new ApiTimingMetricsFilter(provider(context), registry);
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/error");

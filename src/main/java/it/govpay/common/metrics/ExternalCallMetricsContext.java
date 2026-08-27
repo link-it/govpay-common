@@ -27,7 +27,15 @@ public class ExternalCallMetricsContext {
 
     private long externalNanos;
 
-    public void record(long elapsedNanos) {
+    /**
+     * Somma il tempo speso in una chiamata esterna a quello gia' accumulato per la request.
+     * <p>
+     * Il metodo si chiamava {@code record}, identificatore riservato del linguaggio
+     * (SonarCloud java:S6213). La classe e' usata solo all'interno di govpay-common.
+     *
+     * @param elapsedNanos nanosecondi da sommare
+     */
+    public void addExternalNanos(long elapsedNanos) {
         externalNanos += elapsedNanos;
     }
 

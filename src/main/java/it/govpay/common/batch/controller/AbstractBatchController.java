@@ -38,7 +38,6 @@ import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.JobInstance;
 import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.core.launch.JobExecutionNotRunningException;
-import org.springframework.batch.core.launch.NoSuchJobExecutionException;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.core.env.Environment;
 import org.springframework.data.jpa.domain.Specification;
@@ -267,12 +266,17 @@ public abstract class AbstractBatchController {
     }
 
     private ResponseEntity<Object> restituisciJobGiaInEsecuzione(JobExecution currentExecution) {
+        // L'id viene letto prima di passare l'esecuzione a getClusterIdFromExecution: quel
+        // metodo ammette null e l'analisi simbolica, esplorando il suo ramo null, considererebbe
+        // nulla anche questa istanza in ogni accesso successivo (SonarCloud javabugs:S2259).
+        Long executionId = currentExecution.getId();
+
         String runningClusterId = jobExecutionHelper.getJobConcurrencyService().getClusterIdFromExecution(currentExecution);
 
         String detail = String.format(
                 "Il job %s è già in esecuzione (JobExecution ID: %d, Cluster: %s). Usa il parametro force=true per terminarlo forzatamente.",
                 getJobName(),
-                currentExecution.getId(),
+                executionId,
                 runningClusterId);
 
         return problemResponse(Problem.conflict(detail));
@@ -305,13 +309,20 @@ public abstract class AbstractBatchController {
     public ResponseEntity<Object> stopExecution(@PathVariable long executionId) {
         log.info("Richiesta di annullamento della JobExecution {} (batch {})", executionId, getJobName());
 
+        // L'esecuzione viene risolta qui: JobOperator.stop(long) e
+        // NoSuchJobExecutionException sono @Deprecated(forRemoval = true) da Spring Batch 6.0,
+        // con rimozione prevista in 6.2 (SonarCloud java:S5738). L'assenza dell'id diventa un
+        // 404 gestito esplicitamente invece di un'eccezione destinata a sparire.
+        JobExecution execution = jobRepository.getJobExecution(executionId);
+        if (execution == null) {
+            return problemResponse(Problem.notFound("JobExecution " + executionId + " non trovata."));
+        }
+
         try {
-            jobExecutionHelper.stopExecution(executionId);
+            jobExecutionHelper.stopExecution(execution);
             return ResponseEntity.accepted().build();
         } catch (JobExecutionNotRunningException e) {
             return problemResponse(Problem.conflict("La JobExecution " + executionId + " non e' in corso."));
-        } catch (NoSuchJobExecutionException e) {
-            return problemResponse(Problem.notFound("JobExecution " + executionId + " non trovata."));
         }
     }
 

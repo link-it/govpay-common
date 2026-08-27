@@ -46,7 +46,7 @@ public class OffsetDateTimeSerializer extends StdScalarSerializer<OffsetDateTime
 
     private static final long serialVersionUID = 1L;
 
-    private transient DateTimeFormatter formatter;
+    private DateTimeFormatter formatter;
 
     /**
      * Default constructor using standard timestamp format with timezone.

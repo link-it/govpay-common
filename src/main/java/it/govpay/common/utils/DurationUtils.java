@@ -53,6 +53,11 @@ import java.util.Objects;
  */
 public final class DurationUtils {
 
+    private static final String MSG_START_NULL = "L'istante iniziale (start) non può essere null";
+    private static final String MSG_END_NULL = "L'istante finale (end) non può essere null";
+    private static final String MSG_ZONE_NULL = "La zona (zone) non può essere null";
+    private static final String MSG_CLOCK_NULL = "L'orologio (clock) non può essere null";
+
     private DurationUtils() {
         // Utility class
     }
@@ -67,9 +72,9 @@ public final class DurationUtils {
      * @throws NullPointerException se uno dei parametri e' null
      */
     public static Duration between(LocalDateTime start, LocalDateTime end, ZoneId zone) {
-        Objects.requireNonNull(start, "start non puo' essere null");
-        Objects.requireNonNull(end, "end non puo' essere null");
-        Objects.requireNonNull(zone, "zone non puo' essere null");
+        Objects.requireNonNull(start, MSG_START_NULL);
+        Objects.requireNonNull(end, MSG_END_NULL);
+        Objects.requireNonNull(zone, MSG_ZONE_NULL);
         return Duration.between(start.atZone(zone), end.atZone(zone));
     }
 
@@ -117,8 +122,8 @@ public final class DurationUtils {
      * @throws NullPointerException se uno dei parametri e' null
      */
     public static Duration since(LocalDateTime start, ZoneId zone) {
-        Objects.requireNonNull(start, "start non puo' essere null");
-        Objects.requireNonNull(zone, "zone non puo' essere null");
+        Objects.requireNonNull(start, MSG_START_NULL);
+        Objects.requireNonNull(zone, MSG_ZONE_NULL);
         return Duration.between(start.atZone(zone), ZonedDateTime.now(zone));
     }
 
@@ -136,8 +141,8 @@ public final class DurationUtils {
      * @throws NullPointerException se uno dei parametri e' null
      */
     public static Duration since(LocalDateTime start, Clock clock) {
-        Objects.requireNonNull(start, "start non puo' essere null");
-        Objects.requireNonNull(clock, "clock non puo' essere null");
+        Objects.requireNonNull(start, MSG_START_NULL);
+        Objects.requireNonNull(clock, MSG_CLOCK_NULL);
         return Duration.between(start.atZone(clock.getZone()).toInstant(), clock.instant());
     }
 }

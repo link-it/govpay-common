@@ -40,6 +40,8 @@ import io.micrometer.core.instrument.Tags;
  */
 public class ExternalCallMetricsRecorder {
 
+    private static final String OUTCOME_SUCCESS = "success";
+
     private final ObjectProvider<ExternalCallMetricsContext> contextProvider;
     private final MeterRegistry meterRegistry;
 
@@ -51,13 +53,21 @@ public class ExternalCallMetricsRecorder {
 
     public void record(String client, String operation, ExternalCall call) {
         long start = System.nanoTime();
-        String outcome = "success";
+        String outcome = OUTCOME_SUCCESS;
+        // Gli Error non vengono catturati: farlo terrebbe in vita una JVM in stato
+        // irrecuperabile (SonarCloud java:S1181). Il flag intercetta comunque l'uscita
+        // anomala, cosi' la metrica non la registra come successo.
+        boolean completed = false;
         try {
             call.run();
-        } catch (RuntimeException | Error e) {
+            completed = true;
+        } catch (RuntimeException e) {
             outcome = ExternalCallOutcomeRegistry.classify(e);
             throw e;
         } finally {
+            if (!completed && OUTCOME_SUCCESS.equals(outcome)) {
+                outcome = ExternalCallOutcomeRegistry.OUTCOME_ERROR;
+            }
             long elapsed = System.nanoTime() - start;
             recordDuration(client, operation, outcome, elapsed);
         }
@@ -74,7 +84,7 @@ public class ExternalCallMetricsRecorder {
         try {
             ExternalCallMetricsContext context = contextProvider.getIfAvailable();
             if (context != null) {
-                context.record(elapsed);
+                context.addExternalNanos(elapsed);
             }
         } catch (ScopeNotActiveException e) {
             // Chiamata misurata fuori da una request HTTP: resta la metrica del client esterno,
