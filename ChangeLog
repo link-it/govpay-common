@@ -1,3 +1,27 @@
+2026-09-01  Giuliano Pintori <pintori@link.it>
+
+	* [Bug fix]
+	BatchJobExecutionParamEntity: la colonna identifying e' ora mappata con
+	@JdbcTypeCode(SqlTypes.CHAR). Lo schema standard Spring Batch la dichiara
+	CHAR(1) su tutti i vendor (schema-<vendor>.sql di spring-batch-core, 6.0.5
+	compresa), mentre la mappatura String con length=1 faceva attendere a
+	Hibernate varchar(1). Con spring.jpa.hibernate.ddl-auto=validate l'avvio
+	dell'applicazione falliva quindi con:
+	
+	  Schema validation: wrong column type encountered in column [identifying]
+	  in table [batch_job_execution_params]; found [bpchar (Types#CHAR)], but
+	  expecting [varchar(1) (Types#VARCHAR)]
+	
+	Il controllo di Hibernate (ColumnDefinitions.hasMatchingType) confronta per
+	primo il type code JDBC, per cui columnDefinition = "char(1)" non sarebbe
+	stato sufficiente: serve il type code CHAR sulla mappatura.
+	
+	Riscontrato su govpay-maggioli-jppa in esecuzione su PostgreSQL, dove le
+	tabelle nascono dal DDL del batch; riguarda ogni batch che monta le entity
+	di govpay-common con validate attivo (govpay-aca-batch col profilo dev).
+	Non emergeva nei test perche' usano ddl-auto=create-drop, dove le tabelle
+	le genera Hibernate stesso dall'entity.
+
 2026-08-26  Giuliano Pintori <pintori@link.it>
 
 	* [Bug fix]

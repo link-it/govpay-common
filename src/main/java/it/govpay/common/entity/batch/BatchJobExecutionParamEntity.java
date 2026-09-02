@@ -20,6 +20,9 @@ package it.govpay.common.entity.batch;
 
 import java.io.Serializable;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -59,6 +62,10 @@ public class BatchJobExecutionParamEntity {
     @Column(name = "parameter_value", length = 2500)
     private String parameterValue;
 
+    // Colonna CHAR(1) nello schema standard Spring Batch: senza questo il
+    // validator Hibernate si aspetta varchar(1) e l'avvio fallisce con
+    // ddl-auto=validate sui DB creati dal DDL del batch.
+    @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "identifying", nullable = false, length = 1)
     private String identifying;
 
