@@ -122,17 +122,20 @@ debug_response() {
 # Cerca nella lista JSON di progetti il primo con un dato nome e nessuna versione.
 # Il nome e' passato via ambiente, non interpolato nel sorgente Python, per non
 # rompersi su apici o caratteri speciali.
+# Riceve nome e path del file JSON. Il nome passa per ambiente, non
+# interpolato nel sorgente, per non rompersi su apici o caratteri speciali.
 filter_first_by_name_no_version() {
-    FILTER_NAME="$1" python3 - <<'PY' 2>/dev/null
-import json, os, sys
+    FILTER_NAME="$1" JSON_FILE="$2" python3 - <<'PY' 2>/dev/null
+import json, os
 name = os.environ['FILTER_NAME']
 try:
-    data = json.load(sys.stdin)
+    with open(os.environ['JSON_FILE'], encoding='utf-8') as fh:
+        data = json.load(fh)
     # L'endpoint puo' restituire un array o un oggetto paginato {items:[...]}
     if isinstance(data, dict) and 'items' in data:
         data = data['items']
     if not isinstance(data, list):
-        sys.exit(0)
+        raise SystemExit
     for p in data:
         if p.get('name') == name and not p.get('version'):
             print(p.get('uuid', ''))
@@ -142,26 +145,87 @@ except Exception:
 PY
 }
 
+# Elenca i nomi dei progetti senza versione restituiti dalla API, per capire
+# cosa vede effettivamente l'API key quando la lookup non trova nulla.
+# Riceve il path di un file JSON (non stdin: il programma Python arriva da
+# heredoc, quindi stdin non e' disponibile per i dati).
+list_candidate_names() {
+    JSON_FILE="$1" python3 - <<'PY' 2>/dev/null
+import json, os
+try:
+    with open(os.environ['JSON_FILE'], encoding='utf-8') as fh:
+        data = json.load(fh)
+    if isinstance(data, dict) and 'items' in data:
+        data = data['items']
+    if not isinstance(data, list):
+        raise SystemExit
+    for n in sorted({p.get('name', '') for p in data if not p.get('version')}):
+        if n:
+            print(f"         - {n}")
+except Exception:
+    pass
+PY
+}
+
 # Cerca il progetto padre per nome, fra quelli senza versione.
+# A differenza dell'originale controlla lo stato HTTP, per non confondere
+# "progetto assente" con "chiave non autorizzata" o "server irraggiungibile".
+# NB: assegna le globali LOOKUP_HTTP, LOOKUP_BODY e PARENT_UUID. Va invocata
+# direttamente e non in una command substitution, che girerebbe in una subshell
+# e perderebbe le assegnazioni.
+LOOKUP_BODY=""
+LOOKUP_HTTP=""
+PARENT_UUID=""
+LOOKUP_FILE="$(mktemp)"
+RESPONSE_FILE="$(mktemp)"
+trap 'rm -f "$LOOKUP_FILE" "$RESPONSE_FILE"' EXIT
 find_parent() {
     local name="$1"
-    local enc
+    local enc resp
     enc=$(urlencode "$name")
-    local resp
     resp=$(curl -sk -H "X-Api-Key: $API_KEY" \
+        -w "\n__HTTP__:%{http_code}" \
         "$DTRACK_URL/api/v1/project?name=$enc&excludeInactive=false")
-    debug_response "$resp"
-    echo "$resp" | filter_first_by_name_no_version "$name"
+    LOOKUP_HTTP=$(printf '%s' "$resp" | sed -n 's/^__HTTP__://p' | tail -1)
+    LOOKUP_BODY=$(printf '%s' "$resp" | sed '$d')
+    debug_response "HTTP=$LOOKUP_HTTP body=$LOOKUP_BODY"
+    printf '%s' "$LOOKUP_BODY" > "$LOOKUP_FILE"
+    PARENT_UUID=$(filter_first_by_name_no_version "$name" "$LOOKUP_FILE")
 }
 
 # --- 1) Lookup del progetto padre (deve gia' esistere) ---
 echo "Ricerca progetto padre '$PARENT_NAME' ..."
-PARENT_UUID=$(find_parent "$PARENT_NAME")
+find_parent "$PARENT_NAME"
 
 if [ -z "$PARENT_UUID" ]; then
-    echo "[ERROR] Progetto padre '$PARENT_NAME' non trovato."
-    echo "[ERROR] Il progetto padre deve essere gia' stato creato nella UI (senza versione)."
-    echo "[ERROR] Verificare anche che l'API key abbia accesso al progetto (ACL)."
+    case "$LOOKUP_HTTP" in
+        000|"")
+            echo "[ERROR] Nessuna risposta da $DTRACK_URL (HTTP '$LOOKUP_HTTP')."
+            echo "[HINT]  Server irraggiungibile dal runner, oppure URL errato."
+            ;;
+        401)
+            echo "[ERROR] API key non valida o non autorizzata (HTTP 401)."
+            ;;
+        403)
+            echo "[ERROR] Permesso negato (HTTP 403): serve il permesso VIEW_PORTFOLIO."
+            ;;
+        200)
+            echo "[ERROR] Progetto padre '$PARENT_NAME' non trovato (HTTP 200)."
+            echo "[ERROR] La API key raggiunge il server ma non vede un progetto con"
+            echo "[ERROR] questo nome esatto e senza versione."
+            echo "[HINT]  Progetti senza versione visibili con questa chiave:"
+            if list_candidate_names "$LOOKUP_FILE" | grep -q .; then
+                list_candidate_names "$LOOKUP_FILE"
+            else
+                echo "         (nessuno: portfolio vuoto per questa chiave, probabile ACL)"
+            fi
+            echo "[HINT]  Verificare il nome esatto (maiuscole, trattini, spazi) e gli ACL."
+            ;;
+        *)
+            echo "[ERROR] Lookup fallita con HTTP $LOOKUP_HTTP."
+            echo "[ERROR] Body: $LOOKUP_BODY"
+            ;;
+    esac
     exit 1
 fi
 echo "[OK] Progetto padre trovato: $PARENT_UUID"
@@ -169,9 +233,6 @@ echo "[OK] Progetto padre trovato: $PARENT_UUID"
 # --- 2) Upload SBOM come figlio del padre ---
 echo ""
 echo "Upload SBOM in corso ..."
-
-RESPONSE_FILE="$(mktemp)"
-trap 'rm -f "$RESPONSE_FILE"' EXIT
 
 FORM_LATEST=()
 if [ "$LATEST" = "true" ]; then
