@@ -1,5 +1,35 @@
 2026-09-17  Giuliano Pintori <pintori@link.it>
 
+	* [DDL] spring-batch-cleanup.sh non era eseguibile su HSQLDB.
+	Lo script apriva la transazione con START TRANSACTION su tutti i dialetti tranne
+	oracle, ma HSQLDB non accetta quella forma nuda: vuole ISOLATION LEVEL oppure
+	READ WRITE, e rifiuta con "unexpected end of statement : required: READ or
+	ISOLATION". Lo statement e' il primo del file eseguito da SqlTool, quindi su
+	hsqldb lo svecchiamento dei metadati batch falliva prima di cancellare qualsiasi
+	cosa, e il messaggio finale "transazione non committata, nessuna riga cancellata"
+	era l'unico esito possibile su quel dialetto.
+	Corretto in START TRANSACTION ISOLATION LEVEL READ COMMITTED, che e' lo stesso
+	livello gia' dichiarato nel file rc passato a SqlTool. La transazione esplicita
+	e' stata mantenuta invece di toglierla, come su oracle: SqlTool lavora con
+	autocommit disattivato e il solo COMMIT in coda basterebbe, verificato facendo
+	fallire uno statement dopo una DELETE e ritrovando la riga al suo posto, ma
+	tenerla rende la struttura dello script uniforme fra i dialetti e non affidata
+	a un default del client.
+	Aggiunta GOVPAY_SQLTOOL_JAR per indicare il percorso di sqltool.jar. Era
+	scritto in chiaro come /opt/hsqldb-${HSQLDB_FULLVERSION}/hsqldb/lib/sqltool.jar,
+	che e' il percorso dentro le immagini: fuori dal container lo script non era
+	eseguibile, e quindi neanche verificabile. Il default non cambia.
+	Verifica su HSQLDB 2.7.2 in modalita' server, con lo schema dei metadati di
+	spring-batch-core 6.0.5 e tre esecuzioni, una di 120 giorni, una di 5 e una mai
+	partita di 150 giorni con END_TIME e START_TIME a NULL, piu' un'istanza senza
+	esecuzioni. La versione da git prima della correzione fallisce con l'errore di
+	sintassi; quella corretta esegue e lascia la sola esecuzione recente con i suoi
+	step, contesti e parametri, eliminando l'istanza orfana e quella mai partita.
+	Controllata l'assenza di regressioni sugli altri dialetti, che la modifica a
+	INVOCAZIONE_CLIENT attraversa: dry-run su tutti e sei i valori ammessi, e
+	l'esecuzione completa su un PostgreSQL 16 reale con lo stesso scenario e lo
+	stesso esito.
+
 	* [Batch]
 	I metadati di Spring Batch sono ora persistiti su database. Aggiunta
 	l'auto-configuration BatchJobRepositoryAutoConfiguration, che estende

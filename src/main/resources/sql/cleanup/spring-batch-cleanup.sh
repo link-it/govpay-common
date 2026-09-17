@@ -34,7 +34,7 @@ Uso: $(basename "$0") -d <data> [-t <tipo-db>] [-n] [-h]
 Variabili d'ambiente di connessione (le stesse dell'init del container):
   GOVPAY_DB_TYPE, GOVPAY_DB_SERVER (host[:porta]), GOVPAY_DB_NAME,
   GOVPAY_DB_USER, GOVPAY_DB_PASSWORD, GOVPAY_DS_DRIVER_CLASS,
-  GOVPAY_DS_JDBC_LIBS, HSQLDB_FULLVERSION.
+  GOVPAY_DS_JDBC_LIBS, HSQLDB_FULLVERSION, GOVPAY_SQLTOOL_JAR.
 
 ATTENZIONE: non c'e' filtro sullo stato delle esecuzioni. Un job in corso la
 cui CREATE_TIME e' anteriore alla data di taglio viene cancellato e Spring
@@ -149,7 +149,9 @@ case "${DB_TYPE}" in
         START_TRANSACTION="BEGIN TRANSACTION;" ;;
     hsqldb)
         JDBC_URL="jdbc:hsqldb:hsql://${DB_HOST}:${DB_PORT}/${GOVPAY_DB_NAME}"
-        START_TRANSACTION="START TRANSACTION;" ;;
+        # HSQLDB non accetta START TRANSACTION nudo: vuole ISOLATION LEVEL
+        # oppure READ WRITE. Il livello e' lo stesso dichiarato nel file rc.
+        START_TRANSACTION="START TRANSACTION ISOLATION LEVEL READ COMMITTED;" ;;
     *)
         log_error "Tipo database non supportato per la connessione: ${DB_TYPE}"
         exit 1 ;;
@@ -184,7 +186,10 @@ log_info "Database:       ${GOVPAY_DB_NAME}"
 log_info "Data di taglio:  ${CUTOFF}"
 log_info "Vengono cancellate tutte le esecuzioni anteriori, in qualunque stato."
 
-INVOCAZIONE_CLIENT="-Dfile.encoding=UTF-8 -cp ${GOVPAY_DS_JDBC_LIBS:-/opt/jdbc-drivers}/*:/opt/hsqldb-${HSQLDB_FULLVERSION:-2.7.4}/hsqldb/lib/sqltool.jar org.hsqldb.cmdline.SqlTool --rcFile=${SQLTOOL_RC_FILE}"
+# Il percorso di sqltool.jar e' quello dell'immagine; GOVPAY_SQLTOOL_JAR serve a
+# eseguire lo script fuori dal container, dove /opt non c'e'.
+SQLTOOL_JAR="${GOVPAY_SQLTOOL_JAR:-/opt/hsqldb-${HSQLDB_FULLVERSION:-2.7.4}/hsqldb/lib/sqltool.jar}"
+INVOCAZIONE_CLIENT="-Dfile.encoding=UTF-8 -cp ${GOVPAY_DS_JDBC_LIBS:-/opt/jdbc-drivers}/*:${SQLTOOL_JAR} org.hsqldb.cmdline.SqlTool --rcFile=${SQLTOOL_RC_FILE}"
 
 # Conteggio righe per tabella: una sola istruzione, portabile su tutti i dialetti
 CONTEGGI_SQL="SELECT 'BATCH_JOB_INSTANCE' AS TABELLA, COUNT(*) AS RIGHE FROM BATCH_JOB_INSTANCE \
