@@ -1,1 +1,2 @@
 it.govpay.common.metrics.GovpayMetricsAutoConfiguration
+it.govpay.common.batch.config.BatchJobRepositoryAutoConfiguration

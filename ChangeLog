@@ -1,5 +1,58 @@
 2026-09-17  Giuliano Pintori <pintori@link.it>
 
+	* [Batch]
+	I metadati di Spring Batch sono ora persistiti su database. Aggiunta
+	l'auto-configuration BatchJobRepositoryAutoConfiguration, che estende
+	DefaultBatchConfiguration e sostituisce il jobRepository() con uno costruito
+	da JdbcJobRepositoryFactoryBean sul DataSource dell'applicazione.
+
+	Finora BatchAutoConfiguration di Spring Boot 4 forniva un
+	ResourcelessJobRepository: i job arrivavano a COMPLETED senza scrivere una
+	riga nelle tabelle BATCH_*. Restavano quindi senza effetto la guardia
+	anti-concorrenza fra nodi (JobConcurrencyService), la soglia
+	govpay.batch.stale-threshold-minutes, gli endpoint di console di
+	AbstractBatchController e lo svecchiamento in /opt/sql/cleanup.
+
+	I progetti batch non richiedono modifiche di codice: il meccanismo di
+	sostituzione e' quello previsto da Spring Boot, che annota
+	BatchAutoConfiguration con @ConditionalOnMissingBean(DefaultBatchConfiguration).
+	L'ordinamento e' @AutoConfiguration(after = DataSourceAutoConfiguration,
+	before = BatchAutoConfiguration): senza "after" la @ConditionalOnBean sul
+	DataSource viene valutata prima che il bean esista e la configurazione viene
+	scartata in silenzio, senza alcun errore.
+
+	Il JobRepository usa un JdbcTransactionManager dedicato, costruito sul
+	DataSource, e non il JpaTransactionManager dell'applicazione: dipendere da
+	quest'ultimo innesca il ciclo entityManagerFactory -> configurazione batch ->
+	transactionManager -> entityManagerFactory, lo stesso che i batch aggirano
+	tenendo i propri bean in configurazioni prive di quella dipendenza. Spring
+	Boot prevede lo scenario con il qualificatore @BatchTransactionManager.
+	Conseguenza: la contabilita' dei metadati committa in transazione propria,
+	separata da quella dei dati applicativi degli step, che continuano a usare il
+	transaction manager JPA passato agli StepBuilder.
+
+	Sono riproposti i due agganci che la configurazione interna di
+	BatchAutoConfiguration offriva e che la sostituzione avrebbe fatto perdere:
+	getTaskExecutor(), che adotta un TaskExecutor qualificato
+	@BatchTaskExecutor se presente, e getJobParametersConverter().
+
+	Si disattiva con govpay.batch.job-repository.jdbc.enabled=false, tornando al
+	comportamento non persistente di Spring Boot.
+
+	Nota sulle suite di test dei batch: le tre entity JPA dei metadati batch e lo
+	schema ufficiale di Spring Batch si contendono le stesse tabelle, perche'
+	Hibernate con ddl-auto=create-drop le ricrea senza le sequence richieste dal
+	JobRepository. Nei profili di test dei batch la property e' quindi
+	valorizzata a false; in esercizio lo schema arriva dall'immagine
+	(/opt/sql/spring-batch) e il repository e' JDBC.
+
+	Verificato end-to-end con l'immagine di govpay-maggioli-jppa contro
+	PostgreSQL 16: lancio del job via /api/batch/run, righe scritte in tutte e
+	sei le tabelle, endpoint di console che restituiscono dati reali,
+	RunIdIncrementer che avanza, svecchiamento che ripulisce. Provato anche
+	l'interruttore a false: il job gira e non scrive nulla.
+2026-09-17  Giuliano Pintori <pintori@link.it>
+
 	* [DDL]
 	Aggiunti gli script di svecchiamento dei metadati Spring Batch, sotto
 	src/main/resources/sql/cleanup: cinque file SQL, uno per dialetto
