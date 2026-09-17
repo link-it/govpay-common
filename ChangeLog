@@ -1,3 +1,36 @@
+2026-09-17  Giuliano Pintori <pintori@link.it>
+
+	* [DDL]
+	Aggiunti gli script di svecchiamento dei metadati Spring Batch, sotto
+	src/main/resources/sql/cleanup: cinque file SQL, uno per dialetto
+	(PostgreSQL, Oracle, MySQL/MariaDB, SQL Server, HSQLDB), piu' lo script
+	spring-batch-cleanup.sh che li invoca.
+
+	Cancellano tutte le righe relative alle esecuzioni anteriori a una data di
+	taglio passata dall'esterno, nell'ordine imposto dalle foreign key. Il
+	riferimento temporale e' COALESCE(END_TIME, START_TIME, CREATE_TIME), con
+	CREATE_TIME NOT NULL a garantire che ogni esecuzione abbia sempre una data.
+	Non c'e' filtro sullo stato: rientrano anche le esecuzioni non terminate,
+	che hanno END_TIME a NULL, cosi' da poter bonificare quelle rimaste appese.
+
+	ATTENZIONE: per la stessa ragione un job in corso la cui CREATE_TIME e'
+	anteriore alla data di taglio viene cancellato e Spring Batch ne perde
+	traccia. Gli script vanno eseguiti a batch fermi.
+
+	I cinque file hanno corpo identico e differiscono solo nel letterale di data,
+	perche' con la data fornita dall'esterno non serve piu' alcun involucro
+	procedurale: niente blocco DO di PL/pgSQL, niente DECLARE di PL/SQL o T-SQL.
+	E' questo che li rende accentrabili in un unico punto.
+
+	spring-batch-cleanup.sh sceglie il file in base a GOVPAY_DB_TYPE (mariadb usa
+	il dialetto mysql), sostituisce la data, e lo esegue in transazione con lo
+	stesso client SqlTool e le stesse variabili d'ambiente usate dall'init dei
+	container. Riporta il conteggio righe per tabella prima e dopo. Con -n stampa
+	il SQL senza toccare il database, per chi vuole rivederlo prima di lanciarlo.
+
+	Sono risorse di classpath sotto sql/cleanup (circa 21 KB): il profilo dist di
+	govpay-bom le estrae da qui e le porta in /opt/sql/cleanup nelle immagini di
+	tutti i batch, che quindi non le duplicano piu'.
 2026-09-03  Giuliano Pintori <pintori@link.it>
 
 	* [Build]
