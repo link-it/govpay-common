@@ -108,8 +108,8 @@ class ConnettoreServiceAsyncTest {
 
         assertNotNull(asyncWrapper);
 
-        // Dovrebbe avere 3 interceptors + GdeCapturingInterceptor
-        assertEquals(4, asyncWrapper.getRestTemplate().getInterceptors().size());
+        // Dovrebbe avere 3 interceptors + GdeCapturingInterceptor + CorrelationIdClientInterceptor
+        assertEquals(5, asyncWrapper.getRestTemplate().getInterceptors().size());
     }
 
     @Test

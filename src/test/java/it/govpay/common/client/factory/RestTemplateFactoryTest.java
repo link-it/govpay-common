@@ -48,6 +48,7 @@ import org.springframework.web.client.RestTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 import it.govpay.common.client.gde.GdeCapturingInterceptor;
+import it.govpay.common.logging.CorrelationIdClientInterceptor;
 import it.govpay.common.client.model.Connettore;
 import it.govpay.common.client.oauth2.Oauth2ClientCredentialsManager;
 import it.govpay.common.entity.TipoAutenticazione;
@@ -57,8 +58,9 @@ class RestTemplateFactoryTest {
     private RestTemplateFactory factory;
     private Oauth2ClientCredentialsManager mockOauth2Manager;
 
-    // GdeCapturingInterceptor is always added to all RestTemplates
-    private static final int GDE_INTERCEPTOR_COUNT = 1;
+    // GdeCapturingInterceptor e CorrelationIdClientInterceptor sono sempre
+    // aggiunti a tutti i RestTemplate
+    private static final int COMMON_INTERCEPTOR_COUNT = 2;
 
     @BeforeEach
     void setUp() {
@@ -83,9 +85,11 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
-        // 1 BasicAuth + 1 GdeCapturing
-        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        // 1 BasicAuth + 2 comuni (GdeCapturing, CorrelationId)
+        assertEquals(1 + COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
         assertTrue(restTemplate.getInterceptors().stream().anyMatch(GdeCapturingInterceptor.class::isInstance));
+        assertTrue(restTemplate.getInterceptors().stream()
+                .anyMatch(CorrelationIdClientInterceptor.class::isInstance));
     }
 
     @Test
@@ -104,8 +108,8 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
-        // 1 ApiKey + 1 GdeCapturing
-        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        // 1 ApiKey + 2 comuni (GdeCapturing, CorrelationId)
+        assertEquals(1 + COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -138,8 +142,8 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
-        // 1 HttpHeader + 1 GdeCapturing
-        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        // 1 HttpHeader + 2 comuni (GdeCapturing, CorrelationId)
+        assertEquals(1 + COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -158,8 +162,8 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
-        // 1 OAuth2 + 1 GdeCapturing
-        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        // 1 OAuth2 + 2 comuni (GdeCapturing, CorrelationId)
+        assertEquals(1 + COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -174,8 +178,10 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         // Only GdeCapturing interceptor
-        assertEquals(GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        assertEquals(COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
         assertTrue(restTemplate.getInterceptors().stream().anyMatch(GdeCapturingInterceptor.class::isInstance));
+        assertTrue(restTemplate.getInterceptors().stream()
+                .anyMatch(CorrelationIdClientInterceptor.class::isInstance));
     }
 
     @Test
@@ -191,8 +197,8 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
-        // 1 SubscriptionKey + 1 GdeCapturing
-        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        // 1 SubscriptionKey + 2 comuni (GdeCapturing, CorrelationId)
+        assertEquals(1 + COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -213,8 +219,8 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
-        // 1 CustomHeaders + 1 GdeCapturing
-        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        // 1 CustomHeaders + 2 comuni (GdeCapturing, CorrelationId)
+        assertEquals(1 + COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -237,7 +243,7 @@ class RestTemplateFactoryTest {
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
         // Should have 3 interceptors: API Key + Subscription Key + Custom Headers + GdeCapturing
-        assertEquals(3 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        assertEquals(3 + COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -257,8 +263,8 @@ class RestTemplateFactoryTest {
         RestTemplate restTemplate = factory.createRestTemplate(connettore);
 
         assertNotNull(restTemplate);
-        // 1 CustomHeaders + 1 GdeCapturing
-        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        // 1 CustomHeaders + 2 comuni (GdeCapturing, CorrelationId)
+        assertEquals(1 + COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -308,7 +314,7 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         // Should have 2 interceptors: Basic Auth + Subscription Key + GdeCapturing
-        assertEquals(2 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        assertEquals(2 + COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -333,7 +339,7 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         // Should have 3 interceptors: Basic Auth + Subscription Key + Custom Headers + GdeCapturing
-        assertEquals(3 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        assertEquals(3 + COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -367,7 +373,7 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         // Should not add interceptor for empty custom headers, only GdeCapturing
-        assertEquals(GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        assertEquals(COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -383,7 +389,7 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         // Only GdeCapturing
-        assertEquals(GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        assertEquals(COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -399,7 +405,7 @@ class RestTemplateFactoryTest {
 
         assertNotNull(restTemplate);
         // Blank subscription key should not add interceptor, only GdeCapturing
-        assertEquals(GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        assertEquals(COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -419,8 +425,8 @@ class RestTemplateFactoryTest {
         RestTemplate restTemplate = factory.createRestTemplate(connettore);
 
         assertNotNull(restTemplate);
-        // 1 OAuth2 + 1 GdeCapturing
-        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        // 1 OAuth2 + 2 comuni (GdeCapturing, CorrelationId)
+        assertEquals(1 + COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -437,8 +443,8 @@ class RestTemplateFactoryTest {
         RestTemplate restTemplate = factory.createRestTemplate(connettore);
 
         assertNotNull(restTemplate);
-        // 1 HttpHeader + 1 GdeCapturing
-        assertEquals(1 + GDE_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
+        // 1 HttpHeader + 2 comuni (GdeCapturing, CorrelationId)
+        assertEquals(1 + COMMON_INTERCEPTOR_COUNT, restTemplate.getInterceptors().size());
     }
 
     @Test

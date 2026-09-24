@@ -1,2 +1,4 @@
 it.govpay.common.metrics.GovpayMetricsAutoConfiguration
 it.govpay.common.batch.config.BatchJobRepositoryAutoConfiguration
+it.govpay.common.logging.config.LoggingAutoConfiguration
+it.govpay.common.logging.level.DynamicLogLevelAutoConfiguration

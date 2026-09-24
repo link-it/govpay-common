@@ -1,3 +1,50 @@
+2026-09-22  Giuliano Pintori <pintori@link.it>
+
+	* [Logging] Transaction ID, Correlation ID e livelli di log dinamici.
+	Introdotto il package it.govpay.common.logging con le utility comuni per i due
+	identificativi di BP-LOG-3, finora assenti dai componenti nuovi e realizzati in
+	GovPay 3 sopra il context di openspcoop2 (ApplicationContext/ContextThreadLocal,
+	transactionId in MDC per il pattern %X{transactionId}, restituito al client
+	nell'header X-Govpay-IdTransazione; il correlationId esisteva ma come chiave
+	applicativa del giornale, non come identificativo propagato).
+	- TransactionIdFilter genera per ogni richiesta un transaction id UUID v4 che
+	  non viene mai accettato dall'esterno, determina il correlation id dal primo
+	  header valido fra X-Correlation-ID e X-Request-ID generandolo se assente,
+	  pubblica entrambi in MDC e li restituisce negli header di risposta. Un
+	  identificativo ricevuto viene riusato solo se rispetta lunghezza massima e
+	  pattern configurati, per non riversare caratteri di controllo o di a capo nei
+	  log e negli header.
+	- CorrelationIdClientInterceptor propaga downstream il solo correlation id,
+	  senza sovrascrivere header gia' valorizzati dal connettore. E' aggiunto da
+	  RestTemplateFactory a tutti i RestTemplate, accanto a GdeCapturingInterceptor.
+	- MdcTaskDecorator, applicato all'executor di AsyncClientConfiguration, evita
+	  che i task asincroni perdano gli identificativi e che il correlation id non
+	  raggiunga le chiamate HTTP eseguite dal pool.
+	- TransactionContext espone il contesto anche fuori dalle richieste HTTP, con
+	  apri()/apri(correlationId) per batch e thread interni.
+	La chiave MDC del transaction id resta "transactionId", la stessa di
+	MD5Constants in GovPay 3, cosi' che i pattern di log esistenti restino validi
+	nella migrazione. Header e pattern di validazione sono configurabili sotto
+	govpay.logging.tracciatura.
+
+	* [Logging] Gestione dinamica dei livelli di log (BP-LOG-1).
+	DynamicLogLevelService legge la configurazione dalla riga log_level della
+	tabella configurazione e la applica tramite LoggingSystem di Spring Boot, quindi
+	indipendentemente dal binding (logback o log4j2). La sorgente su database e' il
+	canale con cui una modifica raggiunge tutti i nodi del cluster, che la applicano
+	entro l'intervallo di refresh: /actuator/loggers da solo non basta, perche'
+	agisce sul solo nodo interrogato.
+	L'ambito e' limitato ai prefissi di govpay.logging.livelli-dinamici.logger-gestiti
+	(default it.govpay): una richiesta fuori ambito viene rifiutata, come prescrive
+	BP-LOG-1 che circoscrive la gestione dinamica ai log critici per l'operativita'.
+	I livelli configurati all'avvio sono memorizzati e ripristinati quando una voce
+	viene rimossa o su reset(), perche' in produzione la disattivazione rapida di un
+	livello verboso e' critica quanto l'attivazione.
+	Il refresh periodico gira su un proprio thread demone e non richiede
+	@EnableScheduling nel consumer; un errore di rilettura non ferma lo scheduler.
+	AbstractLogLevelController fornisce gli endpoint di gestione da esporre e
+	proteggere nel consumer, sul modello di AbstractBatchController.
+
 2026-09-17  Giuliano Pintori <pintori@link.it>
 
 	* [DDL] spring-batch-cleanup.sh non era eseguibile su HSQLDB.
