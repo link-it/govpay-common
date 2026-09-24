@@ -55,6 +55,7 @@ import io.micrometer.observation.ObservationRegistry;
 import tools.jackson.databind.ObjectMapper;
 
 import it.govpay.common.client.gde.GdeCapturingInterceptor;
+import it.govpay.common.logging.CorrelationIdClientInterceptor;
 import it.govpay.common.client.model.Connettore;
 import it.govpay.common.client.oauth2.Oauth2ClientCredentialsManager;
 import it.govpay.common.entity.TipoAutenticazione;
@@ -68,6 +69,8 @@ public class RestTemplateFactory {
     private final ObjectMapper objectMapper;
 
     private ObservationRegistry observationRegistry;
+
+    private CorrelationIdClientInterceptor correlationIdClientInterceptor = new CorrelationIdClientInterceptor();
 
     public RestTemplateFactory(Oauth2ClientCredentialsManager oauth2TokenManager, ObjectMapper objectMapper) {
         this.oauth2TokenManager = oauth2TokenManager;
@@ -83,6 +86,19 @@ public class RestTemplateFactory {
     @Autowired
     public void setObservationRegistry(ObjectProvider<ObservationRegistry> observationRegistryProvider) {
         this.observationRegistry = observationRegistryProvider.getIfAvailable();
+    }
+
+    /**
+     * Se nel contesto e' presente un {@link CorrelationIdClientInterceptor}
+     * configurato (registrato da {@code LoggingAutoConfiguration}), viene usato al
+     * posto di quello di default: cosi' gli header di propagazione seguono le
+     * proprieta' {@code govpay.logging.tracciatura.*} del consumer.
+     */
+    @Autowired
+    public void setCorrelationIdClientInterceptor(
+            ObjectProvider<CorrelationIdClientInterceptor> correlationIdClientInterceptorProvider) {
+        this.correlationIdClientInterceptor = correlationIdClientInterceptorProvider
+                .getIfAvailable(CorrelationIdClientInterceptor::new);
     }
 
     public RestTemplate createRestTemplate(Connettore connettore) {
@@ -172,6 +188,12 @@ public class RestTemplateFactory {
         }
         interceptors.add(new GdeCapturingInterceptor());
         log.debug("Aggiunto GdeCapturingInterceptor per connettore: {}", connettore.getIdConnettore());
+
+        // Propaga il correlation id della richiesta corrente alla chiamata downstream
+        // (BP-LOG-3). Aggiunto per ultimo: gli header espliciti del connettore hanno
+        // la precedenza e non vengono sovrascritti.
+        interceptors.add(correlationIdClientInterceptor);
+        log.debug("Aggiunto CorrelationIdClientInterceptor per connettore: {}", connettore.getIdConnettore());
     }
 
     private RestTemplate createSslRestTemplate(Connettore connettore,

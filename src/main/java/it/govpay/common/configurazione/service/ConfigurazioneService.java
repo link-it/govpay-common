@@ -37,6 +37,7 @@ import it.govpay.common.configurazione.model.AvvisaturaViaAppIo;
 import it.govpay.common.configurazione.model.AvvisaturaViaMail;
 import it.govpay.common.configurazione.model.Giornale;
 import it.govpay.common.configurazione.model.Hardening;
+import it.govpay.common.configurazione.model.LogLevelConfig;
 import it.govpay.common.configurazione.model.MailBatch;
 import it.govpay.common.configurazione.model.TracciatoCsv;
 import it.govpay.common.entity.ConfigurazioneEntity;
@@ -129,6 +130,30 @@ public class ConfigurazioneService {
 
     public Optional<AvvisaturaViaAppIo> getAvvisaturaViaAppIo() {
         return getAsObject(ConfigurazioneKeys.KEY_AVVISATURA_APP_IO, AvvisaturaViaAppIo.class);
+    }
+
+    public Optional<LogLevelConfig> getLogLevel() {
+        return getAsObject(ConfigurazioneKeys.KEY_LOG_LEVEL, LogLevelConfig.class);
+    }
+
+    /**
+     * Persiste la configurazione dei livelli di log gestiti dinamicamente.
+     * <p>
+     * La scrittura su database e' il canale con cui la modifica raggiunge
+     * <i>tutti</i> i nodi del cluster: ogni nodo la applica al successivo refresh
+     * (BP-LOG-1, BP-OPS-1).
+     *
+     * @param config la configurazione da salvare
+     */
+    @Transactional
+    public void salvaLogLevel(LogLevelConfig config) {
+        String json = objectMapper.writeValueAsString(config);
+        ConfigurazioneEntity entity = repository.findByNome(ConfigurazioneKeys.KEY_LOG_LEVEL)
+                .orElseGet(() -> ConfigurazioneEntity.builder()
+                        .nome(ConfigurazioneKeys.KEY_LOG_LEVEL)
+                        .build());
+        entity.setValore(json);
+        repository.save(entity);
     }
 
     public Connettore getServizioGDE() {

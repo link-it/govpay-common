@@ -24,6 +24,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import it.govpay.common.logging.MdcTaskDecorator;
+
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -40,6 +42,8 @@ import java.util.concurrent.ThreadPoolExecutor;
  *   <li>Queue capacity: 100 task</li>
  *   <li>Thread name prefix: "async-http-"</li>
  *   <li>Reject policy: CallerRunsPolicy (fallback su thread chiamante)</li>
+ *   <li>Task decorator: {@link MdcTaskDecorator}, per non perdere transaction id
+ *       e correlation id sui thread del pool</li>
  * </ul>
  *
  * <p>Personalizzazione tramite application.yml:
@@ -100,6 +104,12 @@ public class AsyncClientConfiguration {
 
         // Timeout massimo per lo shutdown graceful (secondi)
         executor.setAwaitTerminationSeconds(60);
+
+        // Propaga transaction id e correlation id ai thread del pool (BP-LOG-3):
+        // senza decorazione i log del task risulterebbero scollegati dalla
+        // richiesta che lo ha originato e il correlation id non arriverebbe
+        // alle chiamate HTTP eseguite dal task.
+        executor.setTaskDecorator(new MdcTaskDecorator());
 
         // Inizializza il thread pool
         executor.initialize();

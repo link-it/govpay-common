@@ -140,7 +140,7 @@ class ConnettoreServiceNoCacheTest {
         assertNotNull(restTemplate);
         assertFalse(restTemplate.getInterceptors().isEmpty());
         // Should have 3 interceptors: API Key + Subscription Key + Custom Headers + GdeCapturingInterceptor
-        assertEquals(4, restTemplate.getInterceptors().size());
+        assertEquals(5, restTemplate.getInterceptors().size());
     }
 
     @Test
@@ -149,7 +149,7 @@ class ConnettoreServiceNoCacheTest {
 
         assertNotNull(restTemplate);
         // Only GdeCapturingInterceptor
-        assertEquals(1, restTemplate.getInterceptors().size());
+        assertEquals(2, restTemplate.getInterceptors().size());
     }
 
     @Test

@@ -16,20 +16,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package it.govpay.common.configurazione;
+package it.govpay.common.logging.level;
 
-public final class ConfigurazioneKeys {
+import java.io.Serializable;
 
-    private ConfigurazioneKeys() {}
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-    public static final String KEY_GIORNALE_EVENTI = "giornale_eventi";
-    public static final String KEY_TRACCIATO_CSV = "tracciato_csv";
-    public static final String KEY_HARDENING = "hardening";
-    public static final String KEY_MAIL_BATCH = "mail_batch";
-    public static final String KEY_APP_IO_BATCH = "app_io_batch";
-    public static final String KEY_AVVISATURA_MAIL = "avvisatura_mail";
-    public static final String KEY_AVVISATURA_APP_IO = "avvisatura_app_io";
-    public static final String KEY_LOG_LEVEL = "log_level";
+/**
+ * Corpo della richiesta di modifica del livello di un logger.
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class LivelloLogRequest implements Serializable {
 
-    public static final String COD_CONNETTORE_GDE = "govpay_gde_api";
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Livello da impostare: {@code TRACE}, {@code DEBUG}, {@code INFO},
+     * {@code WARN}, {@code ERROR}, {@code FATAL} oppure {@code OFF}.
+     */
+    private String livello;
 }
