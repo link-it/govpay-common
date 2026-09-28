@@ -53,6 +53,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class AbstractBatchExecutionListener implements JobExecutionListener {
 
+    /**
+     * Garantisce transaction id e correlation id in MDC per tutta la durata del
+     * job (BP-LOG-3), anche quando l'esecuzione non gira sul thread che l'ha
+     * lanciata. Nel percorso normale il contesto e' gia' aperto da
+     * {@code JobExecutionHelper} e questo delegato non fa nulla.
+     */
+    private final TransactionContextJobListener tracciatura = new TransactionContextJobListener();
+
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final int SEPARATOR_LENGTH = 80;
     private static final String SEPARATOR = "=".repeat(SEPARATOR_LENGTH);
@@ -86,6 +94,7 @@ public abstract class AbstractBatchExecutionListener implements JobExecutionList
 
     @Override
     public void beforeJob(JobExecution jobExecution) {
+        tracciatura.beforeJob(jobExecution);
         log.info(SEPARATOR);
         log.info("INIZIO BATCH {}", getBatchName());
         log.info("Job ID: {}", jobExecution.getId());
@@ -113,6 +122,8 @@ public abstract class AbstractBatchExecutionListener implements JobExecutionList
         printStepStatistics(jobExecution);
 
         log.info(SEPARATOR);
+        // Per ultimo: le righe qui sopra devono ancora riportare gli identificativi
+        tracciatura.afterJob(jobExecution);
     }
 
     /**

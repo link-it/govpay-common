@@ -1,3 +1,29 @@
+2026-09-28  Giuliano Pintori <pintori@link.it>
+
+	* [Logging] Tracciatura delle esecuzioni batch (BP-LOG-3).
+	Per un batch l'unita' di lavoro non e' una richiesta HTTP ma l'esecuzione del
+	job: il contesto va aperto esplicitamente, cosa che il TransactionIdFilter non
+	puo' fare. JobExecutionHelper.runJob apre ora il contesto a ogni avvio, con un
+	transaction id nuovo (l'esecuzione e' un'unita' di lavoro distinta) e il
+	correlation id ereditato dal chiamante: un avvio manuale via REST resta cosi'
+	correlato alla richiesta dell'operatore, mentre gli avvii da cron o schedulati
+	ne generano uno proprio. Il contesto del chiamante viene ripristinato al
+	termine, quindi l'helper non lascia residui in MDC.
+	Il punto di aggancio e' l'helper e non il listener comune perche' solo 2 dei 7
+	batch estendono AbstractBatchExecutionListener, mentre tutti passano da qui.
+	Il correlation id e' registrato come parametro di job CorrelationID non
+	identificante: non concorre all'identita' della JobInstance, quindi non
+	cambia la semantica dei job esistenti, ma resta nei metadati Spring Batch e
+	nell'API delle esecuzioni, e sopravvive al thread che ha lanciato il job.
+	Aggiunto TransactionContextJobListener, che ripristina il contesto da quel
+	parametro quando il job non gira sul thread chiamante (launcher asincrono,
+	restart, job avviati senza passare dall'helper). Non tocca un contesto gia'
+	aperto e ripulisce solo quello che ha aperto lui, per non azzerare l'MDC del
+	chiamante. E' integrato in AbstractBatchExecutionListener, quindi i batch che
+	lo estendono lo ottengono senza modifiche.
+	La tracciatura non puo' far fallire un job: parametri di job assenti o
+	correlation id vuoto producono un identificativo generato, non un errore.
+
 2026-09-22  Giuliano Pintori <pintori@link.it>
 
 	* [Logging] Transaction ID, Correlation ID e livelli di log dinamici.
