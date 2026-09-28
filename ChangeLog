@@ -1,3 +1,22 @@
+2026-09-29  Giuliano Pintori <pintori@link.it>
+
+	* [Fix] I repository di anagrafica non sono piu' registrati automaticamente.
+	GovPayClientAutoConfiguration e' importata da tutti i componenti che usano il
+	client comune e registrava l'intero package it.govpay.common.repository con i
+	nomi bean di default derivati dalle interfacce. I repository di anagrafica
+	aggiunti dall'issue #9 (IBAN, tributi, tipi tributo, tipi versamento, tipi
+	versamento dominio, unita' operative) hanno cosi' iniziato a collidere con gli
+	omonimi dei consumer, che non hanno modo di escludere quelli della libreria:
+	il contesto non parte con "Invalid bean definition ... since there is already
+	... bound". Hanno smesso di partire govpay-iban-batch e govpay-tracciati-batch.
+	Quei sei repository sono ora esclusi dalla registrazione automatica. Restano
+	registrati quelli effettivamente usati dai consumer per costruire i
+	RestTemplate e leggere configurazione e anagrafica di base; un consumer che
+	voglia gli altri li dichiara nel proprio @EnableJpaRepositories, come gia'
+	fanno console-api e portal-api per l'intero package.
+	Verificata l'assenza di regressioni su tutti i consumer: nessuno otteneva quei
+	sei repository dalla libreria.
+
 2026-09-28  Giuliano Pintori <pintori@link.it>
 
 	* [Logging] Tracciatura delle esecuzioni batch (BP-LOG-3).
