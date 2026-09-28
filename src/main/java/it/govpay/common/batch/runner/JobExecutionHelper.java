@@ -34,6 +34,7 @@ import org.springframework.batch.core.launch.JobRestartException;
 
 import it.govpay.common.batch.TriggerType;
 import it.govpay.common.batch.service.JobConcurrencyService;
+import it.govpay.common.logging.TransactionContext;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -58,6 +59,17 @@ public class JobExecutionHelper {
 
     /** Nome del parametro job per il timestamp di esecuzione */
     public static final String JOB_PARAM_WHEN = "When";
+
+    /**
+     * Nome del parametro job per l'identificativo di correlazione (BP-LOG-3).
+     * <p>
+     * E' registrato come parametro <b>non identificante</b>: non concorre a
+     * determinare la JobInstance, quindi non cambia la semantica di identita'
+     * dei job gia' esistenti. Serve a ritrovare l'esecuzione a partire dal
+     * correlation id, e a ripristinare il contesto su restart o se il lancio
+     * avviene su un thread diverso da quello chiamante.
+     */
+    public static final String JOB_PARAM_CORRELATION_ID = "CorrelationID";
 
     /** Nome del parametro job per il cluster ID */
     public static final String JOB_PARAM_CLUSTER_ID = "ClusterID";
@@ -188,9 +200,17 @@ public class JobExecutionHelper {
      */
     public JobExecution runJob(Job job, String jobName, TriggerType triggerType) throws JobExecutionAlreadyRunningException,
             JobRestartException, JobInstanceAlreadyCompleteException, InvalidJobParametersException {
-        JobParameters params = buildJobParameters(jobName,
-                new JobParametersBuilder().addString(JOB_PARAM_TRIGGER_TYPE, triggerType.name()));
-        return jobOperator.start(job, params);
+        // Apre il contesto di tracciatura dell'esecuzione (BP-LOG-3): transaction
+        // id nuovo, perche' l'esecuzione del job e' un'unita' di lavoro distinta;
+        // correlation id ereditato da chi ha lanciato il job, cosi' che un avvio
+        // manuale via REST resti correlato alla richiesta dell'operatore, oppure
+        // generato per gli avvii schedulati e da cron.
+        try (TransactionContext.Scope scope = TransactionContext.apri(TransactionContext.getCorrelationId())) {
+            JobParameters params = buildJobParameters(jobName,
+                    new JobParametersBuilder().addString(JOB_PARAM_TRIGGER_TYPE, triggerType.name()));
+            log.info("Avvio job {} (trigger {})", jobName, triggerType);
+            return jobOperator.start(job, params);
+        }
     }
 
     /**
@@ -220,11 +240,7 @@ public class JobExecutionHelper {
      * @return JobParameters con i parametri standard
      */
     public JobParameters buildJobParameters(String jobName) {
-        return new JobParametersBuilder()
-                .addString(JOB_PARAM_JOB_ID, jobName)
-                .addString(JOB_PARAM_WHEN, OffsetDateTime.now(zoneId).toString())
-                .addString(JOB_PARAM_CLUSTER_ID, this.clusterId)
-                .toJobParameters();
+        return buildJobParameters(jobName, new JobParametersBuilder());
     }
 
     /**
@@ -235,10 +251,18 @@ public class JobExecutionHelper {
      * @return JobParameters con i parametri standard più quelli aggiuntivi
      */
     public JobParameters buildJobParameters(String jobName, JobParametersBuilder additionalParams) {
+        String correlationId = TransactionContext.getCorrelationId();
+        if (correlationId == null) {
+            // Chiamata fuori da uno scope di tracciatura (uso diretto dell'helper):
+            // l'esecuzione ha comunque un correlation id proprio.
+            correlationId = TransactionContext.nuovoId();
+        }
         return additionalParams
                 .addString(JOB_PARAM_JOB_ID, jobName)
                 .addString(JOB_PARAM_WHEN, OffsetDateTime.now(zoneId).toString())
                 .addString(JOB_PARAM_CLUSTER_ID, this.clusterId)
+                // non identificante: non concorre all'identita' della JobInstance
+                .addString(JOB_PARAM_CORRELATION_ID, correlationId, false)
                 .toJobParameters();
     }
 
