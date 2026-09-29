@@ -56,4 +56,7 @@ public class ApplicazioneEntity {
 
     @Column(name = "reg_exp", length = 1024)
     private String regExp;
+
+    @Column(name = "id_utenza", nullable = false, unique = true)
+    private Long idUtenza;
 }
