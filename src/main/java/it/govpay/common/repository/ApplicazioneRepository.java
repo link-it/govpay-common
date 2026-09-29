@@ -33,6 +33,8 @@ public interface ApplicazioneRepository extends JpaRepository<ApplicazioneEntity
 
     Optional<ApplicazioneEntity> findByCodApplicazione(String codApplicazione);
 
+    Optional<ApplicazioneEntity> findByIdUtenza(Long idUtenza);
+
     @Query("SELECT c FROM ConnettoreEntity c, ApplicazioneEntity a " +
            "WHERE a.codApplicazione = :codApplicazione " +
            "AND c.codConnettore = a.codConnettoreIntegrazione")

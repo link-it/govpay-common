@@ -101,11 +101,11 @@ INSERT INTO configurazione (nome, valore) VALUES
 
 -- Dati di test per applicazioni
 
-INSERT INTO applicazioni (cod_applicazione, auto_iuv, firma_ricevuta, trusted, cod_connettore_integrazione, cod_applicazione_iuv)
-VALUES ('APP_CON_CONNETTORE', true, 'N', true, 'TEST_BASIC', 'ACN');
+INSERT INTO applicazioni (cod_applicazione, auto_iuv, firma_ricevuta, trusted, cod_connettore_integrazione, cod_applicazione_iuv, id_utenza)
+VALUES ('APP_CON_CONNETTORE', true, 'N', true, 'TEST_BASIC', 'ACN', 1);
 
-INSERT INTO applicazioni (cod_applicazione, auto_iuv, firma_ricevuta, trusted)
-VALUES ('APP_SENZA_CONNETTORE', false, 'N', false);
+INSERT INTO applicazioni (cod_applicazione, auto_iuv, firma_ricevuta, trusted, id_utenza)
+VALUES ('APP_SENZA_CONNETTORE', false, 'N', false, 2);
 
 -- Dati di test per intermediari
 
