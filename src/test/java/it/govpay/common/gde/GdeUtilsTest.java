@@ -390,4 +390,41 @@ class GdeUtilsTest {
             assertTrue(result.isEmpty());
         }
     }
+
+    @Nested
+    @DisplayName("Test maskSensitiveHeaderValue/isHeaderSensibile")
+    class MaskSensitiveHeaderValueTests {
+
+        @Test
+        @DisplayName("Authorization viene oscurato, case-insensitive")
+        void authorizationOscurato() {
+            assertTrue(GdeUtils.isHeaderSensibile("authorization"));
+            assertTrue(GdeUtils.isHeaderSensibile("Authorization"));
+            assertEquals(GdeUtils.VALORE_HEADER_OSCURATO,
+                    GdeUtils.maskSensitiveHeaderValue("Authorization", "Basic dXNlcjpwYXNz"));
+        }
+
+        @Test
+        @DisplayName("Cookie e Set-Cookie vengono oscurati")
+        void cookieESetCookieOscurati() {
+            assertEquals(GdeUtils.VALORE_HEADER_OSCURATO,
+                    GdeUtils.maskSensitiveHeaderValue("Cookie", "JSESSIONID=abc"));
+            assertEquals(GdeUtils.VALORE_HEADER_OSCURATO,
+                    GdeUtils.maskSensitiveHeaderValue("Set-Cookie", "JSESSIONID=abc"));
+        }
+
+        @Test
+        @DisplayName("un header non sensibile passa invariato")
+        void headerNonSensibileInvariato() {
+            assertFalse(GdeUtils.isHeaderSensibile("Content-Type"));
+            assertEquals("application/json",
+                    GdeUtils.maskSensitiveHeaderValue("Content-Type", "application/json"));
+        }
+
+        @Test
+        @DisplayName("nome null non e' sensibile")
+        void nomeNullNonSensibile() {
+            assertFalse(GdeUtils.isHeaderSensibile(null));
+        }
+    }
 }

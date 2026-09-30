@@ -22,8 +22,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -68,6 +70,22 @@ public final class GdeUtils {
 
     /** Messaggio per payload non serializzabile */
     public static final String MSG_PAYLOAD_NON_SERIALIZZABILE = "Payload non serializzabile";
+
+    /** Valore con cui un header sensibile viene sostituito prima di raggiungere il GDE. */
+    public static final String VALORE_HEADER_OSCURATO = "***";
+
+    /**
+     * Header il cui valore non deve mai raggiungere il GDE: {@code Authorization} porta le
+     * credenziali (es. Basic: username:password in Base64, non un token opaco — l'header intero
+     * equivale a una password in chiaro) o un token di sessione, {@code Proxy-Authorization} lo
+     * stesso per un eventuale proxy a monte, {@code Cookie}/{@code Set-Cookie} un identificativo
+     * di sessione. Disattivare il dump nella policy GDE ({@link Giornale}) rimuove solo i
+     * payload, non gli header: chi costruisce un {@link Header} a partire da un header HTTP
+     * catturato va sempre attraverso {@link #maskSensitiveHeaderValue(String, String)}, a
+     * prescindere da quella policy.
+     */
+    private static final Set<String> HEADER_SENSIBILI = Set.of(
+            "authorization", "proxy-authorization", "cookie", "set-cookie");
 
     private GdeUtils() {
         // Utility class
@@ -261,6 +279,31 @@ public final class GdeUtils {
     }
 
     // ==================== Header Management ====================
+
+    /**
+     * Indica se il nome di un header e' tra quelli il cui valore non deve mai essere registrato
+     * cosi' com'e' (vedi {@link #HEADER_SENSIBILI}). Confronto case-insensitive: gli header HTTP
+     * non distinguono maiuscole/minuscole nel nome.
+     *
+     * @param nome nome dell'header, puo' essere {@code null}
+     * @return {@code true} se il valore va oscurato prima di essere registrato
+     */
+    public static boolean isHeaderSensibile(String nome) {
+        return nome != null && HEADER_SENSIBILI.contains(nome.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Restituisce {@link #VALORE_HEADER_OSCURATO} se {@code nome} e' un header sensibile
+     * (vedi {@link #isHeaderSensibile(String)}), altrimenti {@code valore} invariato. Va usato
+     * ovunque un header HTTP grezzo venga trasformato in un {@link Header} da inviare al GDE.
+     *
+     * @param nome   nome dell'header
+     * @param valore valore dell'header
+     * @return il valore, oscurato se l'header e' sensibile
+     */
+    public static String maskSensitiveHeaderValue(String nome, String valore) {
+        return isHeaderSensibile(nome) ? VALORE_HEADER_OSCURATO : valore;
+    }
 
     /**
      * Recupera gli headers della richiesta catturati da HttpDataHolder.
