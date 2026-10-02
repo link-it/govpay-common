@@ -227,4 +227,58 @@ class IuvUtilsTest {
         assertThrows(IllegalArgumentException.class, () -> IuvUtils.convertiDaNumeroAvviso("123", 1, null, null));
         assertThrows(IllegalArgumentException.class, () -> IuvUtils.convertiDaNumeroAvviso(null, 1, null, null));
     }
+
+    @Test
+    @DisplayName("buildQrCode002 - con numeroAvviso noto")
+    void buildQrCode002_conNumeroAvviso() {
+        String qrCode = IuvUtils.buildQrCode002("01234567890", 0, null, "999999999999999",
+                new java.math.BigDecimal("10.50"), "001234567890123456");
+
+        assertEquals("PAGOPA|002|001234567890123456|01234567890|1050", qrCode);
+    }
+
+    @Test
+    @DisplayName("buildQrCode002 - senza numeroAvviso, AuxDigit 0, ricostruito da iuv/applicationCode")
+    void buildQrCode002_senzaNumeroAvviso_auxDigit0() {
+        String qrCode = IuvUtils.buildQrCode002("01234567890", 0, 4, "999999999999999",
+                new java.math.BigDecimal("10.50"), null);
+
+        assertEquals("PAGOPA|002|004999999999999999|01234567890|1050", qrCode);
+    }
+
+    @Test
+    @DisplayName("buildQrCode002 - senza numeroAvviso, AuxDigit diverso da 0")
+    void buildQrCode002_senzaNumeroAvviso_auxDigitDiversoDaZero() {
+        String qrCode = IuvUtils.buildQrCode002("01234567890", 3, null, "9999999999999999",
+                new java.math.BigDecimal("10.50"), null);
+
+        assertEquals("PAGOPA|002|39999999999999999|01234567890|1050", qrCode);
+    }
+
+    @Test
+    @DisplayName("buildBarCode - con numeroAvviso noto")
+    void buildBarCode_conNumeroAvviso() {
+        String barCode = IuvUtils.buildBarCode("1234567890123", 0, null, "999999999999999",
+                new java.math.BigDecimal("10.50"), "001234567890123456");
+
+        assertEquals("4151234567890123" + "8020" + "001234567890123456" + "3902" + "1050", barCode);
+    }
+
+    @Test
+    @DisplayName("buildBarCode - senza numeroAvviso, AuxDigit 3")
+    void buildBarCode_senzaNumeroAvviso_auxDigit3() {
+        String barCode = IuvUtils.buildBarCode("1234567890123", 3, null, "9999999999999999",
+                new java.math.BigDecimal("10.50"), null);
+
+        assertEquals("4151234567890123" + "8020" + "3" + "9999999999999999" + "3902" + "1050", barCode);
+    }
+
+    @Test
+    @DisplayName("buildBarCode - senza numeroAvviso, AuxDigit diverso da 3")
+    void buildBarCode_senzaNumeroAvviso_auxDigitDiversoDaTre() {
+        String barCode = IuvUtils.buildBarCode("1234567890123", 0, 4, "999999999999999",
+                new java.math.BigDecimal("10.50"), null);
+
+        assertEquals("4151234567890123" + "8020" + "004" + "999999999999999" + "3902" + "1050", barCode);
+    }
 }
