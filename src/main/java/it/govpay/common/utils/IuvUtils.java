@@ -18,7 +18,11 @@
  */
 package it.govpay.common.utils;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.Locale;
 
 import it.govpay.common.entity.DominioEntity;
 import lombok.extern.slf4j.Slf4j;
@@ -328,5 +332,66 @@ public final class IuvUtils {
     private static String checkDigit93(String reference, int auxDigit) {
         long resto93 = Long.parseLong(auxDigit + reference) % 93;
         return String.format("%02d", resto93);
+    }
+
+    private static final DecimalFormat IMPORTO_FORMATTER =
+            new DecimalFormat("00.00", new DecimalFormatSymbols(Locale.ENGLISH));
+
+    /**
+     * Costruisce il contenuto del QR-Code "version 002" di un avviso di pagamento pagoPA, da
+     * codificare graficamente sul documento stampato — vedi "L'Avviso di pagamento analogico
+     * nel sistema pagoPA" §2.1. Se {@code numeroAvviso} e' assente lo ricostruisce da
+     * {@code auxDigit}/{@code applicationCode}/{@code iuv} (stesso formato del numero avviso
+     * vero e proprio, vedi {@link #genera}).
+     *
+     * @param codDominio      codice fiscale del dominio creditore
+     * @param auxDigit        AuxDigit configurato sul dominio
+     * @param applicationCode application code della stazione del dominio, richiesto solo per
+     *                        AuxDigit 0 quando {@code numeroAvviso} e' assente
+     * @param iuv             Identificativo Univoco di Versamento
+     * @param importoTotale   importo totale della pendenza
+     * @param numeroAvviso    numero avviso gia' noto, o {@code null} per ricostruirlo
+     * @return il contenuto testuale del QR-Code
+     */
+    public static String buildQrCode002(String codDominio, int auxDigit, Integer applicationCode, String iuv,
+            BigDecimal importoTotale, String numeroAvviso) {
+        String importo = IMPORTO_FORMATTER.format(importoTotale).replace(".", "");
+        if (numeroAvviso != null) {
+            return "PAGOPA|002|" + numeroAvviso + "|" + codDominio + "|" + importo;
+        }
+        if (auxDigit == 0) {
+            return "PAGOPA|002|0" + String.format("%02d", applicationCode) + iuv + "|" + codDominio + "|" + importo;
+        }
+        return "PAGOPA|002|" + auxDigit + iuv + "|" + codDominio + "|" + importo;
+    }
+
+    /**
+     * Costruisce il contenuto del bar-code di un avviso di pagamento pagoPA — vedi "Guida
+     * Tecnica di Adesione PA 3.8" p. 25. Stessa logica di fallback di
+     * {@link #buildQrCode002} quando {@code numeroAvviso} e' assente.
+     *
+     * @param gln             codice GLN del dominio creditore
+     * @param auxDigit        AuxDigit configurato sul dominio
+     * @param applicationCode application code della stazione del dominio, richiesto solo per
+     *                        AuxDigit 0 quando {@code numeroAvviso} e' assente
+     * @param iuv             Identificativo Univoco di Versamento
+     * @param importoTotale   importo totale della pendenza
+     * @param numeroAvviso    numero avviso gia' noto, o {@code null} per ricostruirlo
+     * @return il contenuto testuale del bar-code
+     */
+    public static String buildBarCode(String gln, int auxDigit, Integer applicationCode, String iuv,
+            BigDecimal importoTotale, String numeroAvviso) {
+        String payToLoc = "415";
+        String refNo = "8020";
+        String amount = "3902";
+        String importo = IMPORTO_FORMATTER.format(importoTotale).replace(".", "");
+
+        if (numeroAvviso != null) {
+            return payToLoc + gln + refNo + numeroAvviso + amount + importo;
+        }
+        if (auxDigit == 3) {
+            return payToLoc + gln + refNo + "3" + iuv + amount + importo;
+        }
+        return payToLoc + gln + refNo + "0" + String.format("%02d", applicationCode) + iuv + amount + importo;
     }
 }
