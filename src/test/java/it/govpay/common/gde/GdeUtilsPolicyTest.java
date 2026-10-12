@@ -60,12 +60,21 @@ class GdeUtilsPolicyTest {
     @DisplayName("Classificazione operazioni")
     class ClassificazioneOperazioni {
 
+        /**
+         * L'elenco completo, non un campione: se una di queste operazioni smettesse
+         * di essere classificata come scrittura, il giornale degli eventi cambierebbe
+         * comportamento in silenzio per quel flusso.
+         */
         @ParameterizedTest
-        @ValueSource(strings = { "nodoInviaRPT", "nodoChiediCopiaRT", "nodoChiediStatoRPT",
-                "paaVerificaRPT", "paSendRT", "paGetPayment" })
-        @DisplayName("Le operazioni pagoPA di scrittura sono riconosciute")
+        @ValueSource(strings = { "nodoChiediCopiaRT", "nodoChiediStatoRPT", "nodoInviaRPT",
+                "nodoInviaCarrelloRPT", "nodoInviaRichiestaStorno", "nodoInviaRispostaRevoca",
+                "paaVerificaRPT", "paaAttivaRPT", "paaInviaEsitoStorno", "paaInviaRichiestaRevoca",
+                "paaInviaRT", "paVerifyPaymentNotice", "paGetPayment", "paSendRT" })
+        @DisplayName("Tutte le operazioni pagoPA di scrittura sono riconosciute")
         void operazioniDiScrittura(String operazione) {
             assertTrue(GdeUtils.isOperazioneScrittura(operazione));
+            // e di riflesso non sono letture per il componente API_PAGOPA
+            assertFalse(GdeUtils.isRequestLettura("GET", ComponenteEvento.API_PAGOPA, operazione));
         }
 
         @Test
@@ -75,12 +84,18 @@ class GdeUtilsPolicyTest {
             assertFalse(GdeUtils.isOperazioneScrittura(null));
         }
 
+        /** Anche qui l'elenco e' completo, per la stessa ragione. */
         @ParameterizedTest
-        @ValueSource(strings = { "govpayInviaTracciatoEmail", "govpayInviaTracciatoFileSystem",
-                "govpayInviaTracciatoRest", "inviaFlussoRendicontazione", "inviaRpp" })
-        @DisplayName("Le spedizioni di tracciati sono operazioni di scrittura")
+        @ValueSource(strings = { "pivotInviaTracciatoEmail", "pivotInviaTracciatoFileSystem",
+                "pivotSILInviaFlusso", "secimInviaTracciatoEmail", "secimInviaTracciatoFileSystem",
+                "govpayInviaTracciatoEmail", "govpayInviaTracciatoFileSystem",
+                "govpayInviaTracciatoRest", "inviaFlussoRendicontazione", "inviaRpp",
+                "inviaSintesiFlussiRendicontazione", "inviaSintesiPagamenti",
+                "hyperSicAPKappaInviaTracciatoEmail", "hyperSicAPKappaInviaTracciatoFileSystem" })
+        @DisplayName("Tutte le spedizioni di tracciati sono operazioni di scrittura")
         void spedizioniTracciati(String operazione) {
             assertTrue(GdeUtils.isOperazioneScritturaTracciatiNotificaPagamenti(operazione));
+            assertTrue(GdeUtils.isRequestScrittura("GET", ComponenteEvento.API_GOVPAY, operazione));
         }
 
         @Test

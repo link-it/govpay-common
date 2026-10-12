@@ -1,5 +1,21 @@
 2026-10-12  Giuliano Pintori <pintori@link.it>
 
+	* [Test] Coperti i rami rimasti scoperti su classificazione GDE e job stale.
+	La coverage di SonarQube si calcola su righe e rami insieme: la correzione
+	precedente aveva alzato le sole righe e il quality gate era rimasto rosso per
+	0,11 punti, cioe' quattro elementi.
+	Coperti tutti i valori delle due catene di classificazione delle operazioni in
+	GdeUtils, non piu' un campione: se una smettesse di essere riconosciuta come
+	scrittura, il giornale degli eventi cambierebbe comportamento in silenzio per
+	quel flusso.
+	Coperti abandonStaleJobExecution e forceAbandonJobExecution di
+	JobConcurrencyService, inclusi gli step in corso, quelli gia' conclusi che non
+	vanno toccati e il fallimento del repository. E' il percorso di recupero
+	multi-nodo: se si rompe, i job bloccati non tornano mai disponibili.
+	Coverage combinata righe+rami dall'81,59% all'82,34%.
+
+2026-10-12  Giuliano Pintori <pintori@link.it>
+
 	* [Fix] Condizione sempre vera in TransactionContextJobListener.
 	Il listener difendeva da JobParameters nulli, ma una JobExecution porta sempre
 	i propri parametri: il ramo era morto in produzione (SonarQube java:S2583).
