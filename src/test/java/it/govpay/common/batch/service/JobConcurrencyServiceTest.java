@@ -42,6 +42,8 @@ import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.JobInstance;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.StepExecution;
+import org.springframework.batch.core.job.parameters.JobParameters;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -58,6 +60,86 @@ class JobConcurrencyServiceTest {
     @BeforeEach
     void setUp() {
         service = new JobConcurrencyService(jobRepository, STALE_THRESHOLD_MINUTES);
+    }
+
+    // ===== Abbandono e terminazione forzata: e' il recupero multi-nodo, se si
+    // rompe i job bloccati non tornano mai disponibili =====
+
+    private JobExecution esecuzioneConStep(BatchStatus statoStep) {
+        JobExecution esecuzione = new JobExecution(1L,
+                new JobInstance(1L, JOB_NAME), new JobParameters());
+        StepExecution step = new StepExecution("stepDiProva", esecuzione);
+        step.setStatus(statoStep);
+        esecuzione.addStepExecutions(java.util.List.of(step));
+        return esecuzione;
+    }
+
+    @Test
+    @DisplayName("abandonStaleJobExecution marca come FAILED il job e gli step in corso")
+    void abbandonaJobEStepInCorso() {
+        JobExecution esecuzione = esecuzioneConStep(BatchStatus.STARTED);
+
+        assertTrue(service.abandonStaleJobExecution(esecuzione));
+
+        assertEquals(BatchStatus.FAILED, esecuzione.getStatus());
+        assertNotNull(esecuzione.getEndTime());
+        StepExecution step = esecuzione.getStepExecutions().iterator().next();
+        assertEquals(BatchStatus.FAILED, step.getStatus());
+        assertNotNull(step.getEndTime());
+        verify(jobRepository).update(step);
+        verify(jobRepository).update(esecuzione);
+    }
+
+    @Test
+    @DisplayName("abandonStaleJobExecution non tocca gli step gia' conclusi")
+    void nonToccaStepConclusi() {
+        JobExecution esecuzione = esecuzioneConStep(BatchStatus.COMPLETED);
+
+        assertTrue(service.abandonStaleJobExecution(esecuzione));
+
+        StepExecution step = esecuzione.getStepExecutions().iterator().next();
+        assertEquals(BatchStatus.COMPLETED, step.getStatus());
+        verify(jobRepository, never()).update(step);
+    }
+
+    @Test
+    @DisplayName("abandonStaleJobExecution restituisce false se il repository fallisce")
+    void abbandonoFallisceSenzaPropagare() {
+        JobExecution esecuzione = esecuzioneConStep(BatchStatus.COMPLETED);
+        doThrow(new RuntimeException("database non raggiungibile"))
+                .when(jobRepository).update(any(JobExecution.class));
+
+        assertFalse(service.abandonStaleJobExecution(esecuzione));
+    }
+
+    @Test
+    @DisplayName("forceAbandonJobExecution marca come ABANDONED job e step in corso")
+    void terminazioneForzata() {
+        JobExecution esecuzione = esecuzioneConStep(BatchStatus.STARTED);
+
+        assertTrue(service.forceAbandonJobExecution(esecuzione, "richiesta operatore"));
+
+        assertEquals(BatchStatus.ABANDONED, esecuzione.getStatus());
+        StepExecution step = esecuzione.getStepExecutions().iterator().next();
+        assertEquals(BatchStatus.ABANDONED, step.getStatus());
+        verify(jobRepository).update(step);
+    }
+
+    @Test
+    @DisplayName("forceAbandonJobExecution restituisce false se il repository fallisce")
+    void terminazioneForzataFallisce() {
+        JobExecution esecuzione = esecuzioneConStep(BatchStatus.COMPLETED);
+        doThrow(new RuntimeException("database non raggiungibile"))
+                .when(jobRepository).update(any(JobExecution.class));
+
+        assertFalse(service.forceAbandonJobExecution(esecuzione, "motivo"));
+    }
+
+    @Test
+    @DisplayName("Una JobExecution nulla non e' abbandonabile")
+    void esecuzioneNulla() {
+        assertFalse(service.abandonStaleJobExecution(null));
+        assertFalse(service.forceAbandonJobExecution(null, "motivo"));
     }
 
     @Test
