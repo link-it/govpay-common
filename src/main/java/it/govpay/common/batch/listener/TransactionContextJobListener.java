@@ -19,7 +19,6 @@
 package it.govpay.common.batch.listener;
 
 import org.springframework.batch.core.job.JobExecution;
-import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.listener.JobExecutionListener;
 import org.springframework.core.Ordered;
 
@@ -74,12 +73,12 @@ public class TransactionContextJobListener implements JobExecutionListener, Orde
     }
 
     private static String correlationIdDaParametri(JobExecution jobExecution) {
-        // I parametri possono mancare: la tracciatura non deve mai far fallire
-        // l'esecuzione di un job per un identificativo assente.
-        JobParameters parametri = jobExecution.getJobParameters();
-        String valore = (parametri != null)
-                ? parametri.getString(JobExecutionHelper.JOB_PARAM_CORRELATION_ID)
-                : null;
+        // Una JobExecution porta sempre i propri JobParameters: il parametro di
+        // correlazione puo' mancare (job avviato senza passare dall'helper), i
+        // parametri no. In quel caso l'esecuzione riceve un identificativo
+        // generato, non un errore: la tracciatura non deve mai far fallire un job.
+        String valore = jobExecution.getJobParameters()
+                .getString(JobExecutionHelper.JOB_PARAM_CORRELATION_ID);
         return (valore != null && !valore.isBlank()) ? valore : TransactionContext.nuovoId();
     }
 

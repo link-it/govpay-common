@@ -1,3 +1,31 @@
+2026-10-12  Giuliano Pintori <pintori@link.it>
+
+	* [Fix] Condizione sempre vera in TransactionContextJobListener.
+	Il listener difendeva da JobParameters nulli, ma una JobExecution porta sempre
+	i propri parametri: il ramo era morto in produzione (SonarQube java:S2583).
+	La difesa era stata aggiunta per un test che passava un mock di JobExecution,
+	il cui getJobParameters() restituisce null di default, violando quindi il
+	contratto. Corretto il mock invece del codice di produzione: ora il test
+	costruisce parametri reali e il listener esprime il contratto effettivo.
+	Resta gestito il caso che conta davvero, cioe' il parametro di correlazione
+	assente perche' il job e' stato avviato senza passare dall'helper: in quel
+	caso l'esecuzione riceve un identificativo generato, non un errore.
+
+	* [Test] Coperte le aree scoperte di gestione livelli di log e policy GDE.
+	AbstractLogLevelController non aveva test in govpay-common: era verificato
+	solo tramite la sottoclasse di console-api. Aggiunti test sul contratto REST,
+	inclusa la resa degli errori in application/problem+json.
+	Coperti i metodi di GdeUtils finora mai esercitati: classificazione delle
+	operazioni di scrittura, valutazione delle policy di log e dump per esito e
+	per status code, risoluzione della configurazione per componente e
+	costruzione degli header tipizzati GDE.
+	Coperti i percorsi pubblici di DynamicLogLevelService rimasti fuori:
+	rimozione di un livello, rifiuto di logger e livelli non validi, e
+	configurazione priva della mappa dei logger.
+	Coverage del codice non generato dal 76,9% all'81,9%.
+
+	* [Doc] Aggiunto il tag @deprecated mancante su getJobParametersConverter.
+
 2026-09-29  Giuliano Pintori <pintori@link.it>
 
 	* [Fix] I repository di anagrafica non sono piu' registrati automaticamente.

@@ -154,8 +154,12 @@ public class BatchJobRepositoryAutoConfiguration extends DefaultBatchConfigurati
      * {@inheritDoc}
      * <p>
      * Vedi {@link #getTaskExecutor()}: aggancio ripreso da
-     * {@code BatchAutoConfiguration}. Deprecato a monte in Spring Boot 4.0,
-     * mantenuto finche' lo e' anche la classe base.
+     * {@code BatchAutoConfiguration}.
+     *
+     * @deprecated deprecato a monte in Spring Boot 4.0 insieme a
+     *             {@code JobParametersConverter}. Va rimosso quando la classe
+     *             base smettera' di esporlo: finche' lo espone, ometterlo
+     *             significherebbe perdere il converter configurato.
      */
     @Override
     @Deprecated(since = "4.0.0", forRemoval = true)
