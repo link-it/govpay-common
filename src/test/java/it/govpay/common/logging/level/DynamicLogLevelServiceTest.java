@@ -209,6 +209,71 @@ class DynamicLogLevelServiceTest {
         assertFalse(stato.get(0).isGestitoDinamicamente());
     }
 
+    @Test
+    @DisplayName("rimuoviLivello ripristina il livello iniziale e aggiorna il database")
+    void rimuoveLivelloEPersiste() {
+        when(configurazioneService.getLogLevel())
+                .thenReturn(Optional.of(config(Map.of("it.govpay.common.client", "DEBUG"))));
+
+        service.avvia();
+        assertEquals(LogLevel.DEBUG, loggingSystem.livelloDi("it.govpay.common.client"));
+
+        service.rimuoviLivello("it.govpay.common.client");
+
+        assertEquals(LogLevel.INFO, loggingSystem.livelloDi("it.govpay.common.client"));
+        assertTrue(service.livelliCorrenti().isEmpty());
+    }
+
+    @Test
+    @DisplayName("rimuoviLivello rifiuta un logger fuori ambito")
+    void rimuoveLivelloFuoriAmbito() {
+        when(configurazioneService.getLogLevel()).thenReturn(Optional.empty());
+        service.avvia();
+
+        assertThrows(IllegalArgumentException.class, () -> service.rimuoviLivello("org.hibernate"));
+    }
+
+    @Test
+    @DisplayName("Un livello vuoto o assente e' rifiutato")
+    void livelloVuotoRifiutato() {
+        when(configurazioneService.getLogLevel()).thenReturn(Optional.empty());
+        service.avvia();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.setLivello("it.govpay.common.client", null));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.setLivello("it.govpay.common.client", "   "));
+    }
+
+    @Test
+    @DisplayName("Un nome di logger vuoto non e' gestibile")
+    void loggerVuotoNonGestibile() {
+        when(configurazioneService.getLogLevel()).thenReturn(Optional.empty());
+        service.avvia();
+
+        assertThrows(IllegalArgumentException.class, () -> service.setLivello("", "DEBUG"));
+        assertThrows(IllegalArgumentException.class, () -> service.setLivello(null, "DEBUG"));
+    }
+
+    @Test
+    @DisplayName("loggerGestiti espone i prefissi configurati")
+    void prefissiGestiti() {
+        assertEquals(List.of("it.govpay"), service.loggerGestiti());
+    }
+
+    @Test
+    @DisplayName("Una configurazione senza mappa loggers e' trattata come vuota")
+    void configurazioneSenzaMappa() {
+        LogLevelConfig vuota = new LogLevelConfig();
+        vuota.setLoggers(null);
+        when(configurazioneService.getLogLevel()).thenReturn(Optional.of(vuota));
+
+        service.avvia();
+        service.setLivello("it.govpay.common.client", "WARN");
+
+        assertEquals(LogLevel.WARN, loggingSystem.livelloDi("it.govpay.common.client"));
+    }
+
     private LogLevelConfig catturaConfigurazioneSalvata() {
         ArgumentCaptor<LogLevelConfig> captor = ArgumentCaptor.forClass(LogLevelConfig.class);
         verify(configurazioneService).salvaLogLevel(captor.capture());

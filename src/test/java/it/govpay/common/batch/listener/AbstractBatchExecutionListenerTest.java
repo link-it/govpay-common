@@ -34,6 +34,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.job.JobExecution;
+import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.infrastructure.item.ExecutionContext;
 
@@ -66,6 +67,10 @@ class AbstractBatchExecutionListenerTest {
     void beforeJob() {
         JobExecution jobExecution = mock(JobExecution.class);
         when(jobExecution.getId()).thenReturn(1L);
+        // Una JobExecution reale porta sempre i propri JobParameters: senza questo
+        // stub il mock violerebbe il contratto e il listener di tracciatura, che li
+        // legge per il correlation id, riceverebbe null.
+        when(jobExecution.getJobParameters()).thenReturn(new JobParameters());
 
         assertDoesNotThrow(() -> listener.beforeJob(jobExecution));
     }
