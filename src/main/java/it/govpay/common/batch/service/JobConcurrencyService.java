@@ -308,6 +308,15 @@ public class JobConcurrencyService {
     }
 
     /**
+     * Restituisce la soglia in minuti oltre la quale un'esecuzione e' considerata stale.
+     *
+     * @return la soglia in minuti
+     */
+    public int getStaleThresholdMinutes() {
+        return staleThresholdMinutes;
+    }
+
+    /**
      * Restituisce il JobRepository utilizzato.
      *
      * @return il JobRepository

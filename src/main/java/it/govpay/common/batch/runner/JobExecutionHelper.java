@@ -32,6 +32,8 @@ import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.launch.JobInstanceAlreadyCompleteException;
 import org.springframework.batch.core.launch.JobRestartException;
 
+import it.govpay.common.batch.EsitoTick;
+import it.govpay.common.batch.JobTickObserver;
 import it.govpay.common.batch.TriggerType;
 import it.govpay.common.batch.service.JobConcurrencyService;
 import it.govpay.common.logging.TransactionContext;
@@ -81,6 +83,7 @@ public class JobExecutionHelper {
     private final JobConcurrencyService jobConcurrencyService;
     private final String clusterId;
     private final ZoneId zoneId;
+    private volatile JobTickObserver tickObserver = JobTickObserver.NESSUNO;
 
     /**
      * Costruisce un nuovo helper per l'esecuzione di job.
@@ -133,11 +136,31 @@ public class JobExecutionHelper {
      *   <li>Se il job è stale, tentare di abbandonarlo</li>
      *   <li>Restituire il risultato appropriato per la decisione di esecuzione</li>
      * </ol>
+     * <p>
+     * Il controllo e' attribuito a un tick dello scheduler ({@link TriggerType#SCHEDULED}).
      *
      * @param jobName Nome del job da verificare
      * @return PreExecutionResult con il risultato del controllo
      */
     public PreExecutionResult checkBeforeExecution(String jobName) {
+        return checkBeforeExecution(jobName, TriggerType.SCHEDULED);
+    }
+
+    /**
+     * Come {@link #checkBeforeExecution(String)}, attribuendo il controllo alla
+     * provenienza indicata. L'esito e' notificato al {@link JobTickObserver}.
+     *
+     * @param jobName Nome del job da verificare
+     * @param triggerType Provenienza del tentativo di avvio
+     * @return PreExecutionResult con il risultato del controllo
+     */
+    public PreExecutionResult checkBeforeExecution(String jobName, TriggerType triggerType) {
+        PreExecutionResult result = valutaPreEsecuzione(jobName);
+        registraTick(jobName, triggerType, toEsitoTick(result.result()));
+        return result;
+    }
+
+    private PreExecutionResult valutaPreEsecuzione(String jobName) {
         JobExecution currentExecution = jobConcurrencyService.getCurrentRunningJobExecution(jobName);
 
         if (currentExecution == null) {
@@ -289,6 +312,44 @@ public class JobExecutionHelper {
         }
 
         return null;
+    }
+
+    /**
+     * Imposta l'osservatore dei tentativi di avvio (tick). Con {@code null}
+     * torna all'osservatore che non fa nulla.
+     *
+     * @param tickObserver l'osservatore da notificare
+     */
+    public void setTickObserver(JobTickObserver tickObserver) {
+        this.tickObserver = (tickObserver != null) ? tickObserver : JobTickObserver.NESSUNO;
+    }
+
+    /**
+     * Notifica un tentativo di avvio all'osservatore dei tick.
+     * <p>
+     * Un errore dell'osservatore e' registrato a log e non propagato: le
+     * metriche non devono mai impedire l'avvio di un job.
+     *
+     * @param jobName Nome del job
+     * @param triggerType Provenienza del tentativo
+     * @param esito Esito del controllo pre-esecuzione
+     */
+    public void registraTick(String jobName, TriggerType triggerType, EsitoTick esito) {
+        try {
+            tickObserver.onTick(jobName, triggerType, esito);
+        } catch (RuntimeException e) {
+            log.warn("Errore nella notifica del tick {} del job {}: {}", esito, jobName, e.getMessage(), e);
+        }
+    }
+
+    private static EsitoTick toEsitoTick(PreExecutionCheckResult result) {
+        return switch (result) {
+            case CAN_PROCEED -> EsitoTick.CAN_PROCEED;
+            case STALE_ABANDONED_CAN_PROCEED -> EsitoTick.STALE_ABANDONED_CAN_PROCEED;
+            case STALE_ABANDON_FAILED -> EsitoTick.STALE_ABANDON_FAILED;
+            case RUNNING_ON_OTHER_NODE -> EsitoTick.RUNNING_ON_OTHER_NODE;
+            case RUNNING_ON_THIS_NODE -> EsitoTick.RUNNING_ON_THIS_NODE;
+        };
     }
 
     /**

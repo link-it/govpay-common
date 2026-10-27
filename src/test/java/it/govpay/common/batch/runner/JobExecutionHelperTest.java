@@ -27,6 +27,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.batch.core.job.Job;
@@ -35,6 +37,9 @@ import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.launch.JobOperator;
 
+import it.govpay.common.batch.EsitoTick;
+import it.govpay.common.batch.JobTickObserver;
+import it.govpay.common.batch.TriggerType;
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionCheckResult;
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionResult;
 import it.govpay.common.batch.service.JobConcurrencyService;
@@ -218,5 +223,89 @@ class JobExecutionHelperTest {
     @DisplayName("getJobConcurrencyService - restituisce il service")
     void getJobConcurrencyService() {
         assertSame(jobConcurrencyService, helper.getJobConcurrencyService());
+    }
+    @Test
+    @DisplayName("checkBeforeExecution - senza trigger notifica un tick SCHEDULED")
+    void checkBeforeExecution_notificaTickSchedulato() {
+        JobTickObserver observer = mock(JobTickObserver.class);
+        helper.setTickObserver(observer);
+        when(jobConcurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(null);
+
+        helper.checkBeforeExecution(JOB_NAME);
+
+        verify(observer).onTick(JOB_NAME, TriggerType.SCHEDULED, EsitoTick.CAN_PROCEED);
+    }
+
+    @ParameterizedTest
+    @EnumSource(PreExecutionCheckResult.class)
+    @DisplayName("checkBeforeExecution - ogni esito diventa il tick omonimo, col trigger indicato")
+    void checkBeforeExecution_notificaTickPerOgniEsito(PreExecutionCheckResult atteso) {
+        JobTickObserver observer = mock(JobTickObserver.class);
+        helper.setTickObserver(observer);
+        preparaEsito(atteso);
+
+        PreExecutionResult result = helper.checkBeforeExecution(JOB_NAME, TriggerType.MANUAL);
+
+        assertEquals(atteso, result.result());
+        verify(observer).onTick(JOB_NAME, TriggerType.MANUAL, EsitoTick.valueOf(atteso.name()));
+        verifyNoMoreInteractions(observer);
+    }
+
+    private void preparaEsito(PreExecutionCheckResult esito) {
+        if (esito == PreExecutionCheckResult.CAN_PROCEED) {
+            when(jobConcurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(null);
+            return;
+        }
+        JobExecution running = mock(JobExecution.class);
+        when(jobConcurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(running);
+        boolean stale = esito == PreExecutionCheckResult.STALE_ABANDONED_CAN_PROCEED
+                || esito == PreExecutionCheckResult.STALE_ABANDON_FAILED;
+        when(jobConcurrencyService.isJobExecutionStale(running)).thenReturn(stale);
+        if (stale) {
+            when(jobConcurrencyService.abandonStaleJobExecution(running))
+                    .thenReturn(esito == PreExecutionCheckResult.STALE_ABANDONED_CAN_PROCEED);
+        } else {
+            when(jobConcurrencyService.getClusterIdFromExecution(running))
+                    .thenReturn(esito == PreExecutionCheckResult.RUNNING_ON_OTHER_NODE ? "other-cluster" : CLUSTER_ID);
+        }
+    }
+
+    @Test
+    @DisplayName("checkBeforeExecution - un osservatore che fallisce non blocca il controllo")
+    void checkBeforeExecution_osservatoreInErrore() {
+        helper.setTickObserver((jobName, trigger, esito) -> { throw new IllegalStateException("registry non disponibile"); });
+        when(jobConcurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(null);
+
+        PreExecutionResult result = assertDoesNotThrow(() -> helper.checkBeforeExecution(JOB_NAME));
+
+        assertTrue(result.canProceed());
+    }
+
+    @Test
+    @DisplayName("setTickObserver(null) - torna all'osservatore che non fa nulla")
+    void setTickObserver_nullRipristinaNessuno() {
+        JobTickObserver observer = mock(JobTickObserver.class);
+        helper.setTickObserver(observer);
+        helper.setTickObserver(null);
+
+        assertDoesNotThrow(() -> helper.registraTick(JOB_NAME, TriggerType.MANUAL, EsitoTick.FORZATO));
+
+        verifyNoInteractions(observer);
+    }
+
+    @Test
+    @DisplayName("executeIfPossible - notifica un solo tick")
+    void executeIfPossible_unSoloTick() throws Exception {
+        JobTickObserver observer = mock(JobTickObserver.class);
+        helper.setTickObserver(observer);
+        JobExecution running = mock(JobExecution.class);
+        when(jobConcurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(running);
+        when(jobConcurrencyService.isJobExecutionStale(running)).thenReturn(false);
+        when(jobConcurrencyService.getClusterIdFromExecution(running)).thenReturn("other-cluster");
+
+        assertNull(helper.executeIfPossible(job, JOB_NAME));
+
+        verify(observer, times(1)).onTick(JOB_NAME, TriggerType.SCHEDULED, EsitoTick.RUNNING_ON_OTHER_NODE);
+        verifyNoMoreInteractions(observer);
     }
 }

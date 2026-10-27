@@ -50,6 +50,8 @@ import org.springframework.http.ResponseEntity;
 
 import jakarta.persistence.EntityManager;
 
+import it.govpay.common.batch.EsitoTick;
+import it.govpay.common.batch.TriggerType;
 import it.govpay.common.batch.dto.BatchInfo;
 import it.govpay.common.batch.dto.BatchStatusInfo;
 import it.govpay.common.batch.dto.LastExecutionInfo;
@@ -155,6 +157,10 @@ class AbstractBatchControllerTest {
             ResponseEntity<Object> response = controller.testEseguiJob(false);
 
             assertEquals(202, response.getStatusCode().value());
+            verify(jobExecutionHelper).registraTick(JOB_NAME, TriggerType.MANUAL, EsitoTick.CAN_PROCEED);
+            // un solo tick per richiesta: il controller non passa da checkBeforeExecution
+            verify(jobExecutionHelper, never()).checkBeforeExecution(any());
+            verify(jobExecutionHelper, never()).checkBeforeExecution(any(), any());
         }
 
         @Test
@@ -170,6 +176,7 @@ class AbstractBatchControllerTest {
 
             assertEquals(409, response.getStatusCode().value());
             assertInstanceOf(Problem.class, response.getBody());
+            verify(jobExecutionHelper).registraTick(JOB_NAME, TriggerType.MANUAL, EsitoTick.RIFIUTATO_IN_ESECUZIONE);
         }
 
         @Test
@@ -183,6 +190,7 @@ class AbstractBatchControllerTest {
             ResponseEntity<Object> response = controller.testEseguiJob(true);
 
             assertEquals(202, response.getStatusCode().value());
+            verify(jobExecutionHelper).registraTick(JOB_NAME, TriggerType.MANUAL, EsitoTick.FORZATO);
         }
 
         @Test
@@ -196,6 +204,7 @@ class AbstractBatchControllerTest {
             ResponseEntity<Object> response = controller.testEseguiJob(true);
 
             assertEquals(503, response.getStatusCode().value());
+            verify(jobExecutionHelper).registraTick(JOB_NAME, TriggerType.MANUAL, EsitoTick.FORZATURA_FALLITA);
         }
 
         @Test
@@ -210,6 +219,7 @@ class AbstractBatchControllerTest {
             ResponseEntity<Object> response = controller.testEseguiJob(false);
 
             assertEquals(202, response.getStatusCode().value());
+            verify(jobExecutionHelper).registraTick(JOB_NAME, TriggerType.MANUAL, EsitoTick.STALE_ABANDONED_CAN_PROCEED);
         }
 
         @Test
@@ -224,6 +234,7 @@ class AbstractBatchControllerTest {
             ResponseEntity<Object> response = controller.testEseguiJob(false);
 
             assertEquals(503, response.getStatusCode().value());
+            verify(jobExecutionHelper).registraTick(JOB_NAME, TriggerType.MANUAL, EsitoTick.STALE_ABANDON_FAILED);
         }
 
         @Test
@@ -236,6 +247,7 @@ class AbstractBatchControllerTest {
 
             assertEquals(500, response.getStatusCode().value());
             assertInstanceOf(Problem.class, response.getBody());
+            verify(jobExecutionHelper, never()).registraTick(any(), any(), any());
         }
     }
 
