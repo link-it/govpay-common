@@ -186,6 +186,18 @@ class BatchMetricsRecorderTest {
         }
 
         @Test
+        @DisplayName("Fine senza inizio, con la sola data di inizio: nessuna durata")
+        void fineSenzaInizioSoloDataInizio() {
+            JobExecution exec = esecuzione(1L, "SCHEDULED");
+            exec.setStartTime(LocalDateTime.of(2026, 10, 28, 9, 0));
+            exec.setStatus(BatchStatus.FAILED);
+
+            recorder.fineJob(exec);
+
+            assertNull(timer("SCHEDULED", "FAILED"));
+        }
+
+        @Test
         @DisplayName("Fine senza inizio e senza date: nessuna durata, ma l'esito e' registrato")
         void fineSenzaInizioNeDate() {
             JobExecution exec = esecuzione(1L, "SCHEDULED");
@@ -237,7 +249,8 @@ class BatchMetricsRecorderTest {
             when(repo.getJobInstances(JOB_NAME, 0, 20)).thenReturn(List.of(recente, vecchia));
             when(repo.getJobExecutions(recente)).thenReturn(List.of(
                     conclusa(20L, BatchStatus.FAILED, LocalDateTime.of(2026, 10, 28, 8, 0)),
-                    conclusa(21L, BatchStatus.STARTED, null)));
+                    conclusa(21L, BatchStatus.STARTED, null),
+                    conclusa(22L, BatchStatus.STOPPED, LocalDateTime.of(2026, 10, 28, 9, 0))));
             when(repo.getJobExecutions(vecchia)).thenReturn(List.of(
                     conclusa(10L, BatchStatus.COMPLETED, LocalDateTime.of(2026, 10, 28, 6, 0)),
                     conclusa(11L, BatchStatus.COMPLETED, LocalDateTime.of(2026, 10, 27, 6, 0))));
