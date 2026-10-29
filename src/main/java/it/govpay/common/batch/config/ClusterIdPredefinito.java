@@ -20,8 +20,8 @@ package it.govpay.common.batch.config;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 import org.springframework.util.StringUtils;
 
@@ -70,7 +70,7 @@ public final class ClusterIdPredefinito {
      * @param hostname Nome dell'host; puo' restituire null o lanciare eccezione
      * @return il primo valore disponibile, o {@value #FALLBACK}
      */
-    static String risolvi(Function<String, String> ambiente, Supplier<String> hostname) {
+    static String risolvi(UnaryOperator<String> ambiente, Supplier<String> hostname) {
         String daAmbiente = ambiente.apply("HOSTNAME");
         if (StringUtils.hasText(daAmbiente)) {
             return daAmbiente.trim();
