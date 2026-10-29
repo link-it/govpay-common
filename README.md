@@ -273,6 +273,28 @@ public JobExecutionHelper jobExecutionHelper(JobLauncher l, JobConcurrencyServic
 }
 ```
 
+#### Cluster-id: identificativo del nodo
+
+Il `cluster-id` identifica in modo univoco il **nodo** che esegue il batch. Nelle installazioni
+multinodo deve essere diverso su ogni nodo: con lo stesso valore, un job in esecuzione su un
+altro nodo viene classificato `RUNNING_ON_THIS_NODE` e log, endpoint e metriche non indicano
+il nodo reale (issue #36). La mutua esclusione non ne risente.
+
+Configurazione consigliata nei progetti, valida anche in container senza impostare nulla:
+
+```properties
+govpay.batch.cluster-id=${GOVPAY_BATCH_CLUSTER_ID:${HOSTNAME:GovPay-Xxx-Batch}}
+```
+
+Il default di `BatchJobProperties` segue la stessa logica (`ClusterIdPredefinito`): la variabile
+`HOSTNAME` (in Kubernetes e' il nome del pod), poi il nome dell'host, e solo in ultima istanza
+`GovPay-Batch`. Sulle VM `HOSTNAME` di solito non e' esportata alla JVM: va impostata
+`GOVPAY_BATCH_CLUSTER_ID`.
+
+Con lo scheduler interno, se il job risulta in esecuzione con il cluster-id del nodo ma non e'
+stato avviato da questo processo, un warning segnala un probabile cluster-id duplicato (oppure
+un'esecuzione rimasta attiva dopo un riavvio, che diventera' stale).
+
 #### Rilevamento Job Stale
 
 I job sono considerati stale se in stato UNKNOWN/ABANDONED o senza aggiornamenti per oltre `stale-threshold-minutes` (default: 120).
@@ -364,8 +386,11 @@ Valori dei tag:
   `RUNNING_ON_OTHER_NODE`, `RUNNING_ON_THIS_NODE`, e per l'avvio manuale
   `RIFIUTATO_IN_ESECUZIONE`, `FORZATO`, `FORZATURA_FALLITA`.
 - `tipo`: `fixedDelay`, `fixedRate`, `cron` (per `cron`, distanza tra le due prossime esecuzioni).
-- `nodo`: tag comune con il `clusterId` di `BatchJobProperties`, su **tutte** le metriche
-  dell'applicazione, comprese quelle HTTP.
+- `nodo`: tag comune con il cluster-id del nodo, su **tutte** le metriche dell'applicazione,
+  comprese quelle HTTP. Il valore viene da `govpay.metrics.batch.nodo`, altrimenti da
+  `govpay.batch.cluster-id`, altrimenti da `BatchJobProperties`, altrimenti dal cluster-id
+  predefinito del nodo. Se non coincide con il cluster-id del `JobExecutionHelper` un warning
+  lo segnala all'avvio.
 
 Il nome del job e' nel tag `job_name` e non `job`: Prometheus aggiunge a ogni target
 l'etichetta `job` (nome dello scrape job) e con `honor_labels: false` rinominerebbe la
@@ -377,12 +402,13 @@ govpay:
     batch:
       enabled: true          # attive di default
       tag-nodo: true         # false per non aggiungere il tag nodo
+      nodo:                  # solo se il cluster-id non e' in govpay.batch.cluster-id
       duration-buckets: [1s, 5s, 30s, 1m, 5m, 15m, 30m, 1h, 2h, 4h]
       istanze-ultimi-esiti: 20
 ```
 
-Perche' il tag `nodo` distingua i nodi, `clusterId` va impostato diverso su ogni nodo:
-con il default `GovPay-Batch` un warning lo segnala all'avvio.
+Perche' il tag `nodo` distingua i nodi, il cluster-id va impostato diverso su ogni nodo
+(vedi "Cluster-id: identificativo del nodo"): con `GovPay-Batch` un warning lo segnala all'avvio.
 
 Nel profilo `cron` il processo termina a fine job, prima di uno scrape: per quei batch
 le metriche Prometheus non sono affidabili e fanno fede le tabelle Spring Batch.

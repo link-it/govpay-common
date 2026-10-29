@@ -32,6 +32,7 @@ import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
 
 import it.govpay.common.batch.TriggerType;
+import it.govpay.common.batch.CatturaLog;
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionCheckResult;
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionResult;
 
@@ -131,16 +132,51 @@ class AbstractScheduledJobRunnerTest {
     }
 
     @Test
-    @DisplayName("RUNNING_ON_THIS_NODE - ritorna null")
+    @DisplayName("RUNNING_ON_THIS_NODE avviato da questo processo - ritorna null")
     void runningOnThisNode() throws Exception {
         JobExecution runningExec = mock(JobExecution.class);
         when(jobExecutionHelper.checkBeforeExecution(JOB_NAME))
                 .thenReturn(new PreExecutionResult(PreExecutionCheckResult.RUNNING_ON_THIS_NODE, runningExec, "my-cluster"));
+        when(jobExecutionHelper.isEseguitaLocalmente(JOB_NAME, runningExec)).thenReturn(true);
 
-        JobExecution result = runner.executeScheduledJob();
+        try (CatturaLog log = CatturaLog.di(AbstractScheduledJobRunner.class)) {
+            JobExecution result = runner.executeScheduledJob();
 
-        assertNull(result);
-        assertFalse(onJobCompletedCalled);
+            assertNull(result);
+            assertFalse(onJobCompletedCalled);
+            assertTrue(log.contiene("ancora in esecuzione sul nodo corrente"));
+            assertFalse(log.contiene("Probabile cluster-id duplicato"));
+        }
+    }
+
+    @Test
+    @DisplayName("RUNNING_ON_THIS_NODE non avviato da questo processo - segnala un probabile cluster-id duplicato")
+    void runningOnThisNodeNonLocale() throws Exception {
+        JobExecution runningExec = mock(JobExecution.class);
+        when(runningExec.getId()).thenReturn(77L);
+        when(jobExecutionHelper.checkBeforeExecution(JOB_NAME))
+                .thenReturn(new PreExecutionResult(PreExecutionCheckResult.RUNNING_ON_THIS_NODE, runningExec, "my-cluster"));
+        when(jobExecutionHelper.isEseguitaLocalmente(JOB_NAME, runningExec)).thenReturn(false);
+
+        try (CatturaLog log = CatturaLog.di(AbstractScheduledJobRunner.class)) {
+            assertNull(runner.executeScheduledJob());
+
+            assertTrue(log.contiene("Probabile cluster-id duplicato"));
+            assertTrue(log.contiene("JobExecution 77"));
+        }
+    }
+
+    @Test
+    @DisplayName("RUNNING_ON_THIS_NODE senza esecuzione - nessun errore")
+    void runningOnThisNodeSenzaEsecuzione() throws Exception {
+        when(jobExecutionHelper.checkBeforeExecution(JOB_NAME))
+                .thenReturn(new PreExecutionResult(PreExecutionCheckResult.RUNNING_ON_THIS_NODE, null, "my-cluster"));
+
+        try (CatturaLog log = CatturaLog.di(AbstractScheduledJobRunner.class)) {
+            assertNull(runner.executeScheduledJob());
+
+            assertTrue(log.contiene("JobExecution null"));
+        }
     }
 
     @Test

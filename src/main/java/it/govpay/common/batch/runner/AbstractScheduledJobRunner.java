@@ -123,8 +123,7 @@ public abstract class AbstractScheduledJobRunner {
             }
 
             case RUNNING_ON_THIS_NODE -> {
-                log.warn("Il job {} è ancora in esecuzione sul nodo corrente ({}). Uscita.",
-                    jobName, checkResult.runningClusterId());
+                segnalaEsecuzioneSulNodoCorrente(checkResult);
                 return null;
             }
 
@@ -132,6 +131,26 @@ public abstract class AbstractScheduledJobRunner {
                 return null;
             }
         }
+    }
+
+    /**
+     * Con lo scheduler interno un tick parte solo a esecuzione finita, quindi
+     * un'esecuzione con il {@code cluster-id} di questo nodo che non e' stata
+     * avviata da questo processo indica quasi sempre un {@code cluster-id}
+     * duplicato su un altro nodo (#36).
+     */
+    private void segnalaEsecuzioneSulNodoCorrente(PreExecutionResult checkResult) {
+        if (jobExecutionHelper.isEseguitaLocalmente(jobName, checkResult.currentExecution())) {
+            log.warn("Il job {} è ancora in esecuzione sul nodo corrente ({}). Uscita.",
+                jobName, checkResult.runningClusterId());
+            return;
+        }
+        log.warn("Il job {} risulta in esecuzione con il cluster-id di questo nodo ({}) ma non e' stato avviato "
+                + "da questo processo (JobExecution {}). Probabile cluster-id duplicato su un altro nodo: nelle "
+                + "installazioni multinodo deve essere diverso su ogni nodo. In alternativa e' un'esecuzione "
+                + "rimasta attiva dopo un riavvio, che sara' abbandonata quando diventa stale. Uscita.",
+            jobName, checkResult.runningClusterId(),
+            checkResult.currentExecution() != null ? checkResult.currentExecution().getId() : null);
     }
 
     /**

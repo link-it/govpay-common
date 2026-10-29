@@ -25,13 +25,16 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.core.job.Job;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.context.ApplicationContext;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import it.govpay.common.batch.CatturaLog;
 import it.govpay.common.batch.config.BatchJobProperties;
+import it.govpay.common.batch.config.ClusterIdPredefinito;
 
 class BatchMetricsAutoConfigurationTest {
 
@@ -88,44 +91,71 @@ class BatchMetricsAutoConfigurationTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(BatchMetricsRecorder.class);
                     assertThat(context).doesNotHaveBean("batchMetricsTagNodo");
+                    assertThat(context).doesNotHaveBean(BatchMetricsNodo.class);
+                });
+    }
+
+    private static String tagNodoDelContesto(ApplicationContext context) {
+        return tagNodo(context.getBean("batchMetricsTagNodo", MeterFilter.class));
+    }
+
+    @Test
+    void tagNodoDallaPropertyDelClusterIdDeiProgetti() {
+        // Come nei batch: cluster-id in govpay.batch.cluster-id, letto con @Value, senza BatchJobProperties
+        runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+                .withPropertyValues("govpay.batch.cluster-id=rt-nodo-1")
+                .run(context -> {
+                    assertThat(tagNodoDelContesto(context)).isEqualTo("rt-nodo-1");
+                    assertThat(context.getBean(BatchMetricsNodo.class).fonte()).isEqualTo("govpay.batch.cluster-id");
                 });
     }
 
     @Test
-    void tagNodoDalClusterId() {
+    void tagNodoEsplicitoPrevale() {
+        // Per i progetti che usano un'altra property per il cluster-id (es. ACA)
+        runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+                .withPropertyValues("govpay.metrics.batch.nodo=aca-nodo-2", "govpay.batch.cluster-id=altro")
+                .withBean(BatchJobProperties.class, () -> clusterId("nodo-bjp"))
+                .run(context -> assertThat(tagNodoDelContesto(context)).isEqualTo("aca-nodo-2"));
+    }
+
+    @Test
+    void tagNodoDaBatchJobPropertiesSeNonCeLaProperty() {
         runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
                 .withBean(BatchJobProperties.class, () -> clusterId("nodo-2"))
-                .run(context -> assertThat(tagNodo(context.getBean("batchMetricsTagNodo", MeterFilter.class)))
-                        .isEqualTo("nodo-2"));
+                .run(context -> assertThat(tagNodoDelContesto(context)).isEqualTo("nodo-2"));
     }
 
     @Test
-    void tagNodoAncheColClusterIdDiDefault() {
-        // Applicato comunque, con un warning a log: non distingue i nodi ma non e' un errore
+    void tagNodoDallHostSenzaAltreSorgenti() {
         runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
-                .withBean(BatchJobProperties.class, BatchJobProperties::new)
-                .run(context -> assertThat(tagNodo(context.getBean("batchMetricsTagNodo", MeterFilter.class)))
-                        .isEqualTo("GovPay-Batch"));
-    }
-
-    @Test
-    void nessunTagNodoSenzaClusterId() {
+                .run(context -> assertThat(tagNodoDelContesto(context)).isEqualTo(ClusterIdPredefinito.valore()));
         runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
                 .withBean(BatchJobProperties.class, () -> clusterId(" "))
-                .run(context -> assertThat(tagNodo(context.getBean("batchMetricsTagNodo", MeterFilter.class))).isNull());
-        runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
-                .run(context -> assertThat(tagNodo(context.getBean("batchMetricsTagNodo", MeterFilter.class))).isNull());
+                .run(context -> assertThat(tagNodoDelContesto(context)).isEqualTo(ClusterIdPredefinito.valore()));
     }
 
     @Test
-    void nessunTagNodoNeErroreConPiuBatchJobProperties() {
+    void tagNodoDallHostConPiuBatchJobProperties() {
+        // Con piu' bean non se ne sceglie uno a caso, e l'avvio non fallisce
         runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
                 .withBean("propertiesJobA", BatchJobProperties.class, () -> clusterId("nodo-a"))
                 .withBean("propertiesJobB", BatchJobProperties.class, () -> clusterId("nodo-b"))
                 .run(context -> {
                     assertThat(context).hasNotFailed();
-                    assertThat(tagNodo(context.getBean("batchMetricsTagNodo", MeterFilter.class))).isNull();
+                    assertThat(tagNodoDelContesto(context)).isEqualTo(ClusterIdPredefinito.valore());
                 });
+    }
+
+    @Test
+    void tagNodoUgualeSuTuttiINodiSegnalato() {
+        try (CatturaLog log = CatturaLog.di(BatchMetricsAutoConfiguration.class)) {
+            runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+                    .withPropertyValues("govpay.batch.cluster-id=" + ClusterIdPredefinito.FALLBACK)
+                    .run(context -> assertThat(tagNodoDelContesto(context)).isEqualTo(ClusterIdPredefinito.FALLBACK));
+
+            assertThat(log.contiene("uguale su tutti i nodi")).isTrue();
+        }
     }
 
     @Test

@@ -80,7 +80,7 @@ class BatchMetricsIntegrationTest {
                         BatchMetricsAutoConfiguration.class))
                 .withBean(DataSource.class, () -> database)
                 .withUserConfiguration(ContestoBatch.class)
-                .withPropertyValues("scheduler.metriche.fixedDelay=PT30M");
+                .withPropertyValues("scheduler.metriche.fixedDelay=PT30M", "govpay.batch.cluster-id=" + NODO);
     }
 
     @BeforeEach

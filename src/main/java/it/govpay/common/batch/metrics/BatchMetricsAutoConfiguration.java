@@ -29,12 +29,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.util.StringUtils;
+import org.springframework.core.env.Environment;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.config.MeterFilter;
 import it.govpay.common.batch.config.BatchJobProperties;
+import it.govpay.common.batch.config.ClusterIdPredefinito;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -50,8 +51,8 @@ import lombok.extern.slf4j.Slf4j;
  *   <li>{@link BatchMetricsInizializzatore} pubblica a contesto pronto gli
  *       intervalli di schedulazione e gli ultimi esiti;</li>
  *   <li>un {@link MeterFilter} aggiunge a tutte le metriche il tag comune
- *       {@value #TAG_NODO} (= {@code clusterId}), disattivabile con
- *       {@code govpay.metrics.batch.tag-nodo=false}.</li>
+ *       {@value #TAG_NODO} con il cluster-id del nodo ({@link BatchMetricsNodo}),
+ *       disattivabile con {@code govpay.metrics.batch.tag-nodo=false}.</li>
  * </ul>
  */
 @Slf4j
@@ -65,9 +66,6 @@ public class BatchMetricsAutoConfiguration {
     /** Tag comune con l'identificativo del nodo */
     public static final String TAG_NODO = "nodo";
 
-    /** Default di {@link BatchJobProperties#getClusterId()}: uguale su tutti i nodi */
-    private static final String CLUSTER_ID_DEFAULT = new BatchJobProperties().getClusterId();
-
     @Bean
     @ConditionalOnMissingBean
     public BatchMetricsRecorder batchMetricsRecorder(MeterRegistry meterRegistry, BatchMetricsProperties properties) {
@@ -76,8 +74,8 @@ public class BatchMetricsAutoConfiguration {
 
     @Bean
     public static BatchMetricsBeanPostProcessor batchMetricsBeanPostProcessor(
-            ObjectProvider<BatchMetricsRecorder> recorder) {
-        return new BatchMetricsBeanPostProcessor(recorder);
+            ObjectProvider<BatchMetricsRecorder> recorder, ObjectProvider<BatchMetricsNodo> nodo) {
+        return new BatchMetricsBeanPostProcessor(recorder, nodo);
     }
 
     @Bean
@@ -89,23 +87,28 @@ public class BatchMetricsAutoConfiguration {
     }
 
     /**
-     * Tag comune {@value #TAG_NODO}, applicato da Spring Boot a tutti i registry.
-     * Senza un unico {@link BatchJobProperties} nel contesto non aggiunge nulla:
-     * con piu' bean non si sceglie a caso, e l'avvio non deve fallire per le metriche.
+     * Identificativo del nodo per il tag {@value #TAG_NODO}: vedi
+     * {@link BatchMetricsNodo#risolvi}. Con piu' bean {@link BatchJobProperties}
+     * non se ne sceglie uno a caso, e l'avvio non fallisce per le metriche.
      */
     @Bean
     @ConditionalOnProperty(name = "govpay.metrics.batch.tag-nodo", havingValue = "true", matchIfMissing = true)
-    public MeterFilter batchMetricsTagNodo(ObjectProvider<BatchJobProperties> batchJobProperties) {
-        BatchJobProperties properties = batchJobProperties.getIfUnique();
-        String clusterId = (properties != null) ? properties.getClusterId() : null;
+    public BatchMetricsNodo batchMetricsNodo(Environment environment, BatchMetricsProperties properties,
+            ObjectProvider<BatchJobProperties> batchJobProperties) {
+        BatchMetricsNodo nodo = BatchMetricsNodo.risolvi(environment, properties, batchJobProperties.getIfUnique());
+        if (ClusterIdPredefinito.FALLBACK.equals(nodo.valore())) {
+            log.warn("Il tag {} vale '{}' ({}), uguale su tutti i nodi: nelle installazioni multinodo il "
+                    + "cluster-id deve essere diverso su ogni nodo", TAG_NODO, nodo.valore(), nodo.fonte());
+        } else {
+            log.info("Tag {} delle metriche: '{}' ({})", TAG_NODO, nodo.valore(), nodo.fonte());
+        }
+        return nodo;
+    }
 
-        if (!StringUtils.hasText(clusterId)) {
-            log.warn("Nessun clusterId univoco configurato: le metriche non avranno il tag {}", TAG_NODO);
-            return new MeterFilter() { };
-        }
-        if (CLUSTER_ID_DEFAULT.equals(clusterId)) {
-            log.warn("clusterId e' il default '{}': il tag {} non distingue i nodi del cluster", clusterId, TAG_NODO);
-        }
-        return MeterFilter.commonTags(Tags.of(TAG_NODO, clusterId));
+    /** Tag comune {@value #TAG_NODO}, applicato da Spring Boot a tutti i registry. */
+    @Bean
+    @ConditionalOnProperty(name = "govpay.metrics.batch.tag-nodo", havingValue = "true", matchIfMissing = true)
+    public MeterFilter batchMetricsTagNodo(BatchMetricsNodo nodo) {
+        return MeterFilter.commonTags(Tags.of(TAG_NODO, nodo.valore()));
     }
 }

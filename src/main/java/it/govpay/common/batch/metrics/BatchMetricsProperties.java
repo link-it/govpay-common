@@ -56,6 +56,13 @@ public class BatchMetricsProperties {
      */
     private boolean tagNodo = true;
 
+    /**
+     * Valore del tag {@code nodo}. Va impostato solo se il progetto configura il
+     * cluster-id con una property diversa da {@code govpay.batch.cluster-id}: in
+     * quel caso deve avere lo stesso valore del cluster-id.
+     */
+    private String nodo;
+
     /** Bucket dell'istogramma della durata delle esecuzioni. */
     private List<Duration> durationBuckets = new ArrayList<>(List.of(
             Duration.ofSeconds(1), Duration.ofSeconds(5), Duration.ofSeconds(30),

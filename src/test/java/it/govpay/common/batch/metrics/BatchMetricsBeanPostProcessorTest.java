@@ -37,6 +37,7 @@ import org.springframework.batch.core.listener.JobExecutionListener;
 import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.beans.factory.ObjectProvider;
 
+import it.govpay.common.batch.CatturaLog;
 import it.govpay.common.batch.EsitoTick;
 import it.govpay.common.batch.TriggerType;
 import it.govpay.common.batch.runner.JobExecutionHelper;
@@ -49,6 +50,9 @@ class BatchMetricsBeanPostProcessorTest {
     private ObjectProvider<BatchMetricsRecorder> provider;
 
     @Mock
+    private ObjectProvider<BatchMetricsNodo> nodo;
+
+    @Mock
     private BatchMetricsRecorder recorder;
 
     @Mock
@@ -58,7 +62,7 @@ class BatchMetricsBeanPostProcessorTest {
 
     @BeforeEach
     void setUp() {
-        postProcessor = new BatchMetricsBeanPostProcessor(provider);
+        postProcessor = new BatchMetricsBeanPostProcessor(provider, nodo);
     }
 
     @Test
@@ -122,5 +126,35 @@ class BatchMetricsBeanPostProcessorTest {
         assertSame(job, postProcessor.postProcessAfterInitialization(job, "jobNonAbstract"));
 
         verifyNoInteractions(provider);
+    }
+
+    @Test
+    @DisplayName("Segnala se il tag nodo delle metriche e' diverso dal cluster-id dell'helper")
+    void nodoDiversoDalClusterId() {
+        when(provider.getObject()).thenReturn(recorder);
+        when(nodo.getIfAvailable()).thenReturn(new BatchMetricsNodo("host-1", "identificativo dell'host"));
+        JobExecutionHelper helper = new JobExecutionHelper(jobOperator, null, "GovPay-ACA-Batch", ZoneId.of("Europe/Rome"));
+
+        try (CatturaLog log = CatturaLog.di(BatchMetricsBeanPostProcessor.class)) {
+            postProcessor.postProcessAfterInitialization(helper, "jobExecutionHelper");
+
+            assertTrue(log.contiene("diverso dal cluster-id del JobExecutionHelper"));
+        }
+    }
+
+    @Test
+    @DisplayName("Nessuna segnalazione se il tag nodo coincide col cluster-id o non e' attivo")
+    void nodoCoerenteONonAttivo() {
+        when(provider.getObject()).thenReturn(recorder);
+        JobExecutionHelper helper = new JobExecutionHelper(jobOperator, null, "nodo-1", ZoneId.of("Europe/Rome"));
+
+        try (CatturaLog log = CatturaLog.di(BatchMetricsBeanPostProcessor.class)) {
+            when(nodo.getIfAvailable()).thenReturn(new BatchMetricsNodo("nodo-1", "govpay.batch.cluster-id"));
+            postProcessor.postProcessAfterInitialization(helper, "jobExecutionHelper");
+            when(nodo.getIfAvailable()).thenReturn(null);
+            postProcessor.postProcessAfterInitialization(helper, "jobExecutionHelper");
+
+            assertFalse(log.contiene("diverso dal cluster-id"));
+        }
     }
 }

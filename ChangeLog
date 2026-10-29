@@ -1,3 +1,24 @@
+2026-10-29  Giuliano Pintori <pintori@link.it>
+
+	* [Fix] Cluster-id per nodo e tag nodo delle metriche (#36).
+	Il cluster-id identifica il nodo: nelle installazioni multinodo, che sono la
+	norma, deve essere diverso su ogni nodo. I batch lo configurano invece con
+	una costante del progetto, e un job in esecuzione su un altro nodo veniva
+	classificato RUNNING_ON_THIS_NODE, con log, endpoint e metriche che non
+	indicavano il nodo reale. La mutua esclusione non ne risentiva.
+	- il default di BatchJobProperties non e' piu' la costante GovPay-Batch ma
+	  l'identificativo dell'host (ClusterIdPredefinito: HOSTNAME, poi il nome
+	  dell'host, poi GovPay-Batch)
+	- AbstractScheduledJobRunner segnala un probabile cluster-id duplicato quando
+	  il job risulta in esecuzione con il cluster-id del nodo ma non e' stato
+	  avviato da questo processo (JobExecutionHelper.isEseguitaLocalmente)
+	- il tag nodo delle metriche (#32) non dipende piu' da un bean
+	  BatchJobProperties, che nessun batch definisce: si legge da
+	  govpay.metrics.batch.nodo, poi govpay.batch.cluster-id, poi
+	  BatchJobProperties, poi il default del nodo; un warning segnala se non
+	  coincide con il cluster-id del JobExecutionHelper
+	La configurazione nei progetti batch e' descritta nella #35.
+
 2026-10-28  Giuliano Pintori <pintori@link.it>
 
 	* [Feature] Metriche di esecuzione dei batch (#32, analisi in #31).

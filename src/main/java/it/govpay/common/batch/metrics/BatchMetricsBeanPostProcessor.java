@@ -25,6 +25,7 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 
 import it.govpay.common.batch.runner.JobExecutionHelper;
 import it.govpay.common.batch.service.JobConcurrencyService;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Aggancia le metriche ai bean batch dei progetti, senza che questi debbano
@@ -32,18 +33,23 @@ import it.govpay.common.batch.service.JobConcurrencyService;
  * <ul>
  *   <li>registra un {@link BatchMetricsJobListener} su ogni {@link AbstractJob};</li>
  *   <li>imposta {@link BatchMetricsRecorder} come osservatore dei tick di ogni
- *       {@link JobExecutionHelper}, e ne pubblica la soglia di stale.</li>
+ *       {@link JobExecutionHelper}, ne pubblica la soglia di stale e verifica che
+ *       il suo cluster-id coincida con il tag nodo delle metriche.</li>
  * </ul>
  * Il recorder e' risolto in modo lazy tramite {@link ObjectProvider}: un
  * {@code BeanPostProcessor} con dipendenze dirette le inizializzerebbe prima
  * degli altri post-processor.
  */
+@Slf4j
 public class BatchMetricsBeanPostProcessor implements BeanPostProcessor {
 
     private final ObjectProvider<BatchMetricsRecorder> recorder;
+    private final ObjectProvider<BatchMetricsNodo> nodo;
 
-    public BatchMetricsBeanPostProcessor(ObjectProvider<BatchMetricsRecorder> recorder) {
+    public BatchMetricsBeanPostProcessor(ObjectProvider<BatchMetricsRecorder> recorder,
+            ObjectProvider<BatchMetricsNodo> nodo) {
         this.recorder = recorder;
+        this.nodo = nodo;
     }
 
     @Override
@@ -65,7 +71,22 @@ public class BatchMetricsBeanPostProcessor implements BeanPostProcessor {
                 metriche.registraSogliaStale(concurrencyService.getStaleThresholdMinutes());
             }
             helper.setTickObserver(metriche);
+            verificaNodo(helper);
         }
         return bean;
+    }
+
+    /**
+     * Il tag nodo delle metriche e il cluster-id usato dall'helper per la
+     * concorrenza devono coincidere: se differiscono, le metriche di un nodo
+     * non sono riconducibili alle sue esecuzioni.
+     */
+    private void verificaNodo(JobExecutionHelper helper) {
+        BatchMetricsNodo tag = nodo.getIfAvailable();
+        if (tag != null && !tag.valore().equals(helper.getClusterId())) {
+            log.warn("Il tag nodo delle metriche ('{}', da {}) e' diverso dal cluster-id del JobExecutionHelper "
+                    + "('{}'): impostare govpay.metrics.batch.nodo con lo stesso valore del cluster-id",
+                    tag.valore(), tag.fonte(), helper.getClusterId());
+        }
     }
 }

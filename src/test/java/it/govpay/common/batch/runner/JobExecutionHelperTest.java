@@ -34,6 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.parameters.JobParameters;
+import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
 import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.launch.JobOperator;
 
@@ -307,5 +308,120 @@ class JobExecutionHelperTest {
 
         verify(observer, times(1)).onTick(JOB_NAME, TriggerType.SCHEDULED, EsitoTick.RUNNING_ON_OTHER_NODE);
         verifyNoMoreInteractions(observer);
+    }
+    @Test
+    @DisplayName("isEseguitaLocalmente - vero durante l'avvio sincrono, falso dopo")
+    void isEseguitaLocalmente_avvioSincrono() throws Exception {
+        JobExecution conclusa = mock(JobExecution.class);
+        when(conclusa.isRunning()).thenReturn(false);
+        boolean[] durante = new boolean[1];
+        when(jobOperator.start(eq(job), any(JobParameters.class))).thenAnswer(inv -> {
+            durante[0] = helper.isEseguitaLocalmente(JOB_NAME, null);
+            return conclusa;
+        });
+
+        helper.runJob(job, JOB_NAME);
+
+        assertTrue(durante[0]);
+        assertFalse(helper.isEseguitaLocalmente(JOB_NAME, conclusa));
+        assertFalse(helper.isEseguitaLocalmente("altroJob", null));
+    }
+
+    @Test
+    @DisplayName("isEseguitaLocalmente - con avvio asincrono riconosce l'esecuzione ancora in corso")
+    void isEseguitaLocalmente_avvioAsincrono() throws Exception {
+        JobExecution inCorso = mock(JobExecution.class);
+        when(inCorso.isRunning()).thenReturn(true);
+        when(inCorso.getId()).thenReturn(10L);
+        JobExecution altrove = mock(JobExecution.class);
+        when(altrove.getId()).thenReturn(11L);
+        when(jobOperator.start(eq(job), any(JobParameters.class))).thenReturn(inCorso);
+
+        helper.runJob(job, JOB_NAME);
+
+        assertTrue(helper.isEseguitaLocalmente(JOB_NAME, inCorso));
+        assertFalse(helper.isEseguitaLocalmente(JOB_NAME, altrove));
+    }
+
+    @Test
+    @DisplayName("isEseguitaLocalmente - un'esecuzione locale conclusa viene dimenticata al controllo successivo")
+    void isEseguitaLocalmente_dimenticaLeConcluse() throws Exception {
+        JobExecution inCorso = mock(JobExecution.class);
+        when(inCorso.isRunning()).thenReturn(true);
+        when(inCorso.getId()).thenReturn(10L);
+        when(jobOperator.start(eq(job), any(JobParameters.class))).thenReturn(inCorso);
+        helper.runJob(job, JOB_NAME);
+
+        // un controllo trova l'esecuzione ancora in corso: resta locale
+        JobExecution stessa = mock(JobExecution.class);
+        when(stessa.getId()).thenReturn(10L);
+        when(jobConcurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(stessa);
+        when(jobConcurrencyService.getClusterIdFromExecution(stessa)).thenReturn(CLUSTER_ID);
+        helper.checkBeforeExecution(JOB_NAME);
+        assertTrue(helper.isEseguitaLocalmente(JOB_NAME, inCorso));
+
+        // il controllo successivo non la trova piu' in corso: viene dimenticata
+        when(jobConcurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(null);
+        helper.checkBeforeExecution(JOB_NAME);
+        assertFalse(helper.isEseguitaLocalmente(JOB_NAME, inCorso));
+    }
+
+    @Test
+    @DisplayName("isEseguitaLocalmente - l'avvio fallito non lascia il job tra quelli in corso")
+    void isEseguitaLocalmente_avvioFallito() throws Exception {
+        when(jobOperator.start(eq(job), any(JobParameters.class)))
+                .thenThrow(new JobExecutionAlreadyRunningException("gia' in esecuzione"));
+
+        assertThrows(JobExecutionAlreadyRunningException.class, () -> helper.runJob(job, JOB_NAME));
+
+        assertFalse(helper.isEseguitaLocalmente(JOB_NAME, null));
+    }
+
+    @Test
+    @DisplayName("isEseguitaLocalmente - un avvio che non restituisce l'esecuzione non lascia tracce")
+    void isEseguitaLocalmente_avvioSenzaEsecuzione() throws Exception {
+        when(jobOperator.start(eq(job), any(JobParameters.class))).thenReturn(null);
+
+        assertNull(helper.runJob(job, JOB_NAME));
+
+        assertFalse(helper.isEseguitaLocalmente(JOB_NAME, null));
+    }
+
+    @Test
+    @DisplayName("isEseguitaLocalmente - il controllo di un job non dimentica le esecuzioni locali degli altri")
+    void isEseguitaLocalmente_altriJobNonToccati() throws Exception {
+        JobExecution altroJob = mock(JobExecution.class);
+        when(altroJob.isRunning()).thenReturn(true);
+        when(altroJob.getId()).thenReturn(20L);
+        JobExecution questoJob = mock(JobExecution.class);
+        when(questoJob.isRunning()).thenReturn(true);
+        when(questoJob.getId()).thenReturn(21L);
+        when(jobOperator.start(eq(job), any(JobParameters.class))).thenReturn(altroJob, questoJob);
+        helper.runJob(job, "altroJob");
+        helper.runJob(job, JOB_NAME);
+
+        when(jobConcurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(null);
+        helper.checkBeforeExecution(JOB_NAME);
+
+        assertTrue(helper.isEseguitaLocalmente("altroJob", altroJob));
+        assertFalse(helper.isEseguitaLocalmente(JOB_NAME, questoJob));
+    }
+
+    @Test
+    @DisplayName("isEseguitaLocalmente - se in corso c'e' un'altra esecuzione, quella locale e' conclusa")
+    void isEseguitaLocalmente_inCorsoUnAltraEsecuzione() throws Exception {
+        JobExecution locale = mock(JobExecution.class);
+        when(locale.isRunning()).thenReturn(true);
+        when(locale.getId()).thenReturn(10L);
+        when(jobOperator.start(eq(job), any(JobParameters.class))).thenReturn(locale);
+        helper.runJob(job, JOB_NAME);
+
+        JobExecution altra = mock(JobExecution.class);
+        when(altra.getId()).thenReturn(99L);
+        when(jobConcurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(altra);
+        when(jobConcurrencyService.getClusterIdFromExecution(altra)).thenReturn("other-cluster");
+        helper.checkBeforeExecution(JOB_NAME);
+
+        assertFalse(helper.isEseguitaLocalmente(JOB_NAME, locale));
     }
 }

@@ -20,6 +20,9 @@ package it.govpay.common.batch.runner;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.batch.core.job.Job;
@@ -85,6 +88,12 @@ public class JobExecutionHelper {
     private final String clusterId;
     private final ZoneId zoneId;
     private final AtomicReference<JobTickObserver> tickObserver = new AtomicReference<>(JobTickObserver.NESSUNO);
+
+    /** Job con un avvio in corso in questo processo: con un JobOperator sincrono copre l'intera esecuzione */
+    private final Map<String, AtomicInteger> avviiInCorso = new ConcurrentHashMap<>();
+
+    /** Esecuzioni avviate da questo processo e ancora attive al ritorno dall'avvio (JobOperator asincrono) */
+    private final Map<Long, String> esecuzioniLocali = new ConcurrentHashMap<>();
 
     /**
      * Costruisce un nuovo helper per l'esecuzione di job.
@@ -163,6 +172,7 @@ public class JobExecutionHelper {
 
     private PreExecutionResult valutaPreEsecuzione(String jobName) {
         JobExecution currentExecution = jobConcurrencyService.getCurrentRunningJobExecution(jobName);
+        dimenticaEsecuzioniConcluse(jobName, currentExecution);
 
         if (currentExecution == null) {
             return new PreExecutionResult(PreExecutionCheckResult.CAN_PROCEED, null, null);
@@ -233,8 +243,45 @@ public class JobExecutionHelper {
             JobParameters params = buildJobParameters(jobName,
                     new JobParametersBuilder().addString(JOB_PARAM_TRIGGER_TYPE, triggerType.name()));
             log.info("Avvio job {} (trigger {})", jobName, triggerType);
-            return jobOperator.start(job, params);
+            AtomicInteger avvii = avviiInCorso.computeIfAbsent(jobName, k -> new AtomicInteger());
+            avvii.incrementAndGet();
+            try {
+                JobExecution execution = jobOperator.start(job, params);
+                if (execution != null && execution.isRunning()) {
+                    esecuzioniLocali.put(execution.getId(), jobName);
+                }
+                return execution;
+            } finally {
+                avvii.decrementAndGet();
+            }
         }
+    }
+
+    /**
+     * Indica se l'esecuzione e' stata avviata da questo processo tramite
+     * {@link #runJob(Job, String, TriggerType)} ed e' ancora in corso.
+     * <p>
+     * Serve a distinguere un'esecuzione con il {@code cluster-id} di questo nodo
+     * avviata qui da una avviata altrove con lo stesso {@code cluster-id}: un
+     * altro nodo configurato con un {@code cluster-id} duplicato, o un processo
+     * precedente dello stesso nodo (riavvio, profilo {@code cron}).
+     *
+     * @param jobName Nome del job
+     * @param execution Esecuzione in corso del job; puo' essere null
+     * @return true se l'esecuzione e' in corso in questo processo
+     */
+    public boolean isEseguitaLocalmente(String jobName, JobExecution execution) {
+        AtomicInteger avvii = avviiInCorso.get(jobName);
+        if (avvii != null && avvii.get() > 0) {
+            return true;
+        }
+        return execution != null && esecuzioniLocali.containsKey(execution.getId());
+    }
+
+    /** Toglie le esecuzioni locali del job che non sono piu' quella in corso. */
+    private void dimenticaEsecuzioniConcluse(String jobName, JobExecution inCorso) {
+        esecuzioniLocali.entrySet().removeIf(voce -> voce.getValue().equals(jobName)
+                && (inCorso == null || !voce.getKey().equals(inCorso.getId())));
     }
 
     /**
