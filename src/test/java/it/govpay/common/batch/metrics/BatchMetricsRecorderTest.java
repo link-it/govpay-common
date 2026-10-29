@@ -186,6 +186,21 @@ class BatchMetricsRecorderTest {
         }
 
         @Test
+        @DisplayName("Fine senza inizio a cavallo del cambio dell'ora: la durata e' quella reale")
+        void fineSenzaInizioACavalloDelCambioOra() {
+            // In Europe/Rome il 25/10/2026 alle 03:00 si torna alle 02:00: dalle 01:30
+            // alle 03:30 passano 3 ore, non 2
+            JobExecution exec = esecuzione(1L, "SCHEDULED");
+            exec.setStartTime(LocalDateTime.of(2026, 10, 25, 1, 30));
+            exec.setEndTime(LocalDateTime.of(2026, 10, 25, 3, 30));
+            exec.setStatus(BatchStatus.COMPLETED);
+
+            recorder.fineJob(exec);
+
+            assertEquals(3 * 3600.0, timer("SCHEDULED", "COMPLETED").totalTime(TimeUnit.SECONDS), 0.001);
+        }
+
+        @Test
         @DisplayName("Fine senza inizio, con la sola data di inizio: nessuna durata")
         void fineSenzaInizioSoloDataInizio() {
             JobExecution exec = esecuzione(1L, "SCHEDULED");

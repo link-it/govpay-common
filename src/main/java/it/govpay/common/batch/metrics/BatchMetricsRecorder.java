@@ -290,9 +290,17 @@ public class BatchMetricsRecorder implements JobTickObserver {
         return TRIGGER_SCONOSCIUTO;
     }
 
-    private static Duration durata(JobExecution jobExecution) {
+    /**
+     * Le date di Spring Batch sono {@link LocalDateTime} nella zona di sistema: vanno
+     * riportate a istanti, altrimenti un'esecuzione a cavallo del cambio dell'ora
+     * risulterebbe piu' lunga o piu' corta di un'ora.
+     */
+    private Duration durata(JobExecution jobExecution) {
         LocalDateTime inizio = jobExecution.getStartTime();
         LocalDateTime fine = jobExecution.getEndTime();
-        return (inizio != null && fine != null) ? Duration.between(inizio, fine) : null;
+        if (inizio == null || fine == null) {
+            return null;
+        }
+        return Duration.between(inizio.atZone(clock.getZone()), fine.atZone(clock.getZone()));
     }
 }

@@ -20,6 +20,7 @@ package it.govpay.common.batch.runner;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
@@ -83,7 +84,7 @@ public class JobExecutionHelper {
     private final JobConcurrencyService jobConcurrencyService;
     private final String clusterId;
     private final ZoneId zoneId;
-    private volatile JobTickObserver tickObserver = JobTickObserver.NESSUNO;
+    private final AtomicReference<JobTickObserver> tickObserver = new AtomicReference<>(JobTickObserver.NESSUNO);
 
     /**
      * Costruisce un nuovo helper per l'esecuzione di job.
@@ -321,7 +322,7 @@ public class JobExecutionHelper {
      * @param tickObserver l'osservatore da notificare
      */
     public void setTickObserver(JobTickObserver tickObserver) {
-        this.tickObserver = (tickObserver != null) ? tickObserver : JobTickObserver.NESSUNO;
+        this.tickObserver.set((tickObserver != null) ? tickObserver : JobTickObserver.NESSUNO);
     }
 
     /**
@@ -336,7 +337,7 @@ public class JobExecutionHelper {
      */
     public void registraTick(String jobName, TriggerType triggerType, EsitoTick esito) {
         try {
-            tickObserver.onTick(jobName, triggerType, esito);
+            tickObserver.get().onTick(jobName, triggerType, esito);
         } catch (RuntimeException e) {
             log.warn("Errore nella notifica del tick {} del job {}: {}", esito, jobName, e.getMessage(), e);
         }

@@ -57,11 +57,14 @@ public class BatchMetricsBeanPostProcessor implements BeanPostProcessor {
             job.registerJobExecutionListener(new BatchMetricsJobListener(recorder.getObject()));
         } else if (target instanceof JobExecutionHelper helper) {
             BatchMetricsRecorder metriche = recorder.getObject();
-            helper.setTickObserver(metriche);
+            // La soglia si pubblica prima di passare il recorder all'helper: setTickObserver
+            // ammette null e l'analisi simbolica, esplorando quel ramo, considererebbe nullo
+            // anche il recorder in ogni accesso successivo (SonarCloud javabugs:S2259).
             JobConcurrencyService concurrencyService = helper.getJobConcurrencyService();
             if (concurrencyService != null) {
                 metriche.registraSogliaStale(concurrencyService.getStaleThresholdMinutes());
             }
+            helper.setTickObserver(metriche);
         }
         return bean;
     }
