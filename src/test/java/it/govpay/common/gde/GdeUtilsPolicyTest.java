@@ -69,7 +69,8 @@ class GdeUtilsPolicyTest {
         @ValueSource(strings = { "nodoChiediCopiaRT", "nodoChiediStatoRPT", "nodoInviaRPT",
                 "nodoInviaCarrelloRPT", "nodoInviaRichiestaStorno", "nodoInviaRispostaRevoca",
                 "paaVerificaRPT", "paaAttivaRPT", "paaInviaEsitoStorno", "paaInviaRichiestaRevoca",
-                "paaInviaRT", "paVerifyPaymentNotice", "paGetPayment", "paSendRT" })
+                "paaInviaRT", "paVerifyPaymentNotice", "paGetPayment", "paGetPaymentV2", "paSendRT",
+                "paSendRTV2" })
         @DisplayName("Tutte le operazioni pagoPA di scrittura sono riconosciute")
         void operazioniDiScrittura(String operazione) {
             assertTrue(GdeUtils.isOperazioneScrittura(operazione));

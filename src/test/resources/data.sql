@@ -142,3 +142,6 @@ VALUES ('00000000000', false, 'Ente Disabilitato', 0, false, false);
 INSERT INTO domini (cod_dominio, abilitato, ragione_sociale, aux_digit, intermediato, scarica_fr, logo, id_stazione)
 VALUES ('11111111111', true, 'Ente con Logo', 0, true, false, X'89504E47',
         (SELECT id FROM stazioni WHERE cod_stazione = '12345678901_01'));
+
+-- Connettore SEND opzionale dell'ente.
+UPDATE domini SET cod_connettore_send = 'SEND_TEST' WHERE cod_dominio = '01234567890';

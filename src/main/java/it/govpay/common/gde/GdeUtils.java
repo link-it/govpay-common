@@ -531,7 +531,9 @@ public final class GdeUtils {
                 || GdeCostanti.APIPAGOPA_TIPOEVENTO_PAAINVIART.equals(operazione)
                 || GdeCostanti.APIPAGOPA_TIPOEVENTO_PAVERIFYPAYMENTNOTICE.equals(operazione)
                 || GdeCostanti.APIPAGOPA_TIPOEVENTO_PAGETPAYMENT.equals(operazione)
-                || GdeCostanti.APIPAGOPA_TIPOEVENTO_PASENDRT.equals(operazione);
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_PAGETPAYMENTV2.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_PASENDRT.equals(operazione)
+                || GdeCostanti.APIPAGOPA_TIPOEVENTO_PASENDRTV2.equals(operazione);
     }
 
     /**

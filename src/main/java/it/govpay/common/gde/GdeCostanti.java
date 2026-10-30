@@ -33,8 +33,10 @@ public final class GdeCostanti {
     public static final String APIPAGOPA_TIPOEVENTO_PAAINVIARICHIESTAREVOCA = "paaInviaRichiestaRevoca";
     public static final String APIPAGOPA_TIPOEVENTO_PAAINVIART = "paaInviaRT";
     public static final String APIPAGOPA_TIPOEVENTO_PASENDRT = "paSendRT";
+    public static final String APIPAGOPA_TIPOEVENTO_PASENDRTV2 = "paSendRTV2";
     public static final String APIPAGOPA_TIPOEVENTO_PAVERIFYPAYMENTNOTICE = "paVerifyPaymentNotice";
     public static final String APIPAGOPA_TIPOEVENTO_PAGETPAYMENT = "paGetPayment";
+    public static final String APIPAGOPA_TIPOEVENTO_PAGETPAYMENTV2 = "paGetPaymentV2";
 
     public static final String APIPAGOPA_TIPOEVENTO_GETORGANIZATIONRECEIPTIUR = "getOrganizationReceiptIur";
     public static final String APIPAGOPA_TIPOEVENTO_GETORGANIZATIONRECEIPTIUVIUR = "getOrganizationReceiptIuvIur";

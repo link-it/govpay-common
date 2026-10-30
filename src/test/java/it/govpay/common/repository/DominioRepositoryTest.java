@@ -51,6 +51,7 @@ class DominioRepositoryTest {
         DominioEntity dominio = result.get();
         assertEquals("01234567890", dominio.getCodDominio());
         assertEquals("Comune di Test", dominio.getRagioneSociale());
+        assertEquals("SEND_TEST", dominio.getCodConnettoreSend());
         assertTrue(dominio.getAbilitato());
         assertEquals(3, dominio.getAuxDigit());
         assertEquals("TST", dominio.getIuvPrefix());
@@ -88,6 +89,7 @@ class DominioRepositoryTest {
         assertTrue(result.isPresent());
         DominioEntity dominio = result.get();
         assertEquals("Provincia di Test", dominio.getRagioneSociale());
+        assertNull(dominio.getCodConnettoreSend());
         assertFalse(dominio.getIntermediato());
         assertFalse(dominio.getScaricaFr());
         assertNull(dominio.getCbill());
