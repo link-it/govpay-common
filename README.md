@@ -10,7 +10,7 @@ Libreria Spring Boot condivisa tra tutti i moduli GovPay. Fornisce:
 
 - **Connettori HTTP**: RestTemplate configurabili da database (tabella `connettori`, struttura EAV)
 - **GDE (Giornale degli Eventi)**: Invio e gestione eventi con policy log/dump configurabili
-- **Batch**: Componenti riutilizzabili per job Spring Batch multi-nodo
+- **Batch**: Componenti riutilizzabili per job Spring Batch multi-nodo, con metriche di esecuzione su Micrometer/Prometheus
 - **Configurazione**: Accesso tipizzato alle configurazioni da database (tabella `configurazione`)
 - **Mail**: Invio email con supporto SSL/TLS
 - **Date/Time**: Serializzatori Jackson per formati pagoPA
@@ -247,13 +247,14 @@ Componenti riutilizzabili per job Spring Batch con coordinamento multi-nodo.
 
 #### Componenti
 
-- **JobConcurrencyService**: Previene esecuzioni concorrenti su piu' nodi tramite JobExplorer. Rileva job stale/bloccati.
-- **JobExecutionHelper**: Helper per eseguire job con parametri standard (JobID, When, ClusterID).
+- **JobConcurrencyService**: Previene esecuzioni concorrenti su piu' nodi tramite JobRepository. Rileva job stale/bloccati.
+- **JobExecutionHelper**: Helper per eseguire job con parametri standard (JobID, When, ClusterID). Tiene traccia delle esecuzioni avviate dal proprio processo.
 - **AbstractCronJobRunner**: Classe base per esecuzione CLI (profilo `cron`). Esegue una volta ed esce.
 - **AbstractScheduledJobRunner**: Classe base per scheduling interno (profilo `default`) con `@Scheduled`.
 - **AbstractBatchController**: Controller REST con endpoint per esecuzione manuale, stato, ultima/prossima esecuzione.
 - **AbstractBatchExecutionListener**: Logging strutturato per esecuzioni batch con statistiche aggregate per step partizionati.
 - **DTOs**: `BatchStatusInfo`, `LastExecutionInfo`, `NextExecutionInfo`, `Problem` (RFC 7807)
+- **BatchMetricsAutoConfiguration**: Metriche di esecuzione dei job, attive di default (vedi "Metriche di esecuzione").
 
 #### Configurazione
 
@@ -263,15 +264,19 @@ Componenti riutilizzabili per job Spring Batch con coordinamento multi-nodo.
 public class MyBatchProperties extends BatchJobProperties {}
 
 @Bean
-public JobConcurrencyService jobConcurrencyService(JobExplorer e, JobRepository r, MyBatchProperties p) {
-    return BatchCommonAutoConfiguration.createJobConcurrencyService(e, r, p);
+public JobConcurrencyService jobConcurrencyService(JobRepository r, MyBatchProperties p) {
+    return BatchCommonAutoConfiguration.createJobConcurrencyService(r, p);
 }
 
 @Bean
-public JobExecutionHelper jobExecutionHelper(JobLauncher l, JobConcurrencyService s, MyBatchProperties p) {
-    return BatchCommonAutoConfiguration.createJobExecutionHelper(l, s, p);
+public JobExecutionHelper jobExecutionHelper(JobOperator o, JobConcurrencyService s, MyBatchProperties p) {
+    return BatchCommonAutoConfiguration.createJobExecutionHelper(o, s, p);
 }
 ```
+
+In alternativa, senza una classe di properties, il cluster-id si passa con
+`createJobExecutionHelper(jobOperator, service, clusterId, zoneId)`, letto da
+`govpay.batch.cluster-id` (vedi sotto).
 
 #### Cluster-id: identificativo del nodo
 
@@ -297,7 +302,7 @@ un'esecuzione rimasta attiva dopo un riavvio, che diventera' stale).
 
 #### Rilevamento Job Stale
 
-I job sono considerati stale se in stato UNKNOWN/ABANDONED o senza aggiornamenti per oltre `stale-threshold-minutes` (default: 120).
+I job sono considerati stale se in stato UNKNOWN/ABANDONED o senza aggiornamenti per oltre `stale-threshold-minutes` (default: 120). La soglia e' esposta anche come metrica `govpay.batch.stale.threshold`.
 
 #### API REST Batch
 
@@ -512,6 +517,8 @@ Serializzatori/deserializzatori Jackson per formati data pagoPA.
 
 ## Build
 
+Richiede Maven 3.8.1 o successivo (controllato dall'enforcer del BOM `govpay-bom`).
+
 ```bash
 # Build completa
 mvn clean install
@@ -546,15 +553,16 @@ mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom \
 
 ## Test
 
-- **535 test automatici**
+- **821 test automatici**
 - Unit test con Mockito
 - Integration test con database H2 in-memory
 - Test GDE con verifica policy log/dump da database
+- Test delle metriche dei batch con un job reale su H2 e verifica dei nomi delle serie sullo scrape Prometheus
 
 ## Compatibilita'
 
 - Java 21+
-- Spring Boot 3.x
+- Spring Boot 4.1 (Spring Framework 7, Spring Batch 6, Micrometer 1.17)
 - Database supportati: PostgreSQL, MySQL, Oracle, SQL Server, H2
 
 ## Licenza
