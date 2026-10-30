@@ -273,6 +273,28 @@ public JobExecutionHelper jobExecutionHelper(JobLauncher l, JobConcurrencyServic
 }
 ```
 
+#### Cluster-id: identificativo del nodo
+
+Il `cluster-id` identifica in modo univoco il **nodo** che esegue il batch. Nelle installazioni
+multinodo deve essere diverso su ogni nodo: con lo stesso valore, un job in esecuzione su un
+altro nodo viene classificato `RUNNING_ON_THIS_NODE` e log, endpoint e metriche non indicano
+il nodo reale (issue #36). La mutua esclusione non ne risente.
+
+Configurazione consigliata nei progetti, valida anche in container senza impostare nulla:
+
+```properties
+govpay.batch.cluster-id=${GOVPAY_BATCH_CLUSTER_ID:${HOSTNAME:GovPay-Xxx-Batch}}
+```
+
+Il default di `BatchJobProperties` segue la stessa logica (`ClusterIdPredefinito`): la variabile
+`HOSTNAME` (in Kubernetes e' il nome del pod), poi il nome dell'host, e solo in ultima istanza
+`GovPay-Batch`. Sulle VM `HOSTNAME` di solito non e' esportata alla JVM: va impostata
+`GOVPAY_BATCH_CLUSTER_ID`.
+
+Con lo scheduler interno, se il job risulta in esecuzione con il cluster-id del nodo ma non e'
+stato avviato da questo processo, un warning segnala un probabile cluster-id duplicato (oppure
+un'esecuzione rimasta attiva dopo un riavvio, che diventera' stale).
+
 #### Rilevamento Job Stale
 
 I job sono considerati stale se in stato UNKNOWN/ABANDONED o senza aggiornamenti per oltre `stale-threshold-minutes` (default: 120).
@@ -336,6 +358,91 @@ HTTP 202 Accepted
 
 ```json
 "Cache svuotata con successo"
+```
+
+#### Metriche di esecuzione
+
+`BatchMetricsAutoConfiguration` pubblica le metriche dei job su Micrometer, quindi su
+`/actuator/prometheus`. Si attiva da sola quando l'applicazione ha un `MeterRegistry`
+(actuator) e Spring Batch, anche senza web: i progetti non devono configurare nulla.
+Il listener viene agganciato a ogni job e l'osservatore dei tentativi di avvio a ogni
+`JobExecutionHelper`.
+
+| Serie Prometheus | Tipo | Tag | Significato |
+|---|---|---|---|
+| `govpay_batch_job_active_seconds_{count,sum,max}` | long task timer | `job_name`, `trigger` | esecuzioni in corso (`_count`) e da quanto (`_max`) |
+| `govpay_batch_job_seconds_{bucket,count,sum,max}` | timer | `job_name`, `trigger`, `esito` | durata ed esito delle esecuzioni concluse |
+| `govpay_batch_job_last_success_timestamp_seconds` | gauge | `job_name` | istante dell'ultimo successo, riletto dal DB all'avvio |
+| `govpay_batch_job_last_failure_timestamp_seconds` | gauge | `job_name` | istante dell'ultimo fallimento, riletto dal DB all'avvio |
+| `govpay_batch_schedule_ticks_total` | counter | `job_name`, `trigger`, `esito_tick` | tentativi di avvio, per esito del controllo |
+| `govpay_batch_schedule_interval_seconds` | gauge | `job_name`, `tipo` | intervallo previsto, letto da `@Scheduled` |
+| `govpay_batch_stale_threshold_seconds` | gauge | | soglia di stale |
+
+Valori dei tag:
+
+- `trigger`: `SCHEDULED`, `MANUAL`; `UNKNOWN` se il job non e' avviato da `JobExecutionHelper`.
+- `esito`: il `BatchStatus` (`COMPLETED`, `FAILED`, `STOPPED`, `UNKNOWN`), non l'exit code.
+- `esito_tick`: `CAN_PROCEED`, `STALE_ABANDONED_CAN_PROCEED`, `STALE_ABANDON_FAILED`,
+  `RUNNING_ON_OTHER_NODE`, `RUNNING_ON_THIS_NODE`, e per l'avvio manuale
+  `RIFIUTATO_IN_ESECUZIONE`, `FORZATO`, `FORZATURA_FALLITA`.
+- `tipo`: `fixedDelay`, `fixedRate`, `cron` (per `cron`, distanza tra le due prossime esecuzioni).
+- `nodo`: tag comune con il cluster-id del nodo, su **tutte** le metriche dell'applicazione,
+  comprese quelle HTTP. Il valore viene da `govpay.metrics.batch.nodo`, altrimenti da
+  `govpay.batch.cluster-id`, altrimenti da `BatchJobProperties`, altrimenti dal cluster-id
+  predefinito del nodo. Se non coincide con il cluster-id del `JobExecutionHelper` un warning
+  lo segnala all'avvio.
+
+Il nome del job e' nel tag `job_name` e non `job`: Prometheus aggiunge a ogni target
+l'etichetta `job` (nome dello scrape job) e con `honor_labels: false` rinominerebbe la
+nostra in `exported_job`.
+
+```yaml
+govpay:
+  metrics:
+    batch:
+      enabled: true          # attive di default
+      tag-nodo: true         # false per non aggiungere il tag nodo
+      nodo:                  # solo se il cluster-id non e' in govpay.batch.cluster-id
+      duration-buckets: [1s, 5s, 30s, 1m, 5m, 15m, 30m, 1h, 2h, 4h]
+      istanze-ultimi-esiti: 20
+```
+
+Perche' il tag `nodo` distingua i nodi, il cluster-id va impostato diverso su ogni nodo
+(vedi "Cluster-id: identificativo del nodo"): con `GovPay-Batch` un warning lo segnala all'avvio.
+
+Nel profilo `cron` il processo termina a fine job, prima di uno scrape: per quei batch
+le metriche Prometheus non sono affidabili e fanno fede le tabelle Spring Batch.
+
+Ricette PromQL (analisi completa nella issue #31):
+
+```promql
+# Batch fermo: nessun successo da piu' di 3 intervalli
+(time() - max by (job_name) (govpay_batch_job_last_success_timestamp_seconds))
+  > 3 * max by (job_name) (govpay_batch_schedule_interval_seconds)
+
+# Ultimo esito KO
+max by (job_name) (govpay_batch_job_last_failure_timestamp_seconds)
+  > max by (job_name) (govpay_batch_job_last_success_timestamp_seconds)
+
+# Tasso di errore nelle ultime 24 h
+sum by (job_name) (increase(govpay_batch_job_seconds_count{esito="FAILED"}[24h]))
+  / sum by (job_name) (increase(govpay_batch_job_seconds_count[24h]))
+
+# p95 della durata rispetto all'intervallo
+histogram_quantile(0.95,
+  sum by (job_name, le) (rate(govpay_batch_job_seconds_bucket{esito="COMPLETED"}[24h])))
+  / max by (job_name) (govpay_batch_schedule_interval_seconds)
+
+# Quota di tick saltati sullo stesso nodo
+sum by (job_name, nodo) (increase(govpay_batch_schedule_ticks_total{trigger="SCHEDULED", esito_tick="RUNNING_ON_THIS_NODE"}[24h]))
+  / sum by (job_name, nodo) (increase(govpay_batch_schedule_ticks_total{trigger="SCHEDULED"}[24h]))
+
+# Job stale che non e' stato possibile abbandonare
+sum by (job_name) (increase(govpay_batch_schedule_ticks_total{esito_tick="STALE_ABANDON_FAILED"}[1h])) > 0
+
+# Esecuzione in corso oltre l'80% della soglia di stale
+max by (job_name, nodo) (govpay_batch_job_active_seconds_max)
+  > on (nodo) group_left 0.8 * max by (nodo) (govpay_batch_stale_threshold_seconds)
 ```
 
 ---

@@ -309,4 +309,10 @@ class JobConcurrencyServiceTest {
 
         return execution;
     }
+
+    @Test
+    @DisplayName("getStaleThresholdMinutes - restituisce la soglia configurata")
+    void getStaleThresholdMinutes() {
+        assertEquals(STALE_THRESHOLD_MINUTES, service.getStaleThresholdMinutes());
+    }
 }

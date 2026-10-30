@@ -42,11 +42,12 @@ import lombok.Setter;
 public class BatchJobProperties {
 
     /**
-     * Identificativo del cluster/nodo che esegue il batch.
-     * Usato per coordinare esecuzioni multiple in ambiente distribuito.
-     * Default: "GovPay-Batch"
+     * Identificativo univoco del nodo che esegue il batch.
+     * Usato per coordinare esecuzioni multiple in ambiente distribuito: nelle
+     * installazioni multinodo deve essere diverso su ogni nodo.
+     * Default: l'identificativo dell'host, vedi {@link ClusterIdPredefinito}
      */
-    private String clusterId = "GovPay-Batch";
+    private String clusterId = ClusterIdPredefinito.valore();
 
     /**
      * Soglia in minuti oltre la quale un job in esecuzione viene considerato "stale" (bloccato).

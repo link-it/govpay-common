@@ -48,6 +48,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import it.govpay.common.batch.EsitoTick;
 import it.govpay.common.batch.TriggerType;
 import it.govpay.common.batch.dto.BatchInfo;
 import it.govpay.common.batch.dto.BatchStatusInfo;
@@ -227,6 +228,7 @@ public abstract class AbstractBatchController {
         JobExecution currentExecution = concurrencyService.getCurrentRunningJobExecution(getJobName());
 
         if (currentExecution == null) {
+            registraTick(EsitoTick.CAN_PROCEED);
             return null;
         }
 
@@ -246,9 +248,11 @@ public abstract class AbstractBatchController {
 
         if (jobExecutionHelper.getJobConcurrencyService().forceAbandonJobExecution(currentExecution, "Richiesta esecuzione forzata via API REST")) {
             log.info("Job terminato forzatamente con successo. Avvio nuova esecuzione.");
+            registraTick(EsitoTick.FORZATO);
             return null;
         }
 
+        registraTick(EsitoTick.FORZATURA_FALLITA);
         return problemResponse(
                 Problem.serviceUnavailable("Impossibile terminare forzatamente il job in esecuzione (JobExecution ID: " + currentExecution.getId() + ")"));
     }
@@ -258,11 +262,17 @@ public abstract class AbstractBatchController {
 
         if (jobExecutionHelper.getJobConcurrencyService().abandonStaleJobExecution(currentExecution)) {
             log.info("Job stale abbandonato con successo. Avvio nuova esecuzione.");
+            registraTick(EsitoTick.STALE_ABANDONED_CAN_PROCEED);
             return null;
         }
 
+        registraTick(EsitoTick.STALE_ABANDON_FAILED);
         return problemResponse(
                 Problem.serviceUnavailable("Impossibile abbandonare il job stale (JobExecution ID: " + currentExecution.getId() + ")"));
+    }
+
+    private void registraTick(EsitoTick esito) {
+        jobExecutionHelper.registraTick(getJobName(), TriggerType.MANUAL, esito);
     }
 
     private ResponseEntity<Object> restituisciJobGiaInEsecuzione(JobExecution currentExecution) {
@@ -279,6 +289,7 @@ public abstract class AbstractBatchController {
                 executionId,
                 runningClusterId);
 
+        registraTick(EsitoTick.RIFIUTATO_IN_ESECUZIONE);
         return problemResponse(Problem.conflict(detail));
     }
 
