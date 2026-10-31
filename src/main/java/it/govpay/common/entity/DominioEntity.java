@@ -75,6 +75,9 @@ public class DominioEntity {
     @Column(name = "cod_connettore_hyper_sic_apk", length = 255)
     private String codConnettoreHyperSicApk;
 
+    @Column(name = "cod_connettore_send", length = 255)
+    private String codConnettoreSend;
+
     @Column(name = "intermediato", nullable = false)
     private Boolean intermediato;
 
