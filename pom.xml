@@ -141,6 +141,21 @@
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- Registry Prometheus per verificare nei test i nomi delle serie esposte -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Auto-configurazione metriche di Spring Boot (portata dall'actuator nei
+             consumer): nei test applica i MeterFilter come in esercizio -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-micrometer-metrics</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

@@ -38,7 +38,8 @@ class BatchJobPropertiesTest {
     @Test
     @DisplayName("Valori di default")
     void defaultValues() {
-        assertEquals("GovPay-Batch", properties.getClusterId());
+        // il default e' specifico del nodo, non una costante uguale su tutti i nodi
+        assertEquals(ClusterIdPredefinito.valore(), properties.getClusterId());
         assertEquals(120, properties.getStaleThresholdMinutes());
         assertEquals("Europe/Rome", properties.getTimeZone());
         assertEquals(600000L, properties.getSchedulerIntervalMillis());

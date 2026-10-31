@@ -1,3 +1,50 @@
+2026-10-29  Giuliano Pintori <pintori@link.it>
+
+	* [Fix] Cluster-id per nodo e tag nodo delle metriche (#36).
+	Il cluster-id identifica il nodo: nelle installazioni multinodo, che sono la
+	norma, deve essere diverso su ogni nodo. I batch lo configurano invece con
+	una costante del progetto, e un job in esecuzione su un altro nodo veniva
+	classificato RUNNING_ON_THIS_NODE, con log, endpoint e metriche che non
+	indicavano il nodo reale. La mutua esclusione non ne risentiva.
+	- il default di BatchJobProperties non e' piu' la costante GovPay-Batch ma
+	  l'identificativo dell'host (ClusterIdPredefinito: HOSTNAME, poi il nome
+	  dell'host, poi GovPay-Batch)
+	- AbstractScheduledJobRunner segnala un probabile cluster-id duplicato quando
+	  il job risulta in esecuzione con il cluster-id del nodo ma non e' stato
+	  avviato da questo processo (JobExecutionHelper.isEseguitaLocalmente)
+	- il tag nodo delle metriche (#32) non dipende piu' da un bean
+	  BatchJobProperties, che nessun batch definisce: si legge da
+	  govpay.metrics.batch.nodo, poi govpay.batch.cluster-id, poi
+	  BatchJobProperties, poi il default del nodo; un warning segnala se non
+	  coincide con il cluster-id del JobExecutionHelper
+	La configurazione nei progetti batch e' descritta nella #35.
+
+2026-10-28  Giuliano Pintori <pintori@link.it>
+
+	* [Feature] Metriche di esecuzione dei batch (#32, analisi in #31).
+	Lo stato dei batch si ricostruiva solo dai log e dalle tabelle Spring Batch:
+	gli avvii saltati perche' il job era gia' in esecuzione e i job stale
+	abbandonati erano solo righe di log, non dati aggregabili.
+	BatchMetricsAutoConfiguration pubblica su Micrometer, quindi su
+	/actuator/prometheus, esecuzioni attive, durata ed esito, istante
+	dell'ultimo successo e dell'ultimo fallimento, tentativi di avvio per esito
+	del controllo, intervallo previsto e soglia di stale. Si attiva da sola con
+	un MeterRegistry e Spring Batch, anche senza web: i progetti batch non
+	devono modificare nulla.
+	- JobExecutionHelper e AbstractBatchController notificano ogni tentativo di
+	  avvio a un JobTickObserver (EsitoTick); un errore dell'osservatore non
+	  blocca mai l'avvio
+	- l'intervallo si legge da @Scheduled con le regole dello scheduler
+	  (IntervalloSchedulazioneResolver); ScheduledTaskHolder non e' utilizzabile
+	  perche' in Spring 7 non espone il bean target
+	- l'ultimo successo e' riletto dal JobRepository all'avvio, cosi' un riavvio
+	  non fa scattare l'allarme di batch fermo
+	- tag comune nodo = clusterId su tutte le metriche dell'applicazione,
+	  disattivabile con govpay.metrics.batch.tag-nodo=false
+	Il nome del job e' nel tag job_name e non job, che Prometheus riserva al
+	nome dello scrape job. Configurazione sotto govpay.metrics.batch, ricette
+	PromQL nel README.
+
 2026-10-12  Giuliano Pintori <pintori@link.it>
 
 	* [Test] Coperti i rami rimasti scoperti su classificazione GDE e job stale.

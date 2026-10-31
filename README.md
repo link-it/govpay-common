@@ -19,7 +19,7 @@ La libreria non è un'applicazione: è un jar che i componenti GovPay includono 
 |--------|---------|-----------|
 | [Connettori HTTP](#connettori-http) | `it.govpay.common.client` | `RestTemplate` sincroni e asincroni configurati dalla tabella `connettori` (struttura EAV), con autenticazione, timeout e cache |
 | [GDE - Giornale degli Eventi](#gde---giornale-degli-eventi) | `it.govpay.common.gde` | Invio degli eventi al GDE con le policy di log e dump lette da database |
-| [Batch](#batch) | `it.govpay.common.batch` | Componenti per job Spring Batch multi-nodo: concorrenza, runner, controller REST, persistenza dei metadati |
+| [Batch](#batch) | `it.govpay.common.batch` | Componenti per job Spring Batch multi-nodo: concorrenza, runner, controller REST, persistenza dei metadati, metriche di esecuzione |
 | [Configurazione](#configurazione-da-database) | `it.govpay.common.configurazione` | Accesso tipizzato alle configurazioni JSON della tabella `configurazione` |
 | [Mail](#mail) | `it.govpay.common.mail` | Invio email con SSL/TLS, STARTTLS e allegati, con server SMTP letto da database |
 | [Tracciatura e livelli di log](#tracciatura-e-livelli-di-log) | `it.govpay.common.logging` | Transaction id e correlation id nei log e negli header; livelli di log modificabili a runtime |
@@ -27,7 +27,7 @@ La libreria non è un'applicazione: è un jar che i componenti GovPay includono 
 | [Entità e repository](#entità-e-repository) | `it.govpay.common.entity`, `it.govpay.common.repository` | Entità JPA e repository delle anagrafiche di GovPay |
 | [Date/Time e utilità](#datetime-e-utilità) | `it.govpay.common.utils` | Serializzatori Jackson per i formati data pagoPA, validazione IUV, utilità varie |
 
-Le auto-configurazioni registrate in `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` si attivano da sole: tracciatura dei log, livelli di log dinamici, metriche (solo se abilitate) e persistenza dei metadati Spring Batch. Gli altri moduli si attivano includendo i package della libreria nella scansione dei componenti dell'applicazione (vedi [Utilizzo](#utilizzo)).
+Le auto-configurazioni registrate in `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` si attivano da sole: tracciatura dei log, livelli di log dinamici, metriche (solo se abilitate), metriche dei batch e persistenza dei metadati Spring Batch. Gli altri moduli si attivano includendo i package della libreria nella scansione dei componenti dell'applicazione (vedi [Utilizzo](#utilizzo)).
 
 ## Integrazione con GovPay
 
@@ -65,10 +65,11 @@ mvn test -Dtest=ConnettoreConverterTest#testToModelWithBasicAuth
 
 ### Test
 
-- Oltre 700 test automatici
+- Oltre 800 test automatici
 - Unit test con Mockito
 - Integration test con database H2 in-memory
 - Test GDE con verifica delle policy di log e dump da database
+- Test delle metriche dei batch con un job reale su H2 e verifica dei nomi delle serie sullo scrape Prometheus
 
 ### SBOM (CycloneDX)
 
@@ -316,13 +317,14 @@ Componenti riutilizzabili per job Spring Batch con coordinamento multi-nodo. Ric
 #### Componenti
 
 - **JobConcurrencyService**: previene esecuzioni concorrenti su più nodi interrogando il `JobRepository`. Rileva job stale/bloccati.
-- **JobExecutionHelper**: helper per eseguire job con parametri standard (JobID, When, ClusterID).
+- **JobExecutionHelper**: helper per eseguire job con parametri standard (JobID, When, ClusterID). Tiene traccia delle esecuzioni avviate dal proprio processo.
 - **AbstractCronJobRunner**: classe base per esecuzione CLI (profilo `cron`). Esegue una volta ed esce.
 - **AbstractScheduledJobRunner**: classe base per scheduling interno (profilo `default`) con `@Scheduled`.
 - **AbstractBatchController**: controller REST con endpoint per esecuzione manuale, stato, ultima/prossima esecuzione, storico delle esecuzioni.
 - **AbstractBatchExecutionListener**: logging strutturato per esecuzioni batch con statistiche aggregate per step partizionati.
 - **TransactionContextJobListener**: apre il contesto di tracciatura dei log per l'esecuzione del job.
 - **BatchJobRepositoryAutoConfiguration**: auto-configurazione che rende persistenti su database i metadati Spring Batch (tabelle `BATCH_*`). Senza di essa Spring Boot 4 usa un `ResourcelessJobRepository` e restano senza effetto la guardia anti-concorrenza, la soglia dei job stale, gli endpoint del controller e lo svecchiamento. Usa un `JdbcTransactionManager` dedicato sul `DataSource`: i metadati sono committati in una transazione separata da quella dei dati applicativi degli step. Si disattiva con `govpay.batch.job-repository.jdbc.enabled=false`.
+- **BatchMetricsAutoConfiguration**: metriche di esecuzione dei job su Micrometer, attive di default (vedi [Metriche di esecuzione dei batch](#metriche-di-esecuzione-dei-batch)).
 - **DTOs**: `BatchInfo`, `BatchStatusInfo`, `LastExecutionInfo`, `NextExecutionInfo`, `ExecutionSummaryInfo`, `ExecutionsPage`, `Problem` (RFC 7807)
 
 #### Configurazione dei bean
@@ -345,9 +347,33 @@ public JobExecutionHelper jobExecutionHelper(JobOperator o, JobConcurrencyServic
 
 `BatchCommonAutoConfiguration` non è una configurazione Spring registrata automaticamente: offre metodi factory statici, anche con parametri espliciti (soglia, cluster id, `ZoneId`, `Clock`). Le proprietà di `BatchJobProperties` sono elencate in [Configurazione](#batch-1).
 
+In alternativa, senza una classe di properties, il cluster-id si passa con `createJobExecutionHelper(jobOperator, service, clusterId, zoneId)`, letto da `govpay.batch.cluster-id`: è il modo usato dai batch GovPay.
+
+#### Cluster-id: identificativo del nodo
+
+Il `cluster-id` identifica in modo univoco il **nodo** che esegue il batch. Nelle installazioni
+multinodo deve essere diverso su ogni nodo: con lo stesso valore, un job in esecuzione su un
+altro nodo viene classificato `RUNNING_ON_THIS_NODE` e log, endpoint e metriche non indicano
+il nodo reale (issue #36). La mutua esclusione non ne risente.
+
+Configurazione consigliata nei progetti, valida anche in container senza impostare nulla:
+
+```properties
+govpay.batch.cluster-id=${GOVPAY_BATCH_CLUSTER_ID:${HOSTNAME:GovPay-Xxx-Batch}}
+```
+
+Il default di `BatchJobProperties` segue la stessa logica (`ClusterIdPredefinito`): la variabile
+`HOSTNAME` (in Kubernetes è il nome del pod), poi il nome dell'host, e solo in ultima istanza
+`GovPay-Batch`. Sulle VM `HOSTNAME` di solito non è esportata alla JVM: va impostata
+`GOVPAY_BATCH_CLUSTER_ID`.
+
+Con lo scheduler interno, se il job risulta in esecuzione con il cluster-id del nodo ma non è
+stato avviato da questo processo, un warning segnala un probabile cluster-id duplicato (oppure
+un'esecuzione rimasta attiva dopo un riavvio, che diventerà stale).
+
 #### Rilevamento job stale
 
-I job sono considerati stale se in stato UNKNOWN/ABANDONED o senza aggiornamenti per oltre `stale-threshold-minutes` (default: 120).
+I job sono considerati stale se in stato UNKNOWN/ABANDONED o senza aggiornamenti per oltre `stale-threshold-minutes` (default: 120). La soglia è esposta anche come metrica `govpay.batch.stale.threshold`.
 
 #### API REST batch
 
@@ -422,6 +448,82 @@ HTTP 202 Accepted
 
 ```json
 "Cache svuotata con successo"
+```
+
+#### Metriche di esecuzione dei batch
+
+`BatchMetricsAutoConfiguration` pubblica le metriche dei job su Micrometer, quindi su
+`/actuator/prometheus`. Si attiva da sola quando l'applicazione ha un `MeterRegistry`
+(actuator) e Spring Batch, anche senza web: i progetti non devono configurare nulla.
+Il listener viene agganciato a ogni job e l'osservatore dei tentativi di avvio a ogni
+`JobExecutionHelper`.
+
+| Serie Prometheus | Tipo | Tag | Significato |
+|---|---|---|---|
+| `govpay_batch_job_active_seconds_{count,sum,max}` | long task timer | `job_name`, `trigger` | esecuzioni in corso (`_count`) e da quanto (`_max`) |
+| `govpay_batch_job_seconds_{bucket,count,sum,max}` | timer | `job_name`, `trigger`, `esito` | durata ed esito delle esecuzioni concluse |
+| `govpay_batch_job_last_success_timestamp_seconds` | gauge | `job_name` | istante dell'ultimo successo, riletto dal DB all'avvio |
+| `govpay_batch_job_last_failure_timestamp_seconds` | gauge | `job_name` | istante dell'ultimo fallimento, riletto dal DB all'avvio |
+| `govpay_batch_schedule_ticks_total` | counter | `job_name`, `trigger`, `esito_tick` | tentativi di avvio, per esito del controllo |
+| `govpay_batch_schedule_interval_seconds` | gauge | `job_name`, `tipo` | intervallo previsto, letto da `@Scheduled` |
+| `govpay_batch_stale_threshold_seconds` | gauge | | soglia di stale |
+
+Valori dei tag:
+
+- `trigger`: `SCHEDULED`, `MANUAL`; `UNKNOWN` se il job non è avviato da `JobExecutionHelper`.
+- `esito`: il `BatchStatus` (`COMPLETED`, `FAILED`, `STOPPED`, `UNKNOWN`), non l'exit code.
+- `esito_tick`: `CAN_PROCEED`, `STALE_ABANDONED_CAN_PROCEED`, `STALE_ABANDON_FAILED`,
+  `RUNNING_ON_OTHER_NODE`, `RUNNING_ON_THIS_NODE`, e per l'avvio manuale
+  `RIFIUTATO_IN_ESECUZIONE`, `FORZATO`, `FORZATURA_FALLITA`.
+- `tipo`: `fixedDelay`, `fixedRate`, `cron` (per `cron`, distanza tra le due prossime esecuzioni).
+- `nodo`: tag comune con il cluster-id del nodo, su **tutte** le metriche dell'applicazione,
+  comprese quelle HTTP. Il valore viene da `govpay.metrics.batch.nodo`, altrimenti da
+  `govpay.batch.cluster-id`, altrimenti da `BatchJobProperties`, altrimenti dal cluster-id
+  predefinito del nodo. Se non coincide con il cluster-id del `JobExecutionHelper` un warning
+  lo segnala all'avvio.
+
+Il nome del job è nel tag `job_name` e non `job`: Prometheus aggiunge a ogni target
+l'etichetta `job` (nome dello scrape job) e con `honor_labels: false` rinominerebbe la
+nostra in `exported_job`.
+
+Le proprietà sono in [Configurazione](#metriche-dei-batch).
+
+Perché il tag `nodo` distingua i nodi, il cluster-id va impostato diverso su ogni nodo
+(vedi [Cluster-id](#cluster-id-identificativo-del-nodo)): con `GovPay-Batch` un warning lo segnala all'avvio.
+
+Nel profilo `cron` il processo termina a fine job, prima di uno scrape: per quei batch
+le metriche Prometheus non sono affidabili e fanno fede le tabelle Spring Batch.
+
+Ricette PromQL (analisi completa nella issue #31):
+
+```promql
+# Batch fermo: nessun successo da più di 3 intervalli
+(time() - max by (job_name) (govpay_batch_job_last_success_timestamp_seconds))
+  > 3 * max by (job_name) (govpay_batch_schedule_interval_seconds)
+
+# Ultimo esito KO
+max by (job_name) (govpay_batch_job_last_failure_timestamp_seconds)
+  > max by (job_name) (govpay_batch_job_last_success_timestamp_seconds)
+
+# Tasso di errore nelle ultime 24 h
+sum by (job_name) (increase(govpay_batch_job_seconds_count{esito="FAILED"}[24h]))
+  / sum by (job_name) (increase(govpay_batch_job_seconds_count[24h]))
+
+# p95 della durata rispetto all'intervallo
+histogram_quantile(0.95,
+  sum by (job_name, le) (rate(govpay_batch_job_seconds_bucket{esito="COMPLETED"}[24h])))
+  / max by (job_name) (govpay_batch_schedule_interval_seconds)
+
+# Quota di tick saltati sullo stesso nodo
+sum by (job_name, nodo) (increase(govpay_batch_schedule_ticks_total{trigger="SCHEDULED", esito_tick="RUNNING_ON_THIS_NODE"}[24h]))
+  / sum by (job_name, nodo) (increase(govpay_batch_schedule_ticks_total{trigger="SCHEDULED"}[24h]))
+
+# Job stale che non è stato possibile abbandonare
+sum by (job_name) (increase(govpay_batch_schedule_ticks_total{esito_tick="STALE_ABANDON_FAILED"}[1h])) > 0
+
+# Esecuzione in corso oltre l'80% della soglia di stale
+max by (job_name, nodo) (govpay_batch_job_active_seconds_max)
+  > on (nodo) group_left 0.8 * max by (nodo) (govpay_batch_stale_threshold_seconds)
 ```
 
 #### Svecchiamento dei metadati Spring Batch
@@ -524,6 +626,8 @@ Livelli ammessi: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, `OFF`. `Abs
 - `ApiTimingMetricsFilter`: per ogni richiesta, tempo speso nelle chiamate esterne (`govpay.api.external.duration`) e tempo interno (`govpay.api.internal.duration`), con tag allineati a `http.server.requests`;
 - `ExternalCallMetricsContext`: accumulatore per richiesta che collega i due.
 
+Le metriche di esecuzione dei job sono in un'auto-configurazione separata, attiva di default e indipendente dal web: vedi [Metriche di esecuzione dei batch](#metriche-di-esecuzione-dei-batch).
+
 ### Entità e repository
 
 Entità JPA delle anagrafiche di GovPay (`it.govpay.common.entity`): connettori, configurazione, domini (anche il solo logo), intermediari, stazioni, applicazioni, IBAN di accredito, tributi, tipi tributo, tipi versamento, tipi versamento per dominio, unità operative, e le tabelle dei metadati Spring Batch (`it.govpay.common.entity.batch`).
@@ -569,12 +673,22 @@ Proprietà di `BatchJobProperties`, lette con il prefisso scelto dal progetto (n
 
 | Proprietà | Default | Descrizione |
 |-----------|---------|-------------|
-| `govpay.batch.cluster-id` | `GovPay-Batch` | Identificativo del nodo che esegue il batch, usato per coordinare più nodi |
+| `govpay.batch.cluster-id` | nome dell'host | Identificativo del nodo che esegue il batch, diverso su ogni nodo (vedi [Cluster-id](#cluster-id-identificativo-del-nodo)). Default: variabile `HOSTNAME`, poi nome dell'host, poi `GovPay-Batch` |
 | `govpay.batch.stale-threshold-minutes` | `120` | Minuti senza aggiornamenti oltre i quali un job in esecuzione è considerato bloccato |
 | `govpay.batch.time-zone` | `Europe/Rome` | Fuso orario per i calcoli temporali |
 | `govpay.batch.scheduler-interval-millis` | `600000` | Intervallo di esecuzione con lo scheduler interno, in ms |
 | `govpay.batch.initial-delay-millis` | `1` | Ritardo della prima esecuzione schedulata, in ms |
 | `govpay.batch.job-repository.jdbc.enabled` | `true` | Metadati Spring Batch persistenti su database (`false`: comportamento non persistente di Spring Boot) |
+
+### Metriche dei batch
+
+| Proprietà | Default | Descrizione |
+|-----------|---------|-------------|
+| `govpay.metrics.batch.enabled` | `true` | Metriche di esecuzione dei job (attive solo se c'è un `MeterRegistry`) |
+| `govpay.metrics.batch.tag-nodo` | `true` | Tag comune `nodo` su tutte le metriche dell'applicazione |
+| `govpay.metrics.batch.nodo` | | Valore del tag `nodo`; serve solo se il cluster-id non è in `govpay.batch.cluster-id` |
+| `govpay.metrics.batch.duration-buckets` | `1s,5s,30s,1m,5m,15m,30m,1h,2h,4h` | Bucket dell'istogramma della durata |
+| `govpay.metrics.batch.istanze-ultimi-esiti` | `20` | Istanze lette all'avvio per ricostruire ultimo successo e ultimo fallimento |
 
 ### Tracciatura dei log
 
