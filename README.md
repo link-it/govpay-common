@@ -349,6 +349,8 @@ public JobExecutionHelper jobExecutionHelper(JobOperator o, JobConcurrencyServic
 
 In alternativa, senza una classe di properties, il cluster-id si passa con `createJobExecutionHelper(jobOperator, service, clusterId, zoneId)`, letto da `govpay.batch.cluster-id`: è il modo usato dai batch GovPay.
 
+I job avviati da `JobExecutionHelper` **non devono avere un incrementer** (`.incrementer(new RunIdIncrementer())`): da Spring Batch 6 `JobOperator.start(job, parametri)` ignora i parametri passati se il job ne ha uno, e si perdono `ClusterID`, `TriggerType` e `CorrelationID` (issue #39). Senza `ClusterID` un job in corso su un altro nodo è classificato `RUNNING_ON_THIS_NODE`. Il parametro `When` rende già unica ogni istanza; al primo avvio di un job con incrementer l'helper registra un errore.
+
 #### Cluster-id: identificativo del nodo
 
 Il `cluster-id` identifica in modo univoco il **nodo** che esegue il batch. Nelle installazioni

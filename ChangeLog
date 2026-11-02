@@ -1,3 +1,18 @@
+2026-11-02  Giuliano Pintori <pintori@link.it>
+
+	* [Fix] Parametri di job persi nei job con incrementer (#39).
+	Da Spring Batch 6 JobOperator.start(job, parametri) ignora i parametri
+	passati se il job ha un JobParametersIncrementer e avvia l'istanza
+	successiva con i soli parametri dell'incrementer. Nei batch con
+	RunIdIncrementer (fdr, iban, notify, rt, tracciati) si perdevano ClusterID,
+	TriggerType e CorrelationID: un job in corso su un altro nodo era
+	classificato RUNNING_ON_THIS_NODE, il tag trigger delle metriche valeva
+	UNKNOWN e il correlation id non restava nei metadati del job.
+	- JobExecutionHelper.runJob registra un errore, una volta per job, se il job
+	  ha un incrementer
+	- l'incrementer va tolto dai batch: il parametro When rende gia' unica ogni
+	  istanza
+
 2026-10-29  Giuliano Pintori <pintori@link.it>
 
 	* [Fix] Cluster-id per nodo e tag nodo delle metriche (#36).
