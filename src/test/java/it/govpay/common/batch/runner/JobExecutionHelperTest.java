@@ -34,10 +34,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.parameters.JobParameters;
+import org.springframework.batch.core.job.parameters.RunIdIncrementer;
 import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
 import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.launch.JobOperator;
 
+import it.govpay.common.batch.CatturaLog;
 import it.govpay.common.batch.EsitoTick;
 import it.govpay.common.batch.JobTickObserver;
 import it.govpay.common.batch.TriggerType;
@@ -423,5 +425,32 @@ class JobExecutionHelperTest {
         helper.checkBeforeExecution(JOB_NAME);
 
         assertFalse(helper.isEseguitaLocalmente(JOB_NAME, locale));
+    }
+
+    @Test
+    @DisplayName("runJob - segnala una volta il job con incrementer (#39)")
+    void runJob_segnalaIncrementer() throws Exception {
+        when(job.getJobParametersIncrementer()).thenReturn(new RunIdIncrementer());
+        when(jobOperator.start(eq(job), any(JobParameters.class))).thenReturn(mock(JobExecution.class));
+
+        try (CatturaLog log = CatturaLog.di(JobExecutionHelper.class)) {
+            helper.runJob(job, JOB_NAME);
+            helper.runJob(job, JOB_NAME);
+
+            assertEquals(1, log.conta("ha un JobParametersIncrementer"));
+        }
+        verify(jobOperator, times(2)).start(eq(job), any(JobParameters.class));
+    }
+
+    @Test
+    @DisplayName("runJob - nessuna segnalazione senza incrementer")
+    void runJob_senzaIncrementer() throws Exception {
+        when(jobOperator.start(eq(job), any(JobParameters.class))).thenReturn(mock(JobExecution.class));
+
+        try (CatturaLog log = CatturaLog.di(JobExecutionHelper.class)) {
+            helper.runJob(job, JOB_NAME);
+
+            assertFalse(log.contiene("JobParametersIncrementer"));
+        }
     }
 }

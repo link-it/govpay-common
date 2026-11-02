@@ -21,6 +21,7 @@ package it.govpay.common.batch.runner;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -94,6 +95,9 @@ public class JobExecutionHelper {
 
     /** Esecuzioni avviate da questo processo e ancora attive al ritorno dall'avvio (JobOperator asincrono) */
     private final Map<Long, String> esecuzioniLocali = new ConcurrentHashMap<>();
+
+    /** Job con incrementer gia' segnalati, per non ripetere l'errore a ogni avvio */
+    private final Set<String> incrementerSegnalati = ConcurrentHashMap.newKeySet();
 
     /**
      * Costruisce un nuovo helper per l'esecuzione di job.
@@ -243,6 +247,7 @@ public class JobExecutionHelper {
             JobParameters params = buildJobParameters(jobName,
                     new JobParametersBuilder().addString(JOB_PARAM_TRIGGER_TYPE, triggerType.name()));
             log.info("Avvio job {} (trigger {})", jobName, triggerType);
+            segnalaIncrementer(job, jobName);
             AtomicInteger avvii = avviiInCorso.computeIfAbsent(jobName, k -> new AtomicInteger());
             avvii.incrementAndGet();
             try {
@@ -254,6 +259,24 @@ public class JobExecutionHelper {
             } finally {
                 avvii.decrementAndGet();
             }
+        }
+    }
+
+    /**
+     * Segnala, una volta per job, un {@code JobParametersIncrementer} sul job.
+     * <p>
+     * Da Spring Batch 6 {@link JobOperator#start(Job, JobParameters)} ignora i
+     * parametri passati se il job ha un incrementer e avvia l'istanza successiva
+     * con i soli parametri dell'incrementer (#39): si perdono {@code ClusterID},
+     * {@code TriggerType} e {@code CorrelationID}, e un job in corso su un altro
+     * nodo e' classificato come in corso su questo. L'incrementer non serve: il
+     * parametro {@value #JOB_PARAM_WHEN} rende gia' unica ogni istanza.
+     */
+    private void segnalaIncrementer(Job job, String jobName) {
+        if (job.getJobParametersIncrementer() != null && incrementerSegnalati.add(jobName)) {
+            log.error("Il job {} ha un JobParametersIncrementer: Spring Batch ignora i parametri passati da JobExecutionHelper "
+                    + "({}, {}, {}). Togliere l'incrementer dalla definizione del job.",
+                    jobName, JOB_PARAM_CLUSTER_ID, JOB_PARAM_TRIGGER_TYPE, JOB_PARAM_CORRELATION_ID);
         }
     }
 

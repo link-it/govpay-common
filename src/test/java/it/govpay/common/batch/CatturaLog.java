@@ -63,6 +63,11 @@ public final class CatturaLog implements AutoCloseable {
         return appender.list.stream().anyMatch(evento -> evento.getFormattedMessage().contains(testo));
     }
 
+    /** @return quanti messaggi registrati contengono il testo */
+    public long conta(String testo) {
+        return appender.list.stream().filter(evento -> evento.getFormattedMessage().contains(testo)).count();
+    }
+
     @Override
     public void close() {
         logger.detachAppender(appender);
