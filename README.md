@@ -319,7 +319,7 @@ Componenti riutilizzabili per job Spring Batch con coordinamento multi-nodo. Ric
 - **JobConcurrencyService**: previene esecuzioni concorrenti su più nodi interrogando il `JobRepository`. Rileva job stale/bloccati.
 - **JobExecutionHelper**: helper per eseguire job con parametri standard (JobID, When, ClusterID). Tiene traccia delle esecuzioni avviate dal proprio processo.
 - **AbstractCronJobRunner**: classe base per esecuzione CLI (profilo `cron`). Esegue una volta ed esce.
-- **AbstractScheduledJobRunner**: classe base per scheduling interno (profilo `default`) con `@Scheduled`.
+- **AbstractScheduledJobRunner**: classe base per scheduling interno (profilo `default`) con `@Scheduled`. Con `govpay.batch.enabled=false` i tick non avviano il job; restano l'avvio via REST e la modalità cron.
 - **AbstractBatchController**: controller REST con endpoint per esecuzione manuale, stato, ultima/prossima esecuzione, storico delle esecuzioni.
 - **AbstractBatchExecutionListener**: logging strutturato per esecuzioni batch con statistiche aggregate per step partizionati.
 - **TransactionContextJobListener**: apre il contesto di tracciatura dei log per l'esecuzione del job.
@@ -676,6 +676,7 @@ Proprietà di `BatchJobProperties`, lette con il prefisso scelto dal progetto (n
 | Proprietà | Default | Descrizione |
 |-----------|---------|-------------|
 | `govpay.batch.cluster-id` | nome dell'host | Identificativo del nodo che esegue il batch, diverso su ogni nodo (vedi [Cluster-id](#cluster-id-identificativo-del-nodo)). Default: variabile `HOSTNAME`, poi nome dell'host, poi `GovPay-Batch` |
+| `govpay.batch.enabled` | `true` | Con `false` lo scheduler interno (`AbstractScheduledJobRunner`) non avvia il job e non registra i tick; `/run` via REST e il profilo `cron` restano disponibili. Nel profilo `cron` non ha effetto |
 | `govpay.batch.stale-threshold-minutes` | `120` | Minuti senza aggiornamenti oltre i quali un job in esecuzione è considerato bloccato |
 | `govpay.batch.time-zone` | `Europe/Rome` | Fuso orario per i calcoli temporali |
 | `govpay.batch.scheduler-interval-millis` | `600000` | Intervallo di esecuzione con lo scheduler interno, in ms |
