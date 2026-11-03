@@ -1,3 +1,11 @@
+2026-11-03  Giuliano Pintori <pintori@link.it>
+
+	* [Documentazione] Cluster-id consigliato nei progetti batch (#35).
+	Il README non suggerisce piu' ${GOVPAY_BATCH_CLUSTER_ID:${HOSTNAME:...}}, che
+	sulle VM ricadeva sulla costante perche' HOSTNAME di solito non e' esportata
+	alla JVM: nei progetti nessuna costante e, come default dei @Value,
+	ClusterIdPredefinito.valore(), come nel pilota govpay-rt-batch.
+
 2026-11-02  Giuliano Pintori <pintori@link.it>
 
 	* [Fix] Parametri di job persi nei job con incrementer (#39).

@@ -358,16 +358,24 @@ multinodo deve essere diverso su ogni nodo: con lo stesso valore, un job in esec
 altro nodo viene classificato `RUNNING_ON_THIS_NODE` e log, endpoint e metriche non indicano
 il nodo reale (issue #36). La mutua esclusione non ne risente.
 
-Configurazione consigliata nei progetti, valida anche in container senza impostare nulla:
+Configurazione consigliata nei progetti (modello: govpay-rt-batch, issue #35): **nessuna
+costante** in `application.properties`, e come default dei `@Value` il cluster-id del nodo:
 
-```properties
-govpay.batch.cluster-id=${GOVPAY_BATCH_CLUSTER_ID:${HOSTNAME:GovPay-Xxx-Batch}}
+```java
+@Value("${govpay.batch.cluster-id:#{T(it.govpay.common.batch.config.ClusterIdPredefinito).valore()}}")
+String clusterId
 ```
 
-Il default di `BatchJobProperties` segue la stessa logica (`ClusterIdPredefinito`): la variabile
-`HOSTNAME` (in Kubernetes è il nome del pod), poi il nome dell'host, e solo in ultima istanza
-`GovPay-Batch`. Sulle VM `HOSTNAME` di solito non è esportata alla JVM: va impostata
-`GOVPAY_BATCH_CLUSTER_ID`.
+`ClusterIdPredefinito` usa la variabile `HOSTNAME` (in Kubernetes è il nome del pod), poi il nome
+dell'host dato dal sistema operativo, e solo in ultima istanza `GovPay-Batch`; è anche il default
+di `BatchJobProperties` e del tag `nodo` delle metriche, che quindi coincide con il cluster-id
+dell'helper. Sulle VM con nomi host distinti non serve configurare nulla; altrimenti si imposta
+`GOVPAY_BATCH_CLUSTER_ID` (o `govpay.batch.cluster-id`) per nodo. Negli entrypoint Docker dei
+batch il cluster-id è l'indirizzo IP del container.
+
+La forma `${GOVPAY_BATCH_CLUSTER_ID:${HOSTNAME:...}}` in `application.properties` è sconsigliata:
+sulle VM e sugli application server `HOSTNAME` di solito non è esportata alla JVM e si ricadrebbe
+sulla costante.
 
 Con lo scheduler interno, se il job risulta in esecuzione con il cluster-id del nodo ma non è
 stato avviato da questo processo, un warning segnala un probabile cluster-id duplicato (oppure
