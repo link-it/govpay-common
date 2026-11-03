@@ -96,6 +96,9 @@ public class JobExecutionHelper {
     /** Esecuzioni avviate da questo processo e ancora attive al ritorno dall'avvio (JobOperator asincrono) */
     private final Map<Long, String> esecuzioniLocali = new ConcurrentHashMap<>();
 
+    /** Job con un avvio prenotato in questo processo, dal controllo pre-esecuzione alla fine dell'esecuzione */
+    private final Set<String> avviiPrenotati = ConcurrentHashMap.newKeySet();
+
     /** Job con incrementer gia' segnalati, per non ripetere l'errore a ogni avvio */
     private final Set<String> incrementerSegnalati = ConcurrentHashMap.newKeySet();
 
@@ -301,6 +304,41 @@ public class JobExecutionHelper {
         return execution != null && esecuzioniLocali.containsKey(execution.getId());
     }
 
+    /**
+     * Prenota l'avvio del job in questo processo, se nessun altro avvio dello
+     * stesso job e' gia' prenotato.
+     * <p>
+     * Il controllo pre-esecuzione legge le esecuzioni dal JobRepository, dove
+     * un'esecuzione compare solo quando il JobOperator l'ha creata: due avvii
+     * ravvicinati (due chiamate REST, o una chiamata REST e un tick dello
+     * scheduler) superavano entrambi il controllo e il job partiva due volte.
+     * La prenotazione e' atomica e va tenuta dal controllo fino alla fine
+     * dell'esecuzione, poi rilasciata con {@link #rilasciaAvvio(String)}.
+     * Riguarda solo questo processo: tra nodi diversi resta il controllo sul
+     * JobRepository.
+     * <p>
+     * Restituisce true per il caso da gestire (avvio gia' prenotato), cosi'
+     * che un mock del helper, che restituisce false, lasci procedere l'avvio
+     * come prima dell'introduzione della prenotazione.
+     *
+     * @param jobName Nome del job
+     * @return false se l'avvio e' stato prenotato ora, true se un altro avvio
+     *         dello stesso job era gia' prenotato in questo processo (nessuna
+     *         prenotazione da rilasciare)
+     */
+    public boolean avvioGiaPrenotato(String jobName) {
+        return !avviiPrenotati.add(jobName);
+    }
+
+    /**
+     * Rilascia la prenotazione presa con {@link #avvioGiaPrenotato(String)}.
+     *
+     * @param jobName Nome del job
+     */
+    public void rilasciaAvvio(String jobName) {
+        avviiPrenotati.remove(jobName);
+    }
+
     /** Toglie le esecuzioni locali del job che non sono piu' quella in corso. */
     private void dimenticaEsecuzioniConcluse(String jobName, JobExecution inCorso) {
         esecuzioniLocali.entrySet().removeIf(voce -> voce.getValue().equals(jobName)
@@ -376,13 +414,22 @@ public class JobExecutionHelper {
     public JobExecution executeIfPossible(Job job, String jobName) throws JobExecutionAlreadyRunningException,
             JobRestartException, JobInstanceAlreadyCompleteException, InvalidJobParametersException {
 
-        PreExecutionResult checkResult = checkBeforeExecution(jobName);
-
-        if (checkResult.canProceed()) {
-            return runJob(job, jobName);
+        if (avvioGiaPrenotato(jobName)) {
+            log.info("Avvio del job {} gia' in corso in questo processo: tentativo ignorato.", jobName);
+            registraTick(jobName, TriggerType.SCHEDULED, EsitoTick.RUNNING_ON_THIS_NODE);
+            return null;
         }
+        try {
+            PreExecutionResult checkResult = checkBeforeExecution(jobName);
 
-        return null;
+            if (checkResult.canProceed()) {
+                return runJob(job, jobName);
+            }
+
+            return null;
+        } finally {
+            rilasciaAvvio(jobName);
+        }
     }
 
     /**

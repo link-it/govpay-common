@@ -210,17 +210,35 @@ public abstract class AbstractBatchController {
     protected ResponseEntity<Object> eseguiJob(boolean force) {
         log.info("Richiesta esecuzione manuale del job {} (force={})", getJobName(), force);
 
+        // La prenotazione rende atomici controllo e avvio: senza, due richieste ravvicinate
+        // superavano entrambe il controllo prima che la prima esecuzione fosse sul database.
+        // Con force=true si avvia comunque, come per un'esecuzione gia' registrata.
+        boolean prenotato = !jobExecutionHelper.avvioGiaPrenotato(getJobName());
+        if (!prenotato && !force) {
+            registraTick(EsitoTick.RIFIUTATO_IN_ESECUZIONE);
+            return problemResponse(Problem.conflict(String.format(
+                    "Il job %s è già in avvio o in esecuzione su questo nodo. Usa il parametro force=true per avviarlo comunque.",
+                    getJobName())));
+        }
+
+        boolean avviato = false;
         try {
             ResponseEntity<Object> runningJobResponse = gestisciJobInEsecuzione(force);
             if (runningJobResponse != null) {
                 return runningJobResponse;
             }
 
-            return avviaJobAsincrono();
+            ResponseEntity<Object> response = avviaJobAsincrono(prenotato);
+            avviato = true;
+            return response;
 
         } catch (Exception e) {
             log.error("Errore durante l'avvio del job: {}", e.getMessage(), e);
             return problemResponse(Problem.internalServerError("Errore durante l'avvio: " + e.getMessage()));
+        } finally {
+            if (prenotato && !avviato) {
+                jobExecutionHelper.rilasciaAvvio(getJobName());
+            }
         }
     }
 
@@ -294,7 +312,8 @@ public abstract class AbstractBatchController {
         return problemResponse(Problem.conflict(detail));
     }
 
-    private ResponseEntity<Object> avviaJobAsincrono() {
+    /** @param prenotato se true la prenotazione dell'avvio si rilascia a fine esecuzione */
+    private ResponseEntity<Object> avviaJobAsincrono(boolean prenotato) {
         CompletableFuture.runAsync(() -> {
             try {
                 log.info("Avvio asincrono del job {}", getJobName());
@@ -302,6 +321,10 @@ public abstract class AbstractBatchController {
                 log.info("Job {} terminato con stato: {}", getJobName(), execution.getStatus());
             } catch (Exception e) {
                 log.error("Errore durante l'esecuzione asincrona del job: {}", e.getMessage(), e);
+            } finally {
+                if (prenotato) {
+                    jobExecutionHelper.rilasciaAvvio(getJobName());
+                }
             }
         });
 
