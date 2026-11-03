@@ -1,3 +1,14 @@
+2026-11-03  Giuliano Pintori <pintori@link.it>
+
+	* [Fix] Id delle entita' dell'anagrafica con GenerationType.IDENTITY.
+	TipoTributoEntity, TributoEntity, IbanAccreditoEntity, UnitaOperativaEntity,
+	TipoVersamentoEntity e TipoVersamentoDominioEntity usavano le sequenze
+	seq_*, che lo schema GovPay per SQL Server non ha (usa IDENTITY): con
+	spring.jpa.hibernate.ddl-auto=validate (govpay-maggioli-jppa) l'avvio su
+	SQL Server falliva con "missing sequence". Ora usano IDENTITY come le altre
+	entita' della libreria: su PostgreSQL e Oracle l'id lo assegna il database.
+	Nessun progetto scrive su queste tabelle.
+
 2026-11-02  Giuliano Pintori <pintori@link.it>
 
 	* [Fix] Parametri di job persi nei job con incrementer (#39).

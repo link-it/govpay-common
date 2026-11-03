@@ -29,7 +29,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 
 /**
@@ -40,11 +39,10 @@ import jakarta.persistence.Table;
  */
 @Entity
 @Table(name = "tributi")
-@SequenceGenerator(name = "seq_tributi", sequenceName = "seq_tributi", allocationSize = 1)
 public class TributoEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "seq_tributi")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     private Long id;
 

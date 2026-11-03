@@ -26,7 +26,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 
 /**
@@ -36,11 +35,10 @@ import jakarta.persistence.Table;
  */
 @Entity
 @Table(name = "tipi_tributo")
-@SequenceGenerator(name = "seq_tipi_tributo", sequenceName = "seq_tipi_tributo", allocationSize = 1)
 public class TipoTributoEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "seq_tipi_tributo")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     private Long id;
 
