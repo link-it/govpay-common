@@ -180,6 +180,40 @@ class JobExecutionHelperTest {
     }
 
     @Test
+    @DisplayName("avvioGiaPrenotato - una sola prenotazione per job fino al rilascio")
+    void avvioGiaPrenotato() {
+        assertFalse(helper.avvioGiaPrenotato(JOB_NAME));
+        assertTrue(helper.avvioGiaPrenotato(JOB_NAME));
+        assertFalse(helper.avvioGiaPrenotato("altroJob"));
+
+        helper.rilasciaAvvio(JOB_NAME);
+
+        assertFalse(helper.avvioGiaPrenotato(JOB_NAME));
+    }
+
+    @Test
+    @DisplayName("executeIfPossible - non esegue con un avvio gia' prenotato e lascia la prenotazione")
+    void executeIfPossible_avvioPrenotato() throws Exception {
+        helper.avvioGiaPrenotato(JOB_NAME);
+
+        assertNull(helper.executeIfPossible(job, JOB_NAME));
+
+        verify(jobConcurrencyService, never()).getCurrentRunningJobExecution(any());
+        assertTrue(helper.avvioGiaPrenotato(JOB_NAME));
+    }
+
+    @Test
+    @DisplayName("executeIfPossible - prenotazione rilasciata dopo l'esecuzione")
+    void executeIfPossible_rilascia() throws Exception {
+        when(jobConcurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(null);
+        when(jobOperator.start(eq(job), any(JobParameters.class))).thenReturn(mock(JobExecution.class));
+
+        helper.executeIfPossible(job, JOB_NAME);
+
+        assertFalse(helper.avvioGiaPrenotato(JOB_NAME));
+    }
+
+    @Test
     @DisplayName("executeIfPossible - non esegue quando non possibile")
     void executeIfPossible_doesNotExecute() throws Exception {
         JobExecution runningExecution = mock(JobExecution.class);

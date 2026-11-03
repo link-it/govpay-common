@@ -25,6 +25,7 @@ import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException
 import org.springframework.batch.core.launch.JobInstanceAlreadyCompleteException;
 import org.springframework.batch.core.launch.JobRestartException;
 
+import it.govpay.common.batch.EsitoTick;
 import it.govpay.common.batch.TriggerType;
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionResult;
 import lombok.extern.slf4j.Slf4j;
@@ -99,6 +100,20 @@ public abstract class AbstractScheduledJobRunner {
 
         log.info("Esecuzione schedulata di {}", jobName);
 
+        if (jobExecutionHelper.avvioGiaPrenotato(jobName)) {
+            log.info("Avvio del job {} gia' in corso in questo processo (es. avvio manuale): tick ignorato.", jobName);
+            jobExecutionHelper.registraTick(jobName, TriggerType.SCHEDULED, EsitoTick.RUNNING_ON_THIS_NODE);
+            return null;
+        }
+        try {
+            return verificaEdEsegui();
+        } finally {
+            jobExecutionHelper.rilasciaAvvio(jobName);
+        }
+    }
+
+    private JobExecution verificaEdEsegui() throws JobExecutionAlreadyRunningException,
+            JobRestartException, JobInstanceAlreadyCompleteException, InvalidJobParametersException {
         PreExecutionResult checkResult = jobExecutionHelper.checkBeforeExecution(jobName);
 
         switch (checkResult.result()) {

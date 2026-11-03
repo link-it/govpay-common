@@ -28,7 +28,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 
 /**
@@ -38,11 +37,10 @@ import jakarta.persistence.Table;
  */
 @Entity
 @Table(name = "iban_accredito")
-@SequenceGenerator(name = "seq_iban_accredito", sequenceName = "seq_iban_accredito", allocationSize = 1)
 public class IbanAccreditoEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "seq_iban_accredito")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     private Long id;
 
