@@ -1,5 +1,36 @@
 2026-11-03  Giuliano Pintori <pintori@link.it>
 
+	* [Fix] DELETE /executions/{id} risponde 404 per un'esecuzione
+	inesistente o di un altro batch. Il JobRepository JDBC di Spring Batch 6
+	lancia EmptyResultDataAccessException per un id sconosciuto: era un 500.
+
+	* [Fix] GET /executions/{id} con spring.jpa.open-in-view=false: la
+	jobInstance si carica con l'esecuzione (JOIN FETCH). Prima la lettura del
+	nome del job fuori sessione lanciava LazyInitializationException (500).
+
+	* [Fix] Un solo avvio per job alla volta sullo stesso nodo. Due GET /run
+	ravvicinati, o una richiesta REST e un tick dello scheduler, superavano
+	entrambi il controllo prima che l'esecuzione fosse sul database e il job
+	girava due volte. JobExecutionHelper.avvioGiaPrenotato/rilasciaAvvio rendono
+	atomici controllo e avvio in AbstractBatchController,
+	AbstractScheduledJobRunner ed executeIfPossible: la seconda richiesta REST
+	riceve 409 (con force=true parte comunque), il tick schedulato viene
+	saltato.
+
+	* [Fix] AbstractCronJobRunner esce con 1 se il job non termina COMPLETED
+	(FAILED, STOPPED, ABANDONED) o se Spring Batch ne rifiuta l'avvio: prima
+	usciva sempre con 0 e il cron di sistema non vedeva gli errori.
+
+	* [Fix] ConnettoreService.getConnettore non scrive piu' un ERROR prima di
+	lanciare l'eccezione per un connettore assente o disabilitato: chi lo usava
+	per sapere se il GDE e' configurato produceva un ERROR a ogni richiesta.
+
+	* [Fix] IntermediarioEntity e StazioneEntity con le lunghezze dello schema
+	di GovPay: 35 per codici, connettori, password e versione, 4000 per
+	principal e principal_originale, invece di 255. Le colonne restano nullable
+	nel mapping: il vincolo NOT NULL lo impone lo schema reale, e i dati di
+	test dei batch inseriscono intermediari e stazioni parziali.
+
 	* [Fix] Id delle entita' dell'anagrafica con GenerationType.IDENTITY.
 	TipoTributoEntity, TributoEntity, IbanAccreditoEntity, UnitaOperativaEntity,
 	TipoVersamentoEntity e TipoVersamentoDominioEntity usavano le sequenze
