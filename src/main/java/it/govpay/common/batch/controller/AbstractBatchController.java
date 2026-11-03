@@ -40,6 +40,7 @@ import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.core.env.Environment;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -324,8 +325,9 @@ public abstract class AbstractBatchController {
         // NoSuchJobExecutionException sono @Deprecated(forRemoval = true) da Spring Batch 6.0,
         // con rimozione prevista in 6.2 (SonarCloud java:S5738). L'assenza dell'id diventa un
         // 404 gestito esplicitamente invece di un'eccezione destinata a sparire.
-        JobExecution execution = jobRepository.getJobExecution(executionId);
-        if (execution == null) {
+        // Come per GET /executions/{id}, un'esecuzione di un altro batch non e' visibile.
+        JobExecution execution = trovaJobExecution(executionId);
+        if (execution == null || !getJobName().equals(execution.getJobInstance().getJobName())) {
             return problemResponse(Problem.notFound("JobExecution " + executionId + " non trovata."));
         }
 
@@ -334,6 +336,20 @@ public abstract class AbstractBatchController {
             return ResponseEntity.accepted().build();
         } catch (JobExecutionNotRunningException e) {
             return problemResponse(Problem.conflict("La JobExecution " + executionId + " non e' in corso."));
+        }
+    }
+
+    /**
+     * Il JobRepository JDBC di Spring Batch 6 non restituisce null per un id
+     * inesistente: la query sull'esecuzione lancia
+     * {@link EmptyResultDataAccessException}, che senza questa gestione
+     * diventava un 500.
+     */
+    private JobExecution trovaJobExecution(long executionId) {
+        try {
+            return jobRepository.getJobExecution(executionId);
+        } catch (EmptyResultDataAccessException e) {
+            return null;
         }
     }
 
