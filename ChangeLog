@@ -6,6 +6,13 @@
 	alla JVM: nei progetti nessuna costante e, come default dei @Value,
 	ClusterIdPredefinito.valore(), come nel pilota govpay-rt-batch.
 
+	* [Batch] govpay.batch.enabled spegne lo scheduler interno. Con false
+	AbstractScheduledJobRunner non avvia il job ai tick, senza consultare il
+	database ne' registrare il tick nelle metriche; l'avvio via REST (/run) e
+	la modalita' cron restano disponibili. Default true. La proprieta' era
+	dichiarata nei batch ma nessuno la leggeva. Si legge dall'Environment
+	(EnvironmentAware): i runner costruiti a mano nei test restano abilitati.
+
 	* [Fix] DELETE /executions/{id} risponde 404 per un'esecuzione
 	inesistente o di un altro batch. Il JobRepository JDBC di Spring Batch 6
 	lancia EmptyResultDataAccessException per un id sconosciuto: era un 500.

@@ -165,6 +165,15 @@ class BatchMetricsIntegrationTest {
         });
     }
 
+    @Test
+    void conLoSchedulerDisattivatoIlTickNonAvviaIlJob() {
+        runner().withPropertyValues("govpay.batch.enabled=false").run(context -> {
+            assertThat(context.getBean(RunnerMetriche.class).esegui()).isNull();
+            assertThat(context.getBean(JobRepository.class).getJobInstances(JOB, 0, 1)).isEmpty();
+            assertThat(context.getBean(MeterRegistry.class).find(BatchMetricsRecorder.METRICA_TICK).counter()).isNull();
+        });
+    }
+
     @Configuration(proxyBeanMethods = false)
     static class ContestoBatch {
 

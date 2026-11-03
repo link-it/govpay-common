@@ -30,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
+import org.springframework.mock.env.MockEnvironment;
 
 import it.govpay.common.batch.EsitoTick;
 import it.govpay.common.batch.TriggerType;
@@ -69,6 +70,28 @@ class AbstractScheduledJobRunnerTest {
         runner = new TestScheduledRunner(jobExecutionHelper, job, JOB_NAME);
         onJobCompletedCalled = false;
         completedExecution = null;
+    }
+
+    @Test
+    @DisplayName("govpay.batch.enabled=false - tick ignorato senza toccare l'helper")
+    void schedulerDisattivato() throws Exception {
+        runner.setEnvironment(new MockEnvironment().withProperty(AbstractScheduledJobRunner.PROP_SCHEDULER_ABILITATO, "false"));
+
+        assertNull(runner.executeScheduledJob());
+
+        verifyNoInteractions(jobExecutionHelper);
+    }
+
+    @Test
+    @DisplayName("govpay.batch.enabled assente - lo scheduler resta abilitato")
+    void schedulerAbilitatoDiDefault() throws Exception {
+        runner.setEnvironment(new MockEnvironment());
+        when(jobExecutionHelper.checkBeforeExecution(JOB_NAME))
+                .thenReturn(new PreExecutionResult(PreExecutionCheckResult.RUNNING_ON_OTHER_NODE, null, "altro"));
+
+        runner.executeScheduledJob();
+
+        verify(jobExecutionHelper).checkBeforeExecution(JOB_NAME);
     }
 
     @Test
