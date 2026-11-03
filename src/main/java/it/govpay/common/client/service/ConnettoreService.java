@@ -109,6 +109,17 @@ public class ConnettoreService {
         });
     }
 
+    /**
+     * Restituisce il connettore abilitato con il codice indicato.
+     * <p>
+     * Se il connettore non esiste o non e' abilitato lancia l'eccezione senza
+     * loggare: decide il chiamante se e' un errore. Per sapere solo se il
+     * connettore c'e' si usa {@link #isAbilitato(String)}.
+     *
+     * @param codiceConnettore codice del connettore
+     * @return il connettore
+     * @throws IllegalArgumentException se il connettore non esiste o non e' abilitato
+     */
     public Connettore getConnettore(String codiceConnettore) {
         Connettore connettore = null;
 
@@ -121,13 +132,11 @@ public class ConnettoreService {
             List<ConnettoreEntity> entities = connettoreEntityRepository.findByCodConnettoreAndAbilitato(codiceConnettore);
 
             if (entities.isEmpty()) {
-                log.error("Connettore non trovato o non abilitato: {}", codiceConnettore);
                 throw new IllegalArgumentException("Connettore non trovato o non abilitato: " + codiceConnettore);
             }
 
             connettore = ConnettoreConverter.toModel(entities);
             if (connettore == null || !connettore.isAbilitato()) {
-                log.error("Connettore non abilitato: {}", codiceConnettore);
                 throw new IllegalArgumentException("Connettore non abilitato: " + codiceConnettore);
             }
 
@@ -141,10 +150,10 @@ public class ConnettoreService {
 
     /**
      * Verifica se un connettore esiste ed e' abilitato, senza sollevare
-     * eccezioni ne' loggare a livello ERROR: a differenza di
-     * {@link #getConnettore(String)}, qui l'assenza del connettore e' un
-     * esito normale del controllo (es. servizio opzionale non configurato in
-     * questo ambiente), non una condizione d'errore.
+     * eccezioni: a differenza di {@link #getConnettore(String)}, qui
+     * l'assenza del connettore e' un esito normale del controllo (es.
+     * servizio opzionale non configurato in questo ambiente), non una
+     * condizione d'errore.
      *
      * @param codiceConnettore codice del connettore
      * @return true se il connettore esiste ed e' abilitato
