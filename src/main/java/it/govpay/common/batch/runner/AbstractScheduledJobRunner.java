@@ -24,6 +24,8 @@ import org.springframework.batch.core.job.parameters.InvalidJobParametersExcepti
 import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
 import org.springframework.batch.core.launch.JobInstanceAlreadyCompleteException;
 import org.springframework.batch.core.launch.JobRestartException;
+import org.springframework.context.EnvironmentAware;
+import org.springframework.core.env.Environment;
 
 import it.govpay.common.batch.EsitoTick;
 import it.govpay.common.batch.TriggerType;
@@ -42,6 +44,8 @@ import lombok.extern.slf4j.Slf4j;
  *   <li>Se il job è in esecuzione su un altro nodo, esce senza avviarlo</li>
  *   <li>Se il job è stale (bloccato), lo abbandona e avvia una nuova esecuzione</li>
  *   <li>Non termina l'applicazione al termine del job</li>
+ *   <li>Con {@code govpay.batch.enabled=false} non avvia il job: restano l'avvio
+ *       manuale via REST e la modalità cron</li>
  * </ul>
  * <p>
  * Esempio di utilizzo:
@@ -64,11 +68,17 @@ import lombok.extern.slf4j.Slf4j;
  * </pre>
  */
 @Slf4j
-public abstract class AbstractScheduledJobRunner {
+public abstract class AbstractScheduledJobRunner implements EnvironmentAware {
+
+    /** Proprieta' che abilita lo scheduler interno; se assente vale true */
+    public static final String PROP_SCHEDULER_ABILITATO = "govpay.batch.enabled";
 
     private final JobExecutionHelper jobExecutionHelper;
     private final Job job;
     private final String jobName;
+
+    /** Fuori da un contesto Spring (es. runner costruito a mano nei test) lo scheduler resta abilitato */
+    private boolean schedulerAbilitato = true;
 
     /**
      * Costruisce il runner per l'esecuzione schedulata.
@@ -84,10 +94,26 @@ public abstract class AbstractScheduledJobRunner {
     }
 
     /**
+     * Legge {@value #PROP_SCHEDULER_ABILITATO}: con {@code false} i tick dello
+     * scheduler non avviano il job.
+     */
+    @Override
+    public void setEnvironment(Environment environment) {
+        this.schedulerAbilitato = environment.getProperty(PROP_SCHEDULER_ABILITATO, Boolean.class, Boolean.TRUE);
+        if (!schedulerAbilitato) {
+            log.info("Scheduler interno del job {} disattivato ({}=false): il job si avvia solo via REST o da cron.",
+                    jobName, PROP_SCHEDULER_ABILITATO);
+        }
+    }
+
+    /**
      * Esegue il job schedulato con gestione della concorrenza.
      * <p>
      * Questo metodo deve essere chiamato dal metodo schedulato della sottoclasse.
      * Verifica se il job può essere eseguito e lo avvia se possibile.
+     *
+     * Con lo scheduler disattivato ({@value #PROP_SCHEDULER_ABILITATO}{@code =false})
+     * ritorna subito null, senza consultare il database ne' registrare il tick.
      *
      * @return JobExecution se il job è stato eseguito, null se non è stato possibile avviarlo
      * @throws JobExecutionAlreadyRunningException se il job è già in esecuzione
@@ -97,6 +123,11 @@ public abstract class AbstractScheduledJobRunner {
      */
     protected JobExecution executeScheduledJob() throws JobExecutionAlreadyRunningException,
             JobRestartException, JobInstanceAlreadyCompleteException, InvalidJobParametersException {
+
+        if (!schedulerAbilitato) {
+            log.debug("Scheduler interno disattivato: tick di {} ignorato", jobName);
+            return null;
+        }
 
         log.info("Esecuzione schedulata di {}", jobName);
 
