@@ -40,6 +40,7 @@ import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.core.env.Environment;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -209,17 +210,35 @@ public abstract class AbstractBatchController {
     protected ResponseEntity<Object> eseguiJob(boolean force) {
         log.info("Richiesta esecuzione manuale del job {} (force={})", getJobName(), force);
 
+        // La prenotazione rende atomici controllo e avvio: senza, due richieste ravvicinate
+        // superavano entrambe il controllo prima che la prima esecuzione fosse sul database.
+        // Con force=true si avvia comunque, come per un'esecuzione gia' registrata.
+        boolean prenotato = !jobExecutionHelper.avvioGiaPrenotato(getJobName());
+        if (!prenotato && !force) {
+            registraTick(EsitoTick.RIFIUTATO_IN_ESECUZIONE);
+            return problemResponse(Problem.conflict(String.format(
+                    "Il job %s è già in avvio o in esecuzione su questo nodo. Usa il parametro force=true per avviarlo comunque.",
+                    getJobName())));
+        }
+
+        boolean avviato = false;
         try {
             ResponseEntity<Object> runningJobResponse = gestisciJobInEsecuzione(force);
             if (runningJobResponse != null) {
                 return runningJobResponse;
             }
 
-            return avviaJobAsincrono();
+            ResponseEntity<Object> response = avviaJobAsincrono(prenotato);
+            avviato = true;
+            return response;
 
         } catch (Exception e) {
             log.error("Errore durante l'avvio del job: {}", e.getMessage(), e);
             return problemResponse(Problem.internalServerError("Errore durante l'avvio: " + e.getMessage()));
+        } finally {
+            if (prenotato && !avviato) {
+                jobExecutionHelper.rilasciaAvvio(getJobName());
+            }
         }
     }
 
@@ -293,7 +312,8 @@ public abstract class AbstractBatchController {
         return problemResponse(Problem.conflict(detail));
     }
 
-    private ResponseEntity<Object> avviaJobAsincrono() {
+    /** @param prenotato se true la prenotazione dell'avvio si rilascia a fine esecuzione */
+    private ResponseEntity<Object> avviaJobAsincrono(boolean prenotato) {
         CompletableFuture.runAsync(() -> {
             try {
                 log.info("Avvio asincrono del job {}", getJobName());
@@ -301,6 +321,10 @@ public abstract class AbstractBatchController {
                 log.info("Job {} terminato con stato: {}", getJobName(), execution.getStatus());
             } catch (Exception e) {
                 log.error("Errore durante l'esecuzione asincrona del job: {}", e.getMessage(), e);
+            } finally {
+                if (prenotato) {
+                    jobExecutionHelper.rilasciaAvvio(getJobName());
+                }
             }
         });
 
@@ -324,8 +348,9 @@ public abstract class AbstractBatchController {
         // NoSuchJobExecutionException sono @Deprecated(forRemoval = true) da Spring Batch 6.0,
         // con rimozione prevista in 6.2 (SonarCloud java:S5738). L'assenza dell'id diventa un
         // 404 gestito esplicitamente invece di un'eccezione destinata a sparire.
-        JobExecution execution = jobRepository.getJobExecution(executionId);
-        if (execution == null) {
+        // Come per GET /executions/{id}, un'esecuzione di un altro batch non e' visibile.
+        JobExecution execution = trovaJobExecution(executionId);
+        if (execution == null || !getJobName().equals(execution.getJobInstance().getJobName())) {
             return problemResponse(Problem.notFound("JobExecution " + executionId + " non trovata."));
         }
 
@@ -334,6 +359,20 @@ public abstract class AbstractBatchController {
             return ResponseEntity.accepted().build();
         } catch (JobExecutionNotRunningException e) {
             return problemResponse(Problem.conflict("La JobExecution " + executionId + " non e' in corso."));
+        }
+    }
+
+    /**
+     * Il JobRepository JDBC di Spring Batch 6 non restituisce null per un id
+     * inesistente: la query sull'esecuzione lancia
+     * {@link EmptyResultDataAccessException}, che senza questa gestione
+     * diventava un 500.
+     */
+    private JobExecution trovaJobExecution(long executionId) {
+        try {
+            return jobRepository.getJobExecution(executionId);
+        } catch (EmptyResultDataAccessException e) {
+            return null;
         }
     }
 
@@ -612,7 +651,17 @@ public abstract class AbstractBatchController {
      */
     @GetMapping("/executions/{executionId}")
     public ResponseEntity<Object> getExecution(@PathVariable long executionId) {
-        BatchJobExecutionEntity execution = entityManager.find(BatchJobExecutionEntity.class, executionId);
+        // jobInstance e' LAZY: si carica con la stessa query, perche' fuori da una
+        // transazione (spring.jpa.open-in-view=false) la sessione e' gia' chiusa
+        // quando se ne legge il nome del job.
+        // getResultList e non getResultStream: fuori transazione lo stream leggerebbe da
+        // un ResultSet gia' chiuso.
+        List<BatchJobExecutionEntity> trovate = entityManager.createQuery(
+                "SELECT e FROM BatchJobExecutionEntity e JOIN FETCH e.jobInstance WHERE e.id = :id",
+                BatchJobExecutionEntity.class)
+                .setParameter("id", executionId)
+                .getResultList();
+        BatchJobExecutionEntity execution = trovate.isEmpty() ? null : trovate.get(0);
 
         if (execution == null || !getJobName().equals(execution.getJobInstance().getJobName())) {
             return problemResponse(Problem.notFound("Esecuzione " + executionId + " non trovata per il batch " + getJobName() + "."));

@@ -30,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
+import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
 import org.springframework.batch.core.job.parameters.JobParameters;
 
 import it.govpay.common.batch.TriggerType;
@@ -113,6 +114,49 @@ class AbstractCronJobRunnerTest {
     }
 
     @Test
+    @DisplayName("Job FAILED - esce con 1 dopo l'hook di completamento")
+    void jobFallito() throws Exception {
+        when(jobExecutionHelper.checkBeforeExecution(JOB_NAME))
+                .thenReturn(new PreExecutionResult(PreExecutionCheckResult.CAN_PROCEED, null, null));
+        JobExecution execution = mock(JobExecution.class);
+        when(execution.getStatus()).thenReturn(BatchStatus.FAILED);
+        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME), eq(TriggerType.SCHEDULED))).thenReturn(execution);
+
+        runner.run();
+
+        assertEquals(1, exitCode);
+        assertTrue(onJobCompletedCalled);
+    }
+
+    @Test
+    @DisplayName("Job STOPPED - esce con 1")
+    void jobFermato() throws Exception {
+        when(jobExecutionHelper.checkBeforeExecution(JOB_NAME))
+                .thenReturn(new PreExecutionResult(PreExecutionCheckResult.CAN_PROCEED, null, null));
+        JobExecution execution = mock(JobExecution.class);
+        when(execution.getStatus()).thenReturn(BatchStatus.STOPPED);
+        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME), eq(TriggerType.SCHEDULED))).thenReturn(execution);
+
+        runner.run();
+
+        assertEquals(1, exitCode);
+    }
+
+    @Test
+    @DisplayName("Avvio rifiutato da Spring Batch - esce con 1")
+    void avvioFallito() throws Exception {
+        when(jobExecutionHelper.checkBeforeExecution(JOB_NAME))
+                .thenReturn(new PreExecutionResult(PreExecutionCheckResult.CAN_PROCEED, null, null));
+        when(jobExecutionHelper.runJob(eq(job), eq(JOB_NAME), eq(TriggerType.SCHEDULED)))
+                .thenThrow(new JobExecutionAlreadyRunningException("gia' in esecuzione"));
+
+        runner.run();
+
+        assertEquals(1, exitCode);
+        assertFalse(onJobCompletedCalled);
+    }
+
+    @Test
     @DisplayName("STALE_ABANDON_FAILED - esce con errore 1")
     void staleAbandonFailed() throws Exception {
         JobExecution staleExec = mock(JobExecution.class);
@@ -152,7 +196,7 @@ class AbstractCronJobRunnerTest {
     }
 
     @Test
-    @DisplayName("runJob ritorna null - non chiama onJobCompleted")
+    @DisplayName("runJob ritorna null - non chiama onJobCompleted ed esce con 1 (nessun job COMPLETED)")
     void runJobReturnsNull() throws Exception {
         when(jobExecutionHelper.checkBeforeExecution(JOB_NAME))
                 .thenReturn(new PreExecutionResult(PreExecutionCheckResult.CAN_PROCEED, null, null));
@@ -160,7 +204,7 @@ class AbstractCronJobRunnerTest {
 
         runner.run();
 
-        assertEquals(0, exitCode);
+        assertEquals(1, exitCode);
         assertFalse(onJobCompletedCalled);
     }
 

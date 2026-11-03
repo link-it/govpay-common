@@ -31,6 +31,7 @@ import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
 
+import it.govpay.common.batch.EsitoTick;
 import it.govpay.common.batch.TriggerType;
 import it.govpay.common.batch.CatturaLog;
 import it.govpay.common.batch.runner.JobExecutionHelper.PreExecutionCheckResult;
@@ -68,6 +69,29 @@ class AbstractScheduledJobRunnerTest {
         runner = new TestScheduledRunner(jobExecutionHelper, job, JOB_NAME);
         onJobCompletedCalled = false;
         completedExecution = null;
+    }
+
+    @Test
+    @DisplayName("Avvio gia' prenotato in questo processo - tick ignorato senza controllo")
+    void avvioGiaPrenotato() throws Exception {
+        when(jobExecutionHelper.avvioGiaPrenotato(JOB_NAME)).thenReturn(true);
+
+        assertNull(runner.executeScheduledJob());
+
+        verify(jobExecutionHelper).registraTick(JOB_NAME, TriggerType.SCHEDULED, EsitoTick.RUNNING_ON_THIS_NODE);
+        verify(jobExecutionHelper, never()).checkBeforeExecution(any());
+        verify(jobExecutionHelper, never()).rilasciaAvvio(any());
+    }
+
+    @Test
+    @DisplayName("Prenotazione rilasciata dopo l'esecuzione")
+    void prenotazioneRilasciata() throws Exception {
+        when(jobExecutionHelper.checkBeforeExecution(JOB_NAME))
+                .thenReturn(new PreExecutionResult(PreExecutionCheckResult.RUNNING_ON_OTHER_NODE, null, "altro"));
+
+        runner.executeScheduledJob();
+
+        verify(jobExecutionHelper).rilasciaAvvio(JOB_NAME);
     }
 
     @Test

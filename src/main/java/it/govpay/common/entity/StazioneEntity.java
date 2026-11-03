@@ -36,10 +36,10 @@ public class StazioneEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "cod_stazione", nullable = false, unique = true, length = 255)
+    @Column(name = "cod_stazione", nullable = false, unique = true, length = 35)
     private String codStazione;
 
-    @Column(name = "password", length = 255)
+    @Column(name = "password", length = 35)
     private String password;
 
     @Column(name = "abilitato", nullable = false)
@@ -48,7 +48,7 @@ public class StazioneEntity {
     @Column(name = "application_code")
     private Integer applicationCode;
 
-    @Column(name = "versione", length = 255)
+    @Column(name = "versione", length = 35)
     private String versione;
 
     @ManyToOne(fetch = FetchType.LAZY)

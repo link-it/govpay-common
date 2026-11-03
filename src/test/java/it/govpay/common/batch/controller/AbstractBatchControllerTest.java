@@ -46,6 +46,7 @@ import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.core.env.Environment;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.ResponseEntity;
 
 import jakarta.persistence.EntityManager;
@@ -148,6 +149,56 @@ class AbstractBatchControllerTest {
     @Nested
     @DisplayName("eseguiJob")
     class EseguiJob {
+
+        @Test
+        @DisplayName("Avvio gia' prenotato su questo nodo - 409 senza consultare il database")
+        void avvioGiaPrenotato() {
+            when(jobExecutionHelper.avvioGiaPrenotato(JOB_NAME)).thenReturn(true);
+
+            ResponseEntity<Object> response = controller.testEseguiJob(false);
+
+            assertEquals(409, response.getStatusCode().value());
+            verify(jobExecutionHelper).registraTick(JOB_NAME, TriggerType.MANUAL, EsitoTick.RIFIUTATO_IN_ESECUZIONE);
+            verify(concurrencyService, never()).getCurrentRunningJobExecution(any());
+            verify(jobExecutionHelper, never()).rilasciaAvvio(any());
+        }
+
+        @Test
+        @DisplayName("Avvio gia' prenotato con force=true - 202 senza rilasciare la prenotazione altrui")
+        void avvioGiaPrenotatoForzato() throws Exception {
+            when(jobExecutionHelper.avvioGiaPrenotato(JOB_NAME)).thenReturn(true);
+            when(concurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(null);
+
+            ResponseEntity<Object> response = controller.testEseguiJob(true);
+
+            assertEquals(202, response.getStatusCode().value());
+            verify(jobExecutionHelper, timeout(2000)).runJob(any(), eq(JOB_NAME), eq(TriggerType.MANUAL));
+            verify(jobExecutionHelper, never()).rilasciaAvvio(any());
+        }
+
+        @Test
+        @DisplayName("Prenotazione rilasciata a fine esecuzione")
+        void prenotazioneRilasciataAFineEsecuzione() throws Exception {
+            when(concurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(null);
+
+            controller.testEseguiJob(false);
+
+            verify(jobExecutionHelper, timeout(2000)).rilasciaAvvio(JOB_NAME);
+        }
+
+        @Test
+        @DisplayName("Job in esecuzione da database - 409 e prenotazione rilasciata")
+        void prenotazioneRilasciataSeRifiutato() {
+            JobExecution runningExec = mock(JobExecution.class);
+            when(runningExec.getId()).thenReturn(7L);
+            when(concurrencyService.getCurrentRunningJobExecution(JOB_NAME)).thenReturn(runningExec);
+            when(concurrencyService.isJobExecutionStale(runningExec)).thenReturn(false);
+
+            ResponseEntity<Object> response = controller.testEseguiJob(false);
+
+            assertEquals(409, response.getStatusCode().value());
+            verify(jobExecutionHelper).rilasciaAvvio(JOB_NAME);
+        }
 
         @Test
         @DisplayName("Nessun job in esecuzione - 202 Accepted")
@@ -259,6 +310,7 @@ class AbstractBatchControllerTest {
         @DisplayName("Stop accettato - 202")
         void accepted() throws Exception {
             JobExecution execution = mock(JobExecution.class);
+            when(execution.getJobInstance()).thenReturn(new JobInstance(1L, JOB_NAME));
             when(jobRepository.getJobExecution(42L)).thenReturn(execution);
             when(jobExecutionHelper.stopExecution(execution)).thenReturn(true);
 
@@ -271,6 +323,7 @@ class AbstractBatchControllerTest {
         @DisplayName("Esecuzione non in corso - 409")
         void notRunning() throws Exception {
             JobExecution execution = mock(JobExecution.class);
+            when(execution.getJobInstance()).thenReturn(new JobInstance(1L, JOB_NAME));
             when(jobRepository.getJobExecution(42L)).thenReturn(execution);
             when(jobExecutionHelper.stopExecution(execution))
                     .thenThrow(new JobExecutionNotRunningException("non in corso"));
@@ -291,6 +344,31 @@ class AbstractBatchControllerTest {
 
             assertEquals(404, response.getStatusCode().value());
             assertInstanceOf(Problem.class, response.getBody());
+            verify(jobExecutionHelper, never()).stopExecution(any(JobExecution.class));
+        }
+
+        @Test
+        @DisplayName("Esecuzione inesistente nel JobRepository JDBC - 404")
+        void notFoundJdbc() throws Exception {
+            // Il JobRepository JDBC lancia l'eccezione invece di restituire null
+            when(jobRepository.getJobExecution(99L)).thenThrow(new EmptyResultDataAccessException(1));
+
+            ResponseEntity<Object> response = controller.stopExecution(99L);
+
+            assertEquals(404, response.getStatusCode().value());
+            verify(jobExecutionHelper, never()).stopExecution(any(JobExecution.class));
+        }
+
+        @Test
+        @DisplayName("Esecuzione di un altro batch - 404")
+        void altroBatch() throws Exception {
+            JobExecution execution = mock(JobExecution.class);
+            when(execution.getJobInstance()).thenReturn(new JobInstance(1L, "altroJob"));
+            when(jobRepository.getJobExecution(42L)).thenReturn(execution);
+
+            ResponseEntity<Object> response = controller.stopExecution(42L);
+
+            assertEquals(404, response.getStatusCode().value());
             verify(jobExecutionHelper, never()).stopExecution(any(JobExecution.class));
         }
     }
