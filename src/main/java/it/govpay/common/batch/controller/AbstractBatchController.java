@@ -628,7 +628,17 @@ public abstract class AbstractBatchController {
      */
     @GetMapping("/executions/{executionId}")
     public ResponseEntity<Object> getExecution(@PathVariable long executionId) {
-        BatchJobExecutionEntity execution = entityManager.find(BatchJobExecutionEntity.class, executionId);
+        // jobInstance e' LAZY: si carica con la stessa query, perche' fuori da una
+        // transazione (spring.jpa.open-in-view=false) la sessione e' gia' chiusa
+        // quando se ne legge il nome del job.
+        // getResultList e non getResultStream: fuori transazione lo stream leggerebbe da
+        // un ResultSet gia' chiuso.
+        List<BatchJobExecutionEntity> trovate = entityManager.createQuery(
+                "SELECT e FROM BatchJobExecutionEntity e JOIN FETCH e.jobInstance WHERE e.id = :id",
+                BatchJobExecutionEntity.class)
+                .setParameter("id", executionId)
+                .getResultList();
+        BatchJobExecutionEntity execution = trovate.isEmpty() ? null : trovate.get(0);
 
         if (execution == null || !getJobName().equals(execution.getJobInstance().getJobName())) {
             return problemResponse(Problem.notFound("Esecuzione " + executionId + " non trovata per il batch " + getJobName() + "."));
