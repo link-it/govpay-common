@@ -1,5 +1,11 @@
 2026-11-03  Giuliano Pintori <pintori@link.it>
 
+	* [Documentazione] Cluster-id consigliato nei progetti batch (#35).
+	Il README non suggerisce piu' ${GOVPAY_BATCH_CLUSTER_ID:${HOSTNAME:...}}, che
+	sulle VM ricadeva sulla costante perche' HOSTNAME di solito non e' esportata
+	alla JVM: nei progetti nessuna costante e, come default dei @Value,
+	ClusterIdPredefinito.valore(), come nel pilota govpay-rt-batch.
+
 	* [Batch] govpay.batch.enabled spegne lo scheduler interno. Con false
 	AbstractScheduledJobRunner non avvia il job ai tick, senza consultare il
 	database ne' registrare il tick nelle metriche; l'avvio via REST (/run) e
