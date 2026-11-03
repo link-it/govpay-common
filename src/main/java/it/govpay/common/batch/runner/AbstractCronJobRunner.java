@@ -18,6 +18,7 @@
  */
 package it.govpay.common.batch.runner;
 
+import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.parameters.InvalidJobParametersException;
@@ -48,7 +49,7 @@ import lombok.extern.slf4j.Slf4j;
  *   <li>Prima di avviare il job, verifica se è già in esecuzione (su qualsiasi nodo)</li>
  *   <li>Se il job è in esecuzione su un altro nodo, esce senza avviarlo</li>
  *   <li>Se il job è stale (bloccato), lo abbandona e avvia una nuova esecuzione</li>
- *   <li>Al termine del job, termina l'applicazione</li>
+ *   <li>Al termine del job, termina l'applicazione con exit code 0 se il job e' {@code COMPLETED}, 1 altrimenti</li>
  * </ul>
  * <p>
  * Per utilizzare questa classe, creare una sottoclasse e annotarla con:
@@ -115,18 +116,31 @@ public abstract class AbstractCronJobRunner implements CommandLineRunner, Applic
     }
 
     /**
-     * Esegue il job e termina l'applicazione.
+     * Esegue il job e termina l'applicazione: con 0 se il job termina
+     * {@code COMPLETED}, con 1 se fallisce, viene fermato o abbandonato, o non
+     * si riesce ad avviarlo, perche' il cron di sistema veda l'errore.
      */
-    private void executeAndExit() throws JobExecutionAlreadyRunningException, JobRestartException,
-            JobInstanceAlreadyCompleteException, InvalidJobParametersException {
-        JobExecution execution = jobExecutionHelper.runJob(job, jobName, TriggerType.SCHEDULED);
+    private void executeAndExit() {
+        JobExecution execution;
+        try {
+            execution = jobExecutionHelper.runJob(job, jobName, TriggerType.SCHEDULED);
+        } catch (JobExecutionAlreadyRunningException | JobRestartException
+                | JobInstanceAlreadyCompleteException | InvalidJobParametersException e) {
+            log.error("Impossibile avviare {}: {}", jobName, e.getMessage(), e);
+            exitApplication(1);
+            return;
+        }
 
         if (execution != null) {
             log.info("{} completato con stato: {}", jobName, execution.getStatus());
             onJobCompleted(execution);
         }
 
-        exitApplication(0);
+        exitApplication(codiceUscita(execution));
+    }
+
+    private static int codiceUscita(JobExecution execution) {
+        return execution != null && execution.getStatus() == BatchStatus.COMPLETED ? 0 : 1;
     }
 
     /**
