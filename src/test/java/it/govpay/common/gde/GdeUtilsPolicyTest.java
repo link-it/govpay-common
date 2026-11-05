@@ -70,7 +70,7 @@ class GdeUtilsPolicyTest {
                 "nodoInviaCarrelloRPT", "nodoInviaRichiestaStorno", "nodoInviaRispostaRevoca",
                 "paaVerificaRPT", "paaAttivaRPT", "paaInviaEsitoStorno", "paaInviaRichiestaRevoca",
                 "paaInviaRT", "paVerifyPaymentNotice", "paGetPayment", "paGetPaymentV2", "paSendRT",
-                "paSendRTV2" })
+                "paSendRTV2", "segnalazioneAnomaliaPosizioneDebitoria" })
         @DisplayName("Tutte le operazioni pagoPA di scrittura sono riconosciute")
         void operazioniDiScrittura(String operazione) {
             assertTrue(GdeUtils.isOperazioneScrittura(operazione));
