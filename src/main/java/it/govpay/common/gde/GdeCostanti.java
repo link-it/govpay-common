@@ -57,6 +57,8 @@ public final class GdeCostanti {
     public static final String APIPAGOPA_TIPOEVENTO_INVIASINTESIFLUSSIRENDICONTAZIONE = "inviaSintesiFlussiRendicontazione";
     public static final String APIPAGOPA_TIPOEVENTO_INVIASINTESIPAGAMENTI = "inviaSintesiPagamenti";
 
+    public static final String APIPAGOPA_TIPOEVENTO_SEGNALAZIONEANOMALIAPOSIZIONEDEBITORIA = "segnalazioneAnomaliaPosizioneDebitoria";
+
     // ==================== Nomi Eventi API pagoPA GPD ====================
 
     public static final String APIPAGOPA_TIPOEVENTO_GPD_GETORGANIZATIONDEBTPOSITIONS = "getOrganizationDebtPositions";

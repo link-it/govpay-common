@@ -456,6 +456,35 @@ class AbstractGdeServiceTest {
             verify(restTemplate).postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class));
         }
 
+        /**
+         * Issue #14 (govpay-pafornode-api): su API_PAGOPA la classificazione usa il nome
+         * dell'operazione, non il metodo HTTP (vedi {@link GdeUtils#isRequestScrittura(String,
+         * ComponenteEvento, String)}) - un'operazione non elencata in
+         * {@link GdeUtils#isOperazioneScrittura(String)} verrebbe trattata come lettura anche
+         * se il metodo HTTP e' POST/PUT/ecc. Verifica quindi che l'evento venga inviato anche
+         * con le letture disabilitate: se finisse non classificato come scrittura, questo test
+         * fallirebbe.
+         */
+        @Test
+        @DisplayName("segnalazioneAnomaliaPosizioneDebitoria su API_PAGOPA e' scrittura - inviato anche con letture=MAI")
+        void segnalazioneAnomaliaPosizioneDebitoriaEScritturaAncheConLettureDisabilitate() {
+            when(configurazioneService.getGiornale()).thenReturn(Optional.of(createGiornaleLettureScrittureDiversi()));
+
+            GdeEventInfo eventInfo = GdeEventInfo.builder()
+                    .componente(ComponenteEvento.API_PAGOPA)
+                    .tipoEvento(GdeCostanti.APIPAGOPA_TIPOEVENTO_SEGNALAZIONEANOMALIAPOSIZIONEDEBITORIA)
+                    .metodoHttp("GET")
+                    .esito(EsitoEvento.KO)
+                    .build();
+
+            when(restTemplate.postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class)))
+                    .thenReturn(ResponseEntity.ok().build());
+
+            gdeService.inviaEvento(eventInfo);
+
+            verify(restTemplate).postForEntity(eq(GDE_ENDPOINT), any(NuovoEvento.class), eq(Void.class));
+        }
+
         private Giornale createGiornaleLettureScrittureDiversi() {
             GdeEvento letture = new GdeEvento();
             letture.setLog(LogEnum.MAI);
@@ -468,6 +497,7 @@ class AbstractGdeServiceTest {
             interfaccia.setScritture(scritture);
             Giornale giornale = new Giornale();
             giornale.setApiBackoffice(interfaccia);
+            giornale.setApiPagoPA(interfaccia);
             return giornale;
         }
     }
