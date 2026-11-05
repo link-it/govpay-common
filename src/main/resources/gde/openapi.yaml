@@ -621,6 +621,9 @@ components:
         idPendenza:
           pattern: "(^[a-zA-Z0-9\\-_]{1,35}$)"
           type: string
+        codDocumento:
+          pattern: "(^[a-zA-Z0-9\\-_]{1,35}$)"
+          type: string
         idPagamento:
           maxLength: 35
           minLength: 0

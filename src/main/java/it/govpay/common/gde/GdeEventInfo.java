@@ -93,6 +93,15 @@ public class GdeEventInfo {
     /** Codice del dominio/EC */
     private String idDominio;
 
+    /** Identificativo dell'applicazione (idA2A) */
+    private String idA2A;
+
+    /** Business key della posizione debitoria complessiva */
+    private String codDocumento;
+
+    /** Identificativo della pendenza, se l'evento e' riferito a una pendenza specifica */
+    private String idPendenza;
+
     /** Codice della stazione */
     private String stazione;
 
