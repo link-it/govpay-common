@@ -19,6 +19,7 @@
 package it.govpay.common.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnDefault;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -86,6 +87,16 @@ public class DominioEntity {
 
     @Column(name = "scarica_fr", nullable = false)
     private Boolean scaricaFr;
+
+    /**
+     * L'ente consente il pagamento degli avvisi dal proprio sito: la stampa dell'avviso
+     * riporta "oppure sul sito di <ente>". Colonna della patch 3.11.0 di GovPay.
+     * {@code @ColumnDefault} riporta il DEFAULT anche nello schema generato dei test.
+     */
+    @Builder.Default
+    @Column(name = "pagamento_sito", nullable = false)
+    @ColumnDefault("false")
+    private Boolean pagamentoSito = Boolean.FALSE;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_stazione")

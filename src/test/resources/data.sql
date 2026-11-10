@@ -128,8 +128,8 @@ VALUES ('99999999999_01', 'password99', false, 1, '2', (SELECT id FROM intermedi
 
 -- Dati di test per domini
 
-INSERT INTO domini (cod_dominio, abilitato, ragione_sociale, aux_digit, iuv_prefix, segregation_code, cbill, intermediato, tassonomia_pago_pa, scarica_fr, id_stazione)
-VALUES ('01234567890', true, 'Comune di Test', 3, 'TST', 01, 'ABCDE', true, 'PagoPa_01', true,
+INSERT INTO domini (cod_dominio, abilitato, ragione_sociale, aux_digit, iuv_prefix, segregation_code, cbill, intermediato, tassonomia_pago_pa, scarica_fr, pagamento_sito, id_stazione)
+VALUES ('01234567890', true, 'Comune di Test', 3, 'TST', 01, 'ABCDE', true, 'PagoPa_01', true, true,
         (SELECT id FROM stazioni WHERE cod_stazione = '12345678901_01'));
 
 INSERT INTO domini (cod_dominio, abilitato, ragione_sociale, aux_digit, intermediato, scarica_fr, id_stazione)
