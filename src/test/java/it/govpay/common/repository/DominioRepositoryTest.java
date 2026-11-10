@@ -60,6 +60,7 @@ class DominioRepositoryTest {
         assertTrue(dominio.getIntermediato());
         assertEquals("PagoPa_01", dominio.getTassonomiaPagoPa());
         assertTrue(dominio.getScaricaFr());
+        assertTrue(dominio.getPagamentoSito());
         assertNotNull(dominio.getStazione());
         assertEquals("12345678901_01", dominio.getStazione().getCodStazione());
     }
@@ -92,6 +93,8 @@ class DominioRepositoryTest {
         assertNull(dominio.getCodConnettoreSend());
         assertFalse(dominio.getIntermediato());
         assertFalse(dominio.getScaricaFr());
+        // pagamento_sito non e' nella INSERT: vale il DEFAULT false della colonna.
+        assertFalse(dominio.getPagamentoSito());
         assertNull(dominio.getCbill());
         assertNotNull(dominio.getStazione());
         assertEquals("12345678901_02", dominio.getStazione().getCodStazione());

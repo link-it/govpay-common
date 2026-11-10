@@ -1,3 +1,15 @@
+2026-11-10  Giuliano Pintori <pintori@link.it>
+
+	* [Entity] DominioEntity: nuovo campo pagamentoSito, colonna
+	domini.pagamento_sito (link-it/govpay-pendenze-api#13). Indica se l'ente
+	consente il pagamento degli avvisi dal proprio sito; govpay-pendenze-api lo
+	riporta nella stampa dell'avviso ("oppure sul sito di <ente>"). False per un
+	dominio nuovo, sia con il costruttore sia con il builder.
+	Solo sulla linea 3.11 (2.1.0-SNAPSHOT): la colonna arriva con la patch
+	3.11.0 di GovPay, e i servizi che validano lo schema all'avvio
+	(spring.jpa.hibernate.ddl-auto=validate, entity di it.govpay.common.entity)
+	richiedono quella patch. La linea 3.10 (2.0.x) non cambia.
+
 2026-11-09  Giuliano Pintori <pintori@link.it>
 
 	* [Release] Ramo 3.11.x: versione 2.1.0-SNAPSHOT
