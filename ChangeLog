@@ -1,3 +1,15 @@
+2026-11-27  Giuliano Pintori <pintori@link.it>
+
+	* [Persistenza] Fuso delle date sul database. Le colonne TIMESTAMP senza
+	time zone contengono l'ora locale Europe/Rome: la nuova
+	DatabaseTimezoneAutoConfiguration imposta, se l'applicazione non le ha
+	valorizzate, hibernate.jdbc.time_zone=Europe/Rome e
+	hibernate.timezone.default_storage=NORMALIZE. Un valore diverso resta
+	invariato ed e' segnalato nel log.
+	Cambia il contenuto scritto dalle applicazioni che mappano OffsetDateTime:
+	senza queste proprieta' PostgreSQL, MySQL e HSQLDB ricevevano l'ora UTC.
+	Chi legge le stesse colonne via JDBC va allineato nello stesso rilascio.
+
 2026-11-10  Giuliano Pintori <pintori@link.it>
 
 	* [Entity] DominioEntity: nuovo campo pagamentoSito, colonna

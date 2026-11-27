@@ -25,9 +25,10 @@ La libreria non è un'applicazione: è un jar che i componenti GovPay includono 
 | [Tracciatura e livelli di log](#tracciatura-e-livelli-di-log) | `it.govpay.common.logging` | Transaction id e correlation id nei log e negli header; livelli di log modificabili a runtime |
 | [Metriche](#metriche) | `it.govpay.common.metrics` | Timer Micrometer per le chiamate a servizi esterni e per il tempo interno/esterno delle API |
 | [Entità e repository](#entità-e-repository) | `it.govpay.common.entity`, `it.govpay.common.repository` | Entità JPA e repository delle anagrafiche di GovPay |
+| [Date sul database](#date-sul-database) | `it.govpay.common.persistence` | Fuso delle colonne temporali e relativa configurazione di Hibernate |
 | [Date/Time e utilità](#datetime-e-utilità) | `it.govpay.common.utils` | Serializzatori Jackson per i formati data pagoPA, validazione IUV, utilità varie |
 
-Le auto-configurazioni registrate in `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` si attivano da sole: tracciatura dei log, livelli di log dinamici, metriche (solo se abilitate), metriche dei batch e persistenza dei metadati Spring Batch. Gli altri moduli si attivano includendo i package della libreria nella scansione dei componenti dell'applicazione (vedi [Utilizzo](#utilizzo)).
+Le auto-configurazioni registrate in `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` si attivano da sole: tracciatura dei log, livelli di log dinamici, metriche (solo se abilitate), metriche dei batch, persistenza dei metadati Spring Batch e fuso delle date sul database. Gli altri moduli si attivano includendo i package della libreria nella scansione dei componenti dell'applicazione (vedi [Utilizzo](#utilizzo)).
 
 ## Integrazione con GovPay
 
@@ -643,6 +644,34 @@ Le metriche di esecuzione dei job sono in un'auto-configurazione separata, attiv
 Entità JPA delle anagrafiche di GovPay (`it.govpay.common.entity`): connettori, configurazione, domini (anche il solo logo), intermediari, stazioni, applicazioni, IBAN di accredito, tributi, tipi tributo, tipi versamento, tipi versamento per dominio, unità operative, e le tabelle dei metadati Spring Batch (`it.govpay.common.entity.batch`).
 
 `GovPayClientAutoConfiguration` registra i repository di `it.govpay.common.repository` tranne `IbanAccreditoRepository`, `TipoTributoRepository`, `TipoVersamentoDominioRepository`, `TipoVersamentoRepository`, `TributoRepository` e `UnitaOperativaRepository`: chi li usa li dichiara nel proprio `@EnableJpaRepositories`.
+
+### Date sul database
+
+Le colonne `TIMESTAMP` senza time zone del database di GovPay contengono l'ora locale `Europe/Rome`.
+
+`DatabaseTimezoneAutoConfiguration` (`it.govpay.common.persistence.config`) imposta, per l'intera persistence unit:
+
+```properties
+spring.jpa.properties.hibernate.jdbc.time_zone=Europe/Rome
+spring.jpa.properties.hibernate.timezone.default_storage=NORMALIZE
+```
+
+Un valore impostato dall'applicazione resta invariato; se è diverso viene segnalato nel log all'avvio.
+
+Regole per l'applicazione che usa la libreria:
+
+- la JVM ha fuso `Europe/Rome`: variabile `TZ` nelle immagini Docker, `-Duser.timezone=Europe/Rome` nelle altre installazioni;
+- un `OffsetDateTime` riletto rappresenta l'istante salvato; l'offset originale non è conservato;
+- le letture JDBC dirette leggono la colonna come `LocalDateTime` e le applicano il fuso:
+
+  ```java
+  LocalDateTime locale = rs.getObject(indice, LocalDateTime.class);
+  OffsetDateTime data = locale == null ? null : locale.atZone(ZoneId.of("Europe/Rome")).toOffsetDateTime();
+  ```
+
+- i parametri temporali delle query JDBC contengono l'ora italiana, e le query che usano `CURRENT_TIMESTAMP` richiedono una sessione del database con fuso italiano;
+- le proprietà di tipo `Instant` restano in UTC: non vanno usate su queste colonne;
+- nell'ora ripetuta al ritorno all'ora solare le due occorrenze non si distinguono.
 
 ### Date/Time e utilità
 
