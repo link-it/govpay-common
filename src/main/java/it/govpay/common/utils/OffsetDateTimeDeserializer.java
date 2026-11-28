@@ -20,7 +20,7 @@ package it.govpay.common.utils;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
@@ -37,14 +37,15 @@ import tools.jackson.databind.deser.std.StdScalarDeserializer;
  * <p>
  * Handles variable-length milliseconds (1-9 digits) from pagoPA API responses.
  * Also handles dates without seconds (e.g., 2025-12-09T00:00+01:00).
- * Falls back to CET timezone if parsing fails without timezone information.
+ * Dates without timezone information are in the {@value DateTimePatterns#DEFAULT_TIME_ZONE}
+ * time zone, daylight saving time included.
  * <p>
  * Parsing strategies (in order):
  * <ol>
  *   <li>Try the provided formatter</li>
  *   <li>Try flexible OffsetDateTime formatter (handles optional seconds/millis with timezone)</li>
- *   <li>Try parsing as LocalDateTime with flexible formatter and add CET offset</li>
- *   <li>Try parsing as LocalDateTime with original formatter and add CET offset</li>
+ *   <li>Try parsing as LocalDateTime with flexible formatter, in the default time zone</li>
+ *   <li>Try parsing as LocalDateTime with original formatter, in the default time zone</li>
  * </ol>
  * <p>
  * Usage example:
@@ -57,8 +58,8 @@ public class OffsetDateTimeDeserializer extends StdScalarDeserializer<OffsetDate
 
     private static final long serialVersionUID = 1L;
 
-    /** Default offset for dates without timezone (CET = Central European Time) */
-    private static final ZoneOffset DEFAULT_OFFSET = ZoneOffset.ofHoursMinutes(1, 0);
+    /** Time zone of dates without offset ({@value DateTimePatterns#DEFAULT_TIME_ZONE}) */
+    private static final ZoneId DEFAULT_ZONE = ZoneId.of(DateTimePatterns.DEFAULT_TIME_ZONE);
 
     private DateTimeFormatter formatter;
 
@@ -125,8 +126,8 @@ public class OffsetDateTimeDeserializer extends StdScalarDeserializer<OffsetDate
      * <ol>
      *   <li>Try the provided formatter</li>
      *   <li>Try the flexible OffsetDateTime formatter (handles optional seconds/millis with timezone)</li>
-     *   <li>Try parsing as LocalDateTime with flexible formatter and add CET offset</li>
-     *   <li>Try parsing as LocalDateTime with original formatter and add CET offset</li>
+     *   <li>Try parsing as LocalDateTime with flexible formatter, in the default time zone</li>
+     *   <li>Try parsing as LocalDateTime with original formatter, in the default time zone</li>
      * </ol>
      *
      * @param value     the date string to parse
@@ -156,18 +157,16 @@ public class OffsetDateTimeDeserializer extends StdScalarDeserializer<OffsetDate
             // Continue to next attempt
         }
 
-        // Third attempt: parse as LocalDateTime with flexible formatter and add CET offset
+        // Third attempt: parse as LocalDateTime with flexible formatter, in the default time zone
         try {
-            LocalDateTime localDateTime = LocalDateTime.parse(dateString, FLEXIBLE_LOCAL_FORMATTER);
-            return OffsetDateTime.of(localDateTime, DEFAULT_OFFSET);
+            return inDefaultZone(LocalDateTime.parse(dateString, FLEXIBLE_LOCAL_FORMATTER));
         } catch (DateTimeParseException e3) {
             // Continue to next attempt
         }
 
         // Fourth attempt: try with original formatter as LocalDateTime
         try {
-            LocalDateTime localDateTime = LocalDateTime.parse(dateString, formatter);
-            return OffsetDateTime.of(localDateTime, DEFAULT_OFFSET);
+            return inDefaultZone(LocalDateTime.parse(dateString, formatter));
         } catch (DateTimeParseException e4) {
             // All attempts failed, throw descriptive exception
             throw new DateTimeParseException(
@@ -175,5 +174,9 @@ public class OffsetDateTimeDeserializer extends StdScalarDeserializer<OffsetDate
                     dateString,
                     0);
         }
+    }
+
+    private static OffsetDateTime inDefaultZone(LocalDateTime localDateTime) {
+        return localDateTime.atZone(DEFAULT_ZONE).toOffsetDateTime();
     }
 }
