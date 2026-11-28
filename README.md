@@ -678,7 +678,7 @@ Regole per l'applicazione che usa la libreria:
 Serializzatori/deserializzatori Jackson per formati data pagoPA e utilità (`it.govpay.common.utils`).
 
 - **OffsetDateTimeSerializer**: serializza con pattern configurabile (default: `yyyy-MM-dd'T'HH:mm:ss.SSSXXX`)
-- **OffsetDateTimeDeserializer**: deserializza con fallback multipli per formati pagoPA variabili (millisecondi 1-9 cifre, timezone opzionale)
+- **OffsetDateTimeDeserializer**: deserializza con fallback multipli per formati pagoPA variabili (millisecondi 1-9 cifre, timezone opzionale; senza timezone la data è in ora `Europe/Rome`, con l'ora legale)
 - **LocalDateFlexibleDeserializer**: gestisce sia `yyyy-MM-dd` che datetime completi
 - **IuvUtils**: validazione IUV pagoPA basata su AuxDigit e codice segregazione
 - **DurationUtils**: durate fra `LocalDateTime` ancorate a una `ZoneId` esplicita, corrette ai cambi di ora legale (es. tempi dei metadati Spring Batch)
